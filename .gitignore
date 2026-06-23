@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+# Herramientas locales
+.claude/
+
 # Logs
 logs
 *.log
