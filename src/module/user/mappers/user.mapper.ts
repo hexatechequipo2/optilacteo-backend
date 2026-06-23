@@ -7,12 +7,14 @@ export class UserMapper {
   /**
    * Convierte el CreateUserDto + la Empresa ya resuelta en una instancia de User,
    * lista para persistir. No incluye el id (lo genera la base de datos).
+   * El hashedPassword se recibe ya procesado: el hashing es async y es
+   * responsabilidad del Service, no del Mapper.
    */
-  static toEntity(dto: CreateUserDto, empresa: Empresa): Partial<User> {
+  static toEntity(dto: CreateUserDto, empresa: Empresa, hashedPassword: string): Partial<User> {
     return {
       name: dto.name,
       email: dto.email,
-      password: dto.password,
+      password: hashedPassword,
       role: dto.role,
       empresa: empresa,
     };
