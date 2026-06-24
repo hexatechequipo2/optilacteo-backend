@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { EmpresaService } from './empresa.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
+import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 
 @ApiTags('empresa')
 @Controller('empresa')
@@ -37,6 +38,16 @@ export class EmpresaController {
   @Patch(':id/desactivar')
   deactivate(@Param('id') id: string) {
     return this.empresaService.deactivate(+id);
+  }
+
+  @Patch(':id/modulos/activar')
+  activarModulo(@Param('id') id: string, @Body() dto: ToggleModuloDto) {
+    return this.empresaService.activarModulo(+id, dto);
+  }
+
+  @Patch(':id/modulos/desactivar')
+  desactivarModulo(@Param('id') id: string, @Body() dto: ToggleModuloDto) {
+    return this.empresaService.desactivarModulo(+id, dto);
   }
 
   @Delete(':id')

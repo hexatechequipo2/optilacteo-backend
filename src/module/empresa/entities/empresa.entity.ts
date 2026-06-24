@@ -1,5 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { Plan } from '../enums/plan.enum';
+import { EmpresaModulo } from './empresa-modulo.entity';
 
 @Entity('empresas')
 export class Empresa {
@@ -21,9 +23,15 @@ export class Empresa {
   @Column({ nullable: true })
   direccion?: string;
 
+  @Column({ type: 'enum', enum: Plan, default: Plan.STARTER })
+  plan!: Plan;
+
   @Column({ default: true })
   isActive!: boolean;
 
   @OneToMany(() => User, (user) => user.empresa)
   users!: User[];
+
+  @OneToMany(() => EmpresaModulo, (modulo) => modulo.empresa)
+  modulos!: EmpresaModulo[];
 }
