@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { User } from './module/user/entities/user.entity';
 import { Empresa } from './module/empresa/entities/empresa.entity';
+import { EmpresaModulo } from './module/empresa/entities/empresa-modulo.entity';
 import { RevokedToken } from './module/auth/entities/revoked-token.entity';
 
 export default new DataSource({
@@ -11,7 +12,7 @@ export default new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [User, Empresa, RevokedToken],
+  entities: [User, Empresa, EmpresaModulo, RevokedToken],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,
 });

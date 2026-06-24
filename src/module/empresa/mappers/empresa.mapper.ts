@@ -9,6 +9,7 @@ export class EmpresaMapper {
       email: dto.email,
       telefono: dto.telefono,
       direccion: dto.direccion,
+      plan: dto.plan,
     };
   }
 
@@ -20,8 +21,13 @@ export class EmpresaMapper {
       email: empresa.email ?? null,
       telefono: empresa.telefono ?? null,
       direccion: empresa.direccion ?? null,
+      plan: empresa.plan,
       isActive: empresa.isActive,
       cantidadUsuarios: empresa.users?.length ?? 0,
+      modulos: empresa.modulos?.map((m) => ({
+        modulo: m.modulo,
+        isActive: m.isActive,
+      })) ?? [],
     };
   }
 

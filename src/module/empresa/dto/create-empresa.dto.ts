@@ -1,5 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEmail, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Plan } from '../enums/plan.enum';
 
 export class CreateEmpresaDto {
   @ApiProperty({ example: 'Optilacteo S.A.' })
@@ -26,4 +27,8 @@ export class CreateEmpresaDto {
   @IsOptional()
   @IsString()
   direccion?: string;
+
+  @ApiProperty({ example: 'starter', enum: Plan, default: Plan.STARTER })
+  @IsEnum(Plan)
+  plan: Plan = Plan.STARTER;
 }
