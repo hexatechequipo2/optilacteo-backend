@@ -6,16 +6,16 @@ export class CreateUserDto {
     @ApiProperty({ example: 'Juan Pérez' })
     @IsString()
     @IsNotEmpty()
-    name: string = '';
+    name!: string;
 
     @ApiProperty({ example: 'admin@optilacteo.com' })
     @IsEmail()
-    email: string = '';
+    email!: string;
 
     @ApiProperty({ example: 'strongPassword' })
     @IsString()
     @MinLength(6)
-    password: string = '';
+    password!: string;
 
     @ApiProperty({ example: 'admin', enum: Role, default: Role.ADMIN })
     @IsEnum(Role)
@@ -24,5 +24,5 @@ export class CreateUserDto {
     @ApiProperty({ example: 1, description: 'ID de la empresa a la que pertenece el usuario' })
     @IsInt()
     @IsPositive()
-    empresaId: number = 0;
+    empresaId!: number;
 }
