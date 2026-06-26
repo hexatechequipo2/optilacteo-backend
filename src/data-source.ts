@@ -4,6 +4,7 @@ import { User } from './module/user/entities/user.entity';
 import { Empresa } from './module/empresa/entities/empresa.entity';
 import { EmpresaModulo } from './module/empresa/entities/empresa-modulo.entity';
 import { RevokedToken } from './module/auth/entities/revoked-token.entity';
+import { PasswordResetTokenEntity } from './module/auth/entities/password-reset-token.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -12,7 +13,7 @@ export default new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [User, Empresa, EmpresaModulo, RevokedToken],
+  entities: [User, Empresa, EmpresaModulo, RevokedToken, PasswordResetTokenEntity],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,
 });
