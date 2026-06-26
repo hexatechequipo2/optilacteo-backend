@@ -12,10 +12,17 @@ import { RevokedToken } from './entities/revoked-token.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { REVOKED_TOKEN_REPOSITORY } from './repository/revoked-token-repository.interface';
 import { RevokedTokenRepository } from './repository/revoked-token.repository';
+import { PasswordResetTokenEntity } from './entities/password-reset-token.entity';
+import { PasswordResetController } from './password-reset.controller';
+import { PasswordResetService } from './password-reset.service';
+import { MailService } from './mail.service';
+import { PasswordResetTokenRepository } from './repository/password-reset-token.repository';
+import { PASSWORD_RESET_TOKEN_REPOSITORY } from './repository/password-reset-token.interface';
+
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, RevokedToken]),
+    TypeOrmModule.forFeature([User, RevokedToken, PasswordResetTokenEntity]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -25,7 +32,7 @@ import { RevokedTokenRepository } from './repository/revoked-token.repository';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, PasswordResetController],
   providers: [
     AuthService,
     {
@@ -39,6 +46,11 @@ import { RevokedTokenRepository } from './repository/revoked-token.repository';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    PasswordResetService, MailService,
+    {
+      provide: PASSWORD_RESET_TOKEN_REPOSITORY,
+      useClass: PasswordResetTokenRepository,
     },
   ],
 })

@@ -46,4 +46,8 @@ export class UserRepository implements IUserRepository {
   async deleteUser(id: number): Promise<void> {
     await this.repository.delete(id);
     }
+  
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.repository.update(userId, { password: passwordHash });   
+  }
 }
