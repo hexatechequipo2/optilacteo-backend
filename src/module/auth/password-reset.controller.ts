@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PasswordResetService } from './password-reset.service';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-
+import { Public } from './decorators/public.decorator';
 
 @ApiTags('Auth — Reset de contraseña')
 @Controller('auth')
@@ -11,6 +11,7 @@ export class PasswordResetController {
   constructor(private readonly passwordResetService: PasswordResetService) {}
 
   @Post('request-password-reset')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Solicitar restablecimiento de contraseña',
@@ -31,6 +32,7 @@ export class PasswordResetController {
   }
 
   @Post('reset-password')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Confirmar nueva contraseña',
