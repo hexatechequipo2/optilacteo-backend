@@ -23,7 +23,7 @@ export class EmpresaRepository implements IEmpresaRepository {
   }
 
   async findAll(): Promise<Empresa[]> {
-    return this.repository.find({ relations: { modulos: true } });
+    return this.repository.find({ relations: { modulos: true, users: true } });
   }
 
   async createEmpresa(empresa: Partial<Empresa>): Promise<Empresa> {
