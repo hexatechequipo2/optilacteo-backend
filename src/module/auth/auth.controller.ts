@@ -31,7 +31,7 @@ export class AuthController {
     description: 'Login exitoso. Retorna access_token JWT y datos del usuario.',
   })
   @ApiResponse({ status: 401, description: 'Credenciales incorrectas.' })
-  @ApiResponse({ status: 403, description: 'Usuario inactivo.' })
+  @ApiResponse({ status: 403, description: 'Usuario inactivo o cuenta bloqueada por intentos fallidos.' })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }

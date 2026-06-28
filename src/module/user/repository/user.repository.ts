@@ -48,6 +48,21 @@ export class UserRepository implements IUserRepository {
     }
   
   async updatePassword(userId: string, passwordHash: string): Promise<void> {
-    await this.repository.update(userId, { password: passwordHash });   
+    await this.repository.update(userId, { password: passwordHash });
+  }
+
+  async incrementFailedAttempts(userId: number): Promise<void> {
+    await this.repository.increment({ id: userId }, 'failedLoginAttempts', 1);
+  }
+
+  async lockUser(userId: number, lockedUntil: Date): Promise<void> {
+    await this.repository.update(userId, { lockedUntil });
+  }
+
+  async resetFailedAttempts(userId: number): Promise<void> {
+    await this.repository.update(userId, {
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    });
   }
 }

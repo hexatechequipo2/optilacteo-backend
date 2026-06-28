@@ -22,6 +22,12 @@ export class User {
   @Column({ default: true })
   isActive!: boolean;
 
+  @Column({ default: 0 })
+  failedLoginAttempts!: number;
+
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  lockedUntil!: Date | null;
+
   @ManyToOne(() => Empresa, (empresa) => empresa.users)
   empresa!: Empresa;
 }

@@ -15,6 +15,9 @@ import type { IRevokedTokenRepository } from './repository/revoked-token-reposit
 import { REVOKED_TOKEN_REPOSITORY } from './repository/revoked-token-repository.interface';
 import type { JwtPayload } from './types/jwt-payload.type';
 
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_DURATION_MINUTES = 15;
+
 export interface LoginResponse {
   access_token: string;
   user: {
@@ -44,7 +47,6 @@ export class AuthService {
   async login(dto: LoginDto): Promise<LoginResponse> {
     const user = await this.userRepository.findByEmail(dto.email);
 
-    // Mensaje generico para no revelar que campo fallo (email o contrasena).
     if (!user) {
       this.logger.warn(
         `Intento de login fallido: email no encontrado [${dto.email}]`,
@@ -52,19 +54,23 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
 
-    const passwordValid = await bcrypt.compare(dto.password, user.password);
-    if (!passwordValid) {
-      this.logger.warn(
-        `Intento de login fallido: contrasena incorrecta para [${dto.email}]`,
-      );
-      throw new UnauthorizedException('Credenciales incorrectas');
-    }
+    this.checkLockStatus(user.lockedUntil, dto.email);
 
     if (!user.isActive) {
       this.logger.warn(`Intento de login de usuario inactivo: [${dto.email}]`);
       throw new ForbiddenException(
         'El usuario esta inactivo. Contacte al administrador.',
       );
+    }
+
+    const passwordValid = await bcrypt.compare(dto.password, user.password);
+    if (!passwordValid) {
+      await this.registerFailedAttempt(user.id, user.failedLoginAttempts, dto.email);
+      throw new UnauthorizedException('Credenciales incorrectas');
+    }
+
+    if (user.failedLoginAttempts > 0) {
+      await this.userRepository.resetFailedAttempts(user.id);
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
@@ -81,6 +87,37 @@ export class AuthService {
         empresa: user.empresa?.name ?? '',
       },
     };
+  }
+
+  private checkLockStatus(lockedUntil: Date | null, email: string): void {
+    if (lockedUntil && lockedUntil > new Date()) {
+      this.logger.warn(`Intento de login de cuenta bloqueada: [${email}]`);
+      throw new ForbiddenException(
+        'La cuenta esta temporalmente bloqueada por multiples intentos fallidos. Intente nuevamente mas tarde.',
+      );
+    }
+  }
+
+  private async registerFailedAttempt(
+    userId: number,
+    currentAttempts: number,
+    email: string,
+  ): Promise<void> {
+    await this.userRepository.incrementFailedAttempts(userId);
+    const updatedAttempts = currentAttempts + 1;
+
+    this.logger.warn(
+      `Intento de login fallido (${updatedAttempts}/${MAX_FAILED_ATTEMPTS}) para [${email}]`,
+    );
+
+    if (updatedAttempts >= MAX_FAILED_ATTEMPTS) {
+      const lockedUntil = new Date();
+      lockedUntil.setMinutes(lockedUntil.getMinutes() + LOCK_DURATION_MINUTES);
+      await this.userRepository.lockUser(userId, lockedUntil);
+      this.logger.warn(
+        `Cuenta bloqueada por ${LOCK_DURATION_MINUTES} minutos para [${email}]`,
+      );
+    }
   }
 
   async logout(accessToken: string): Promise<{ message: string }> {
