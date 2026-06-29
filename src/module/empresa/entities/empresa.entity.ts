@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Plan } from '../enums/plan.enum';
 import { EmpresaModulo } from './empresa-modulo.entity';
+import { Proveedor } from '../../proveedores/entities/proveedor.entity';
 
 @Entity('empresas')
 export class Empresa {
@@ -34,4 +35,7 @@ export class Empresa {
 
   @OneToMany(() => EmpresaModulo, (modulo) => modulo.empresa)
   modulos!: EmpresaModulo[];
+
+  @OneToMany(() => Proveedor, (proveedor) => proveedor.empresa)
+  proveedores!: Proveedor[];
 }
