@@ -17,6 +17,6 @@ import { EMPRESA_REPOSITORY } from './repository/empresa-repository.interface';
       useClass: EmpresaRepository,
     },
   ],
-  exports: [EMPRESA_REPOSITORY],
+  exports: [EMPRESA_REPOSITORY, EmpresaService],
 })
 export class EmpresaModule {}

@@ -11,6 +11,8 @@ export interface IUserRepository {
   incrementFailedAttempts(userId: number): Promise<void>;
   lockUser(userId: number, lockedUntil: Date): Promise<void>;
   resetFailedAttempts(userId: number): Promise<void>;
+  countByEmpresa(empresaId: number): Promise<number>;
+
 }
 
 export const USER_REPOSITORY = 'USER_REPOSITORY';

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -9,6 +9,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserMapper } from './mappers/user.mapper';
 import { User } from './entities/user.entity';
 import { Empresa } from '../empresa/entities/empresa.entity';
+import { EmpresaService } from '../empresa/empresa.service';
 
 const BCRYPT_SALT_ROUNDS = 10;
 
@@ -21,10 +22,21 @@ export class UserService {
     private readonly userRepository: IUserRepository,
     @InjectRepository(Empresa)
     private readonly empresaRepository: Repository<Empresa>,
+    private readonly empresaService: EmpresaService,
   ) {}
 
   async create(dto: CreateUserDto) {
     const empresa = await this.findEmpresaOrFail(dto.empresaId);
+
+    // NUEVO: validar que la empresa no haya alcanzado el límite de usuarios de su plan
+    const limiteUsuarios = await this.empresaService.getLimiteUsuarios(dto.empresaId);
+    const usuariosActuales = await this.userRepository.countByEmpresa(dto.empresaId);
+
+    if (usuariosActuales >= limiteUsuarios) {
+      throw new BadRequestException(
+        `La empresa alcanzó el límite de ${limiteUsuarios} usuarios para su plan actual`,
+      );
+    }
 
     // La contraseña se hashea en el Service (no en el Mapper) porque bcrypt.hash es async
     const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
@@ -82,9 +94,9 @@ export class UserService {
   }
 
   async deactivate(id: number) {
-  await this.findOne(id);
-  const updated = await this.userRepository.updateUser(id, { isActive: false });
-  return UserMapper.toResponse(updated);
+    await this.findOne(id);
+    const updated = await this.userRepository.updateUser(id, { isActive: false });
+    return UserMapper.toResponse(updated);
   }
 
   async activate(id: number) {
