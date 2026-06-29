@@ -7,6 +7,24 @@ import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { EmpresaMapper } from './mappers/empresa.mapper';
 import { DETALLE_POR_PLAN } from './config/plan-detalles.config';
 import { ModuloSistema } from './enums/modulo-sistema.enum';
+import { Plan } from './enums/plan.enum';
+
+const PLAN_NOMBRES: Record<Plan, string> = {
+  [Plan.STARTER]: 'Starter',
+  [Plan.PRO]: 'Pro',
+  [Plan.ENTERPRISE]: 'Enterprise',
+};
+
+const MODULO_NOMBRES: Record<ModuloSistema, string> = {
+  [ModuloSistema.DASHBOARD]: 'Dashboard',
+  [ModuloSistema.RECEPCION]: 'Recepción',
+  [ModuloSistema.DESTINO_PRODUCTIVO_IA]: 'Destino productivo (IA)',
+  [ModuloSistema.MONITOREO_ALERTAS]: 'Monitoreo y alertas',
+  [ModuloSistema.SENSORES_IOT]: 'Sensores IoT',
+  [ModuloSistema.TRAZABILIDAD]: 'Trazabilidad',
+  [ModuloSistema.REPORTES_FORECAST]: 'Reportes y forecast',
+  [ModuloSistema.ASISTENTE_VOZ]: 'Asistente de voz',
+};
 
 @Injectable()
 export class EmpresaService {
@@ -103,6 +121,26 @@ export class EmpresaService {
       throw new NotFoundException(`Empresa con id ${empresaId} no encontrada`);
     }
     return DETALLE_POR_PLAN[empresa.plan].maxUsuarios;
+  }
+
+  async getResumenPlanes() {
+    const empresas = await this.empresaRepository.findAll();
+    const planOrder = [Plan.STARTER, Plan.PRO, Plan.ENTERPRISE];
+
+    return planOrder.map((plan, index) => {
+      const detalle = DETALLE_POR_PLAN[plan];
+      const count = empresas.filter((e) => e.plan === plan).length;
+      return {
+        id: index + 1,
+        nombre: PLAN_NOMBRES[plan],
+        precio: detalle.precioMensual,
+        maxUsuarios: detalle.maxUsuarios,
+        maxSensores: detalle.maxSensores,
+        modulos: detalle.modulos.map((m) => ({ nombre: MODULO_NOMBRES[m] })),
+        empresasAsignadas: count,
+        mrr: (detalle.precioMensual * count) / 1000,
+      };
+    });
   }
 
   private async toggleModulo(empresaId: number, modulo: ModuloSistema, activar: boolean) {
