@@ -5,7 +5,7 @@ import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { EmpresaMapper } from './mappers/empresa.mapper';
-import { MODULOS_POR_PLAN } from './config/plan-modulos.config';
+import { DETALLE_POR_PLAN } from './config/plan-detalles.config';
 import { ModuloSistema } from './enums/modulo-sistema.enum';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class EmpresaService {
     const empresaToCreate = EmpresaMapper.toEntity(dto);
     const created = await this.empresaRepository.createEmpresa(empresaToCreate);
 
-    const modulosDelPlan = MODULOS_POR_PLAN[created.plan];
+    const modulosDelPlan = DETALLE_POR_PLAN[created.plan].modulos;
     await this.empresaRepository.createModulos(
       modulosDelPlan.map((modulo) => ({
         modulo,
@@ -93,13 +93,25 @@ export class EmpresaService {
     return this.toggleModulo(empresaId, dto.modulo, false);
   }
 
+  /**
+   * NUEVO: usado por UserService para validar el límite de usuarios
+   * permitido según el plan de la empresa, antes de crear un usuario nuevo.
+   */
+  async getLimiteUsuarios(empresaId: number): Promise<number> {
+    const empresa = await this.empresaRepository.findById(empresaId);
+    if (!empresa) {
+      throw new NotFoundException(`Empresa con id ${empresaId} no encontrada`);
+    }
+    return DETALLE_POR_PLAN[empresa.plan].maxUsuarios;
+  }
+
   private async toggleModulo(empresaId: number, modulo: ModuloSistema, activar: boolean) {
     const empresa = await this.empresaRepository.findById(empresaId);
     if (!empresa) {
       throw new NotFoundException(`Empresa con id ${empresaId} no encontrada`);
     }
 
-    const modulosPermitidos = MODULOS_POR_PLAN[empresa.plan];
+    const modulosPermitidos = DETALLE_POR_PLAN[empresa.plan].modulos;
     if (activar && !modulosPermitidos.includes(modulo)) {
       throw new BadRequestException(
         `El módulo "${modulo}" no está disponible en el plan "${empresa.plan}"`,

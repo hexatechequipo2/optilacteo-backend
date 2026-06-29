@@ -65,4 +65,7 @@ export class UserRepository implements IUserRepository {
       lockedUntil: null,
     });
   }
+  async countByEmpresa(empresaId: number): Promise<number> {
+    return this.repository.count({ where: { empresa: { id: empresaId } } });
+  }
 }
