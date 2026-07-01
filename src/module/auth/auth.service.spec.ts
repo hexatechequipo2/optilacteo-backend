@@ -21,7 +21,7 @@ const activeUser = {
   isActive: true,
   failedLoginAttempts: 0,
   lockedUntil: null,
-  empresa: { id: 1, tenantId: 'empresa-1', name: 'LacteosNorte' },
+  empresa: { id: 1, empresaId: 1, name: 'LacteosNorte' },
 };
 
 describe('AuthService', () => {
@@ -85,10 +85,12 @@ describe('AuthService', () => {
       expect(result.user.email).toBe('admin@empresa.com');
       expect(result.user.role).toBe(Role.ADMIN);
       expect(result.user.empresa).toBe('LacteosNorte');
+      // Se verifica que empresaId del payload JWT corresponde al id de la empresa del usuario
       expect(mockJwtService.signAsync).toHaveBeenCalledWith({
         sub: activeUser.id,
         email: activeUser.email,
         role: activeUser.role,
+        empresaId: activeUser.empresa.id,
       });
     });
   });
@@ -276,7 +278,7 @@ describe('AuthService', () => {
         sub: 1,
         email: 'admin@empresa.com',
         role: Role.ADMIN,
-        tenant_id: 'empresa-1',
+        empresaId: 1,
         jti: 'session-id',
         exp: 1760000000,
       });
@@ -295,7 +297,7 @@ describe('AuthService', () => {
         expect.objectContaining({
           tokenHash: AuthService.hashToken(accessToken),
           userId: 1,
-          tenantId: 'empresa-1',
+          empresaId: 1,
           expiresAt: new Date(1760000000 * 1000),
         }),
       );
