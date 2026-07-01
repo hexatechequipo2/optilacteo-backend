@@ -39,9 +39,11 @@ export class CreateProveedorDto {
   })
   tipo!: TipoProveedor;
 
-  @IsNotEmpty({ message: 'La empresa asignada es obligatoria' })
+  // Obligatorio solo para admin (que gestiona cualquier empresa); para el
+  // resto de los roles se ignora y se fuerza desde el JWT. Ver ProveedoresService.resolveEmpresaId.
+  @IsOptional()
   @IsNumber({}, { message: 'El id de empresa debe ser un número' })
-  empresaId!: number;
+  empresaId?: number;
 
   @IsOptional()
   @IsString()

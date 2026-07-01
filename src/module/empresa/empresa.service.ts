@@ -1,4 +1,12 @@
-import { Inject, Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { TenantContext } from '../../common/types/tenant-context.type';
 import type { IEmpresaRepository } from './repository/empresa-repository.interface';
 import { EMPRESA_REPOSITORY } from './repository/empresa-repository.interface';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
@@ -55,7 +63,8 @@ export class EmpresaService {
     return EmpresaMapper.toResponseList(empresas);
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, tenant: TenantContext) {
+    this.assertOwnEmpresa(id, tenant);
     const empresa = await this.empresaRepository.findById(id);
     if (!empresa) {
       throw new NotFoundException(`Empresa con id ${id} no encontrada`);
@@ -63,8 +72,19 @@ export class EmpresaService {
     return EmpresaMapper.toResponse(empresa);
   }
 
-  async update(id: number, dto: UpdateEmpresaDto) {
-    await this.findOne(id);
+  // Cualquier usuario autenticado puede ver los datos de su propia empresa,
+  // sin necesitar el rol admin que exige GET /empresa. Un admin no tiene
+  // empresa propia, por eso no aplica acá.
+  async findMine(tenant: TenantContext) {
+    if (tenant.empresaId === null) {
+      throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
+    }
+    return this.findOne(tenant.empresaId, tenant);
+  }
+
+  async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
+    this.assertOwnEmpresa(id, tenant);
+    await this.findOne(id, tenant);
 
     const empresaToUpdate = {
       ...(dto.name !== undefined && { name: dto.name }),
@@ -79,8 +99,9 @@ export class EmpresaService {
     return EmpresaMapper.toResponse(updated);
   }
 
-  async deactivate(id: number) {
-    await this.findOne(id);
+  async deactivate(id: number, tenant: TenantContext) {
+    this.assertOwnEmpresa(id, tenant);
+    await this.findOne(id, tenant);
 
     const tieneUsuariosActivos = await this.empresaRepository.hasActiveUsers(id);
     if (tieneUsuariosActivos) {
@@ -93,22 +114,39 @@ export class EmpresaService {
     return EmpresaMapper.toResponse(updated);
   }
 
-  async activate(id: number) {
-    await this.findOne(id);
+  async activate(id: number, tenant: TenantContext) {
+    this.assertOwnEmpresa(id, tenant);
+    await this.findOne(id, tenant);
     const updated = await this.empresaRepository.updateEmpresa(id, { isActive: true });
     return EmpresaMapper.toResponse(updated);
   }
 
-  async remove(id: number) {
-    return this.deactivate(id);
+  async remove(id: number, tenant: TenantContext) {
+    return this.deactivate(id, tenant);
   }
 
-  async activarModulo(empresaId: number, dto: ToggleModuloDto) {
+  async activarModulo(empresaId: number, dto: ToggleModuloDto, tenant: TenantContext) {
+    this.assertOwnEmpresa(empresaId, tenant);
     return this.toggleModulo(empresaId, dto.modulo, true);
   }
 
-  async desactivarModulo(empresaId: number, dto: ToggleModuloDto) {
+  async desactivarModulo(empresaId: number, dto: ToggleModuloDto, tenant: TenantContext) {
+    this.assertOwnEmpresa(empresaId, tenant);
     return this.toggleModulo(empresaId, dto.modulo, false);
+  }
+
+  // A diferencia de Proveedor (que tiene su propia columna empresaId), acá
+  // el id de la propia Empresa ES el identificador del tenant: se compara
+  // directo contra tenant.empresaId. Devuelve 403 (no 404) porque así se
+  // definió explícitamente para este módulo -- a diferencia de Proveedor, acá
+  // no se prioriza ocultar la existencia del id.
+  private assertOwnEmpresa(id: number, tenant: TenantContext): void {
+    if (tenant.isAdmin) {
+      return;
+    }
+    if (tenant.empresaId !== id) {
+      throw new ForbiddenException('No tiene permiso para acceder a esta empresa');
+    }
   }
 
   /**

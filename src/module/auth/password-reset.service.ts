@@ -47,7 +47,7 @@ export class PasswordResetService {
     await this.tokenRepository.save({
       token,
       userId: user.id.toString(),
-      tenant_id: user.empresa.id.toString(),
+      tenant_id: user.empresa?.id.toString() ?? null,
       expiresAt,
       used: false,
     });
