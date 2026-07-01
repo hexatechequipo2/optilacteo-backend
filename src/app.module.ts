@@ -7,6 +7,7 @@ import { UserModule } from './module/user/user.module';
 import { EmpresaModule } from './module/empresa/empresa.module';
 import { AuthModule } from './module/auth/auth.module';
 import { ProveedoresModule } from '././module/proveedores/proveedores.module';
+import { SystemConfigModule } from './module/system-config/system-config.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ProveedoresModule } from '././module/proveedores/proveedores.module';
     EmpresaModule,
     AuthModule,
     ProveedoresModule,
+    SystemConfigModule,
   ],
   controllers: [AppController],
   providers: [AppService],
