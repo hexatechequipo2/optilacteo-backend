@@ -28,6 +28,6 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, default: null })
   lockedUntil!: Date | null;
 
-  @ManyToOne(() => Empresa, (empresa) => empresa.users)
-  empresa!: Empresa;
+  @ManyToOne(() => Empresa, (empresa) => empresa.users, { nullable: true })
+  empresa?: Empresa | null;
 }

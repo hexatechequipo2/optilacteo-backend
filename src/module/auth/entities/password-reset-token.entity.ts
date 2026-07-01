@@ -24,8 +24,8 @@ export class PasswordResetTokenEntity {
   @JoinColumn({ name: 'user_id' })
   user!: User;
 
-  @Column({ name: 'tenant_id' })
-  tenant_id!: string;
+  @Column({ name: 'tenant_id', nullable: true })
+  tenant_id!: string | null;
 
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt!: Date;

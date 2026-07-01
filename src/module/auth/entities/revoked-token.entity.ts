@@ -17,8 +17,8 @@ export class RevokedToken {
   @Column({ name: 'user_id' })
   userId!: number;
 
-  @Column({ name: 'empresa_id' })
-  empresaId!: number;
+  @Column({ name: 'empresa_id', nullable: true })
+  empresaId!: number | null;
 
   @Column({ name: 'expires_at', type: 'timestamp' })
   expiresAt!: Date;
