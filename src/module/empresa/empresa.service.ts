@@ -136,7 +136,7 @@ export class EmpresaService {
         precio: detalle.precioMensual,
         maxUsuarios: detalle.maxUsuarios,
         maxSensores: detalle.maxSensores,
-        modulos: detalle.modulos.map((m) => ({ nombre: MODULO_NOMBRES[m] })),
+        modulos: detalle.modulos.map((m) => ({ nombre: MODULO_NOMBRES[m], codigo: m })),
         empresasAsignadas: count,
         mrr: (detalle.precioMensual * count) / 1000,
       };
