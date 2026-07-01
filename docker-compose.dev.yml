@@ -1,0 +1,9 @@
+services:
+  backend:
+    build:
+      context: .
+      target: build
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run start:dev
