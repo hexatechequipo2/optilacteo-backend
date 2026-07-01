@@ -24,7 +24,7 @@ export class PasswordResetTokenEntity {
   @JoinColumn({ name: 'user_id' })
   user!: User;
 
-  @Column({ name: 'tenant_id', nullable: true })
+  @Column({ name: 'tenant_id', type: 'varchar', nullable: true })
   tenant_id!: string | null;
 
   @Column({ name: 'expires_at', type: 'timestamptz' })
