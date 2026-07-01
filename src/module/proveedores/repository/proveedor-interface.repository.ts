@@ -1,12 +1,13 @@
+import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { Proveedor } from '../entities/proveedor.entity';
 
 export interface IProveedorRepository {
-  findAll(): Promise<Proveedor[]>;
-  findById(id: number): Promise<Proveedor | null>;
+  findAll(tenant: TenantContext): Promise<Proveedor[]>;
+  findById(id: number, tenant: TenantContext): Promise<Proveedor | null>;
   findByCuit(cuit: string): Promise<Proveedor | null>;
   save(proveedor: Proveedor): Promise<Proveedor>;
-  update(proveedor: Proveedor): Promise<Proveedor>;
-  delete(id: number): Promise<void>;
+  update(proveedor: Proveedor, tenant: TenantContext): Promise<Proveedor | null>;
+  delete(id: number, tenant: TenantContext): Promise<boolean>;
   countByEmpresa(empresaId: number): Promise<number>;
 }
 

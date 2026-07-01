@@ -1,9 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { TenantContext } from '../../common/types/tenant-context.type';
 import { PROVEEDOR_REPOSITORY, type IProveedorRepository } from './repository/proveedor-interface.repository';
 import { ProveedorMapper } from './mappers/proveedor.mapper';
 import { CreateProveedorDto } from './dto/create-proveedor.dto';
@@ -18,33 +21,38 @@ export class ProveedoresService {
     private readonly mapper: ProveedorMapper,
   ) {}
 
-  async findAll(): Promise<ProveedorResponseDto[]> {
-    const proveedores = await this.proveedorRepository.findAll();
+  async findAll(tenant: TenantContext): Promise<ProveedorResponseDto[]> {
+    const proveedores = await this.proveedorRepository.findAll(tenant);
     return this.mapper.toResponseDtoList(proveedores);
   }
 
-  async findOne(id: number): Promise<ProveedorResponseDto> {
-    const proveedor = await this.proveedorRepository.findById(id);
+  async findOne(id: number, tenant: TenantContext): Promise<ProveedorResponseDto> {
+    const proveedor = await this.proveedorRepository.findById(id, tenant);
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
     return this.mapper.toResponseDto(proveedor);
   }
 
-  async create(dto: CreateProveedorDto): Promise<ProveedorResponseDto> {
+  async create(dto: CreateProveedorDto, tenant: TenantContext): Promise<ProveedorResponseDto> {
+    const empresaId = this.resolveEmpresaId(dto.empresaId, tenant);
     const existing = await this.proveedorRepository.findByCuit(dto.cuit);
     if (existing) {
       throw new ConflictException(
         `Ya existe un proveedor registrado con el CUIT ${dto.cuit}`,
       );
     }
-    const entity = this.mapper.toEntity(dto);
+    const entity = this.mapper.toEntity(dto, empresaId);
     const saved = await this.proveedorRepository.save(entity);
     return this.mapper.toResponseDto(saved);
   }
 
-  async update(id: number, dto: UpdateProveedorDto): Promise<ProveedorResponseDto> {
-    const proveedor = await this.proveedorRepository.findById(id);
+  async update(
+    id: number,
+    dto: UpdateProveedorDto,
+    tenant: TenantContext,
+  ): Promise<ProveedorResponseDto> {
+    const proveedor = await this.proveedorRepository.findById(id, tenant);
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
@@ -56,16 +64,43 @@ export class ProveedoresService {
         );
       }
     }
-    const updated = this.mapper.applyUpdate(proveedor, dto);
-    const saved = await this.proveedorRepository.update(updated);
+    const empresaId =
+      dto.empresaId !== undefined ? this.resolveEmpresaId(dto.empresaId, tenant) : undefined;
+    const updated = this.mapper.applyUpdate(proveedor, dto, empresaId);
+    const saved = await this.proveedorRepository.update(updated, tenant);
+    if (!saved) {
+      throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
+    }
     return this.mapper.toResponseDto(saved);
   }
 
-  async remove(id: number): Promise<void> {
-    const proveedor = await this.proveedorRepository.findById(id);
+  async remove(id: number, tenant: TenantContext): Promise<void> {
+    const proveedor = await this.proveedorRepository.findById(id, tenant);
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
-    await this.proveedorRepository.delete(id);
+    const deleted = await this.proveedorRepository.delete(id, tenant);
+    if (!deleted) {
+      throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
+    }
+  }
+
+  // Admin gestiona proveedores de cualquier empresa: debe indicar empresaId
+  // explícito en el body. El resto de los roles siempre pertenece a una
+  // empresa: el valor se fuerza desde el JWT y se ignora lo que venga en el
+  // body, para que no puedan crear/reasignar un proveedor a otra empresa.
+  private resolveEmpresaId(bodyEmpresaId: number | undefined, tenant: TenantContext): number {
+    if (tenant.isAdmin) {
+      if (bodyEmpresaId === undefined) {
+        throw new BadRequestException(
+          'El id de empresa es obligatorio para el rol admin',
+        );
+      }
+      return bodyEmpresaId;
+    }
+    if (tenant.empresaId === null) {
+      throw new ForbiddenException('El usuario no tiene una empresa asociada');
+    }
+    return tenant.empresaId;
   }
 }
