@@ -73,7 +73,12 @@ export class AuthService {
       await this.userRepository.resetFailedAttempts(user.id);
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      empresaId: user.empresa?.id,
+    };
     const access_token = await this.jwtService.signAsync(payload);
 
     this.logger.log(`Login exitoso para usuario [${dto.email}]`);
@@ -129,7 +134,7 @@ export class AuthService {
       await this.revokedTokenRepository.createRevokedToken({
         tokenHash: AuthService.hashToken(accessToken),
         userId: payload.sub,
-        tenantId: payload.tenant_id,
+        empresaId: payload.empresaId,
         expiresAt,
       });
 
