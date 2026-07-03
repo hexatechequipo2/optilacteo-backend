@@ -18,7 +18,7 @@ import { LoginDto } from './dto/login.dto';
 import type { AuthenticatedRequest } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
-@Controller('api/v1/auth')
+@Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
