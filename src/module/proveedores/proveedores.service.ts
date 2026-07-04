@@ -12,6 +12,7 @@ import { ProveedorMapper } from './mappers/proveedor.mapper';
 import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
 import { ProveedorResponseDto } from './dto/proveedor-response.dto';
+import { ROLES } from '../rol/constants/roles.constants';
 
 @Injectable()
 export class ProveedoresService {
@@ -90,7 +91,7 @@ export class ProveedoresService {
   // empresa: el valor se fuerza desde el JWT y se ignora lo que venga en el
   // body, para que no puedan crear/reasignar un proveedor a otra empresa.
   private resolveEmpresaId(bodyEmpresaId: number | undefined, tenant: TenantContext): number {
-    if (tenant.isAdmin) {
+    if (tenant.rolNombre === ROLES.ADMINISTRADOR) {
       if (bodyEmpresaId === undefined) {
         throw new BadRequestException(
           'El id de empresa es obligatorio para el rol admin',

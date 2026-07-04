@@ -16,6 +16,7 @@ import { EmpresaMapper } from './mappers/empresa.mapper';
 import { DETALLE_POR_PLAN } from './config/plan-detalles.config';
 import { ModuloSistema } from './enums/modulo-sistema.enum';
 import { Plan } from './enums/plan.enum';
+import { ROLES } from '../rol/constants/roles.constants';
 
 const PLAN_NOMBRES: Record<Plan, string> = {
   [Plan.STARTER]: 'Starter',
@@ -141,7 +142,7 @@ export class EmpresaService {
   // definió explícitamente para este módulo -- a diferencia de Proveedor, acá
   // no se prioriza ocultar la existencia del id.
   private assertOwnEmpresa(id: number, tenant: TenantContext): void {
-    if (tenant.isAdmin) {
+    if (tenant.rolNombre === ROLES.ADMINISTRADOR) {
       return;
     }
     if (tenant.empresaId !== id) {

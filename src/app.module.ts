@@ -8,6 +8,8 @@ import { EmpresaModule } from './module/empresa/empresa.module';
 import { AuthModule } from './module/auth/auth.module';
 import { ProveedoresModule } from '././module/proveedores/proveedores.module';
 import { SystemConfigModule } from './module/system-config/system-config.module';
+import { RolModule } from './module/rol/rol.module';
+import { PermisoModule } from './module/permiso/permiso.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { SystemConfigModule } from './module/system-config/system-config.module'
     AuthModule,
     ProveedoresModule,
     SystemConfigModule,
+    RolModule,
+    PermisoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

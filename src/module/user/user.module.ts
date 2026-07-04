@@ -7,9 +7,15 @@ import { UserRepository } from './repository/user.repository';
 import { USER_REPOSITORY } from './repository/user-repository.interface';
 import { Empresa } from '../empresa/entities/empresa.entity';
 import { EmpresaModule } from '../empresa/empresa.module';
+import { Rol } from '../rol/entities/rol.entity';
+import { RolModule } from '../rol/rol.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Empresa]), EmpresaModule],
+  imports: [
+    TypeOrmModule.forFeature([User, Empresa, Rol]), 
+    EmpresaModule,
+    RolModule,
+  ],
   controllers: [UserController],
   providers: [
     UserService,

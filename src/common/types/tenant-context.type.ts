@@ -1,4 +1,6 @@
+import type { RolNombre } from '../../module/rol/constants/roles.constants';
+
 export interface TenantContext {
   empresaId: number | null;
-  isAdmin: boolean;
+  rolNombre: RolNombre | null;
 }

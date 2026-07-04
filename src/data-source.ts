@@ -7,6 +7,8 @@ import { RevokedToken } from './module/auth/entities/revoked-token.entity';
 import { PasswordResetTokenEntity } from './module/auth/entities/password-reset-token.entity';
 import { Proveedor } from './module/proveedores/entities/proveedor.entity';
 import { SystemConfig } from './module/system-config/entities/system-config.entity';
+import { Rol } from './module/rol/entities/rol.entity';
+import { PermisoModulo } from './module/permiso/entities/permiso-modulo.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -23,6 +25,8 @@ export default new DataSource({
     PasswordResetTokenEntity,
     Proveedor,
     SystemConfig,
+    Rol,
+    PermisoModulo,
   ],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,

@@ -14,14 +14,20 @@ export class UserRepository implements IUserRepository {
   async findByEmail(email: string): Promise<User | null> {
     return this.repository.findOne({
       where: { email },
-      relations: { empresa: true },
+      relations: {
+        empresa: true,
+        rol: { permisos: true },
+      },
     });
   }
 
   async findById(id: number): Promise<User | null> {
     return this.repository.findOne({
       where: { id },
-      relations: { empresa: true },
+      relations: {
+        empresa: true,
+        rol: { permisos: true },
+      },
     });
   }
 
