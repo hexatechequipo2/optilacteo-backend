@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EmpresaService } from '../empresa.service';
 import { EMPRESA_REPOSITORY } from '../repository/empresa-repository.interface';
 import { Plan } from '../enums/plan.enum';
+import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
 const empresaA = {
@@ -23,9 +24,9 @@ const empresaB = {
   modulos: [],
 };
 
-const tenantEmpresaA: TenantContext = { empresaId: 1, isAdmin: false };
-const tenantEmpresaB: TenantContext = { empresaId: 2, isAdmin: false };
-const tenantAdmin: TenantContext = { empresaId: null, isAdmin: true };
+const tenantEmpresaA: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
+const tenantEmpresaB: TenantContext = { empresaId: 2, rolNombre: ROLES.GERENTE };
+const tenantAdmin: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
 
 describe('EmpresaService - aislamiento multi-tenant', () => {
   let service: EmpresaService;

@@ -7,10 +7,11 @@ import { Proveedor } from '../entities/proveedor.entity';
 import { TipoProveedor } from '../enums/tipo-proveedor.enum';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 import { CreateProveedorDto } from '../dto/create-proveedor.dto';
+import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
-const tenantEmpresaA: TenantContext = { empresaId: 1, isAdmin: false };
-const tenantAdmin: TenantContext = { empresaId: null, isAdmin: true };
+const tenantEmpresaA: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
+const tenantAdmin: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
 
 function buildProveedor(overrides: Partial<Proveedor> = {}): Proveedor {
   return {
@@ -77,8 +78,6 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
   describe('findOne - lectura por id', () => {
     it('propaga NotFoundException cuando el repo no encuentra el proveedor para este tenant (id de otra empresa)', async () => {
-      // El repo ya filtro por tenant y no matcheo nada -- simula que el id
-      // pedido pertenece a la Empresa B mientras el usuario es de la A.
       mockRepo.findById.mockResolvedValue(null);
 
       await expect(service.findOne(99, tenantEmpresaA)).rejects.toThrow(NotFoundException);
@@ -88,13 +87,13 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
   describe('create - resolucion de empresaId en el write-path', () => {
     it('para no-admin, ignora el empresaId del body y usa el de su JWT', async () => {
-      const dto = buildCreateDto({ empresaId: 999 }); // intenta asignar a otra empresa
+      const dto = buildCreateDto({ empresaId: 999 });
       mockRepo.findByCuit.mockResolvedValue(null);
       mockRepo.save.mockImplementation((entity: Proveedor) => Promise.resolve(entity));
 
       const result = await service.create(dto, tenantEmpresaA);
 
-      expect(result.empresaId).toBe(1); // el de tenantEmpresaA, no 999
+      expect(result.empresaId).toBe(1);
       expect(mockRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ empresaId: 1 }),
       );
@@ -148,7 +147,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
     it('propaga NotFoundException si la query fisica de UPDATE no afecto filas (TOCTOU: la fila cambio de empresa entre el check y el write)', async () => {
       mockRepo.findById.mockResolvedValue(buildProveedor());
-      mockRepo.update.mockResolvedValue(null); // repo ya devuelve null cuando affected === 0
+      mockRepo.update.mockResolvedValue(null);
 
       await expect(
         service.update(10, { razonSocial: 'x' }, tenantEmpresaA),
@@ -166,7 +165,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
     it('propaga NotFoundException si la query fisica de DELETE no borro filas (TOCTOU)', async () => {
       mockRepo.findById.mockResolvedValue(buildProveedor());
-      mockRepo.delete.mockResolvedValue(false); // affected === 0
+      mockRepo.delete.mockResolvedValue(false);
 
       await expect(service.remove(10, tenantEmpresaA)).rejects.toThrow(NotFoundException);
     });
@@ -181,7 +180,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
   describe('resolveEmpresaId - caso limite', () => {
     it('lanza ForbiddenException si un no-admin llega sin empresa asociada (viola la regla de negocio)', async () => {
-      const tenantSinEmpresa: TenantContext = { empresaId: null, isAdmin: false };
+      const tenantSinEmpresa: TenantContext = { empresaId: null, rolNombre: ROLES.GERENTE };
       const dto = buildCreateDto();
 
       await expect(service.create(dto, tenantSinEmpresa)).rejects.toThrow(ForbiddenException);

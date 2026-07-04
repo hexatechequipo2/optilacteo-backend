@@ -1,16 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Role } from '../user/enums/role.enum';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import type { AuthenticatedRequest } from './guards/jwt-auth.guard';
+import { AuthController } from '../auth.controller';
+import { AuthService } from '../auth.service';
+import { LoginDto } from '../dto/login.dto';
+import type { AuthenticatedRequest } from '../guards/jwt-auth.guard';
+import { ROLES } from '../../rol/constants/roles.constants';
 
 const successfulLoginResponse = {
   access_token: 'token_jwt_firmado',
   user: {
     id: 1,
     email: 'admin@empresa.com',
-    role: Role.ADMIN,
+    rolId: 1,
+    rolNombre: ROLES.ADMINISTRADOR,
     empresa: 'LacteosNorte',
   },
 };
@@ -30,7 +31,7 @@ describe('AuthController', () => {
     controller = module.get<AuthController>(AuthController);
   });
 
-  describe('POST /api/v1/auth/login', () => {
+  describe('POST /login', () => {
     it('deberia retornar access_token y datos del usuario cuando el login es exitoso', async () => {
       // Arrange
       const dto: LoginDto = {
@@ -59,9 +60,34 @@ describe('AuthController', () => {
         'Credenciales incorrectas',
       );
     });
+
+    it('deberia retornar rolId y rolNombre en null cuando el usuario no tiene rol asignado', async () => {
+      // Arrange
+      const dto: LoginDto = {
+        email: 'sinrol@empresa.com',
+        password: 'clave123',
+      };
+      const responseSinRol = {
+        access_token: 'token_jwt_firmado',
+        user: {
+          id: 2,
+          email: 'sinrol@empresa.com',
+          rolId: null,
+          rolNombre: null,
+          empresa: 'LacteosNorte',
+        },
+      };
+      mockAuthService.login.mockResolvedValue(responseSinRol);
+
+      // Act
+      const result = await controller.login(dto);
+
+      // Assert
+      expect(result).toEqual(responseSinRol);
+    });
   });
 
-  describe('POST /api/v1/auth/logout', () => {
+  describe('POST /logout', () => {
     it('deberia cerrar sesion usando el token autenticado', async () => {
       // Arrange
       const request = {

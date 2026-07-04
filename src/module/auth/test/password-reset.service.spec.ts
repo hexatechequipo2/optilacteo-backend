@@ -1,8 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
-import { PasswordResetService } from './password-reset.service';
-import { PASSWORD_RESET_TOKEN_REPOSITORY } from './repository/password-reset-token.interface';
-import { MailService } from './mail.service';
+
+// Mock a nivel de modulo para evitar el problema de ESModules de uuid (v9+).
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'mocked-uuid-token'),
+}));
+
+import { PasswordResetService } from '../password-reset.service';
+import { PASSWORD_RESET_TOKEN_REPOSITORY } from '../repository/password-reset-token.interface';
+import { USER_REPOSITORY } from '../../user/repository/user-repository.interface';
+import { MailService } from '../mail.service';
 
 const mockTokenRepository = {
   save:           jest.fn(),
@@ -28,8 +35,8 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
       providers: [
         PasswordResetService,
         { provide: PASSWORD_RESET_TOKEN_REPOSITORY, useValue: mockTokenRepository },
-        { provide: 'IUserRepository',          useValue: mockUserRepository },
-        { provide: MailService,                   useValue: mockMailService },
+        { provide: USER_REPOSITORY,                 useValue: mockUserRepository },
+        { provide: MailService,                     useValue: mockMailService },
       ],
     }).compile();
 
