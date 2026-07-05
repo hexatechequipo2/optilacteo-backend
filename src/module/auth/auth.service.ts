@@ -5,25 +5,32 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { createHash } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 
 import type { IUserRepository } from '../user/repository/user-repository.interface';
 import { USER_REPOSITORY } from '../user/repository/user-repository.interface';
+import { User } from '../user/entities/user.entity';
 
 import { LoginDto } from './dto/login.dto';
 import type { IRevokedTokenRepository } from './repository/revoked-token-repository.interface';
 import { REVOKED_TOKEN_REPOSITORY } from './repository/revoked-token-repository.interface';
+import type { IRefreshTokenRepository } from './repository/refresh-token-repository.interface';
+import { REFRESH_TOKEN_REPOSITORY } from './repository/refresh-token-repository.interface';
 
 import type { JwtPayload } from './types/jwt-payload.type';
 import { ROLES, type RolNombre } from '../rol/constants/roles.constants';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MINUTES = 15;
+const REFRESH_TOKEN_BYTES = 64;
+const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS = 7;
 
 export interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   user: {
     id: number;
     email: string;
@@ -31,6 +38,11 @@ export interface LoginResponse {
     rolNombre: string | null;
     empresa: string;
   };
+}
+
+export interface RefreshResponse {
+  access_token: string;
+  refresh_token: string;
 }
 
 @Injectable()
@@ -44,7 +56,11 @@ export class AuthService {
     @Inject(REVOKED_TOKEN_REPOSITORY)
     private readonly revokedTokenRepository: IRevokedTokenRepository,
 
+    @Inject(REFRESH_TOKEN_REPOSITORY)
+    private readonly refreshTokenRepository: IRefreshTokenRepository,
+
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   static hashToken(token: string): string {
@@ -83,13 +99,88 @@ export class AuthService {
       await this.userRepository.resetFailedAttempts(user.id);
     }
 
-    // Validación segura de rol
+    const payload = this.buildJwtPayload(user);
+    const access_token = await this.jwtService.signAsync(payload);
+
+    const familyId = randomUUID();
+    const expiresAt = this.buildRefreshTokenExpiration();
+    const refresh_token = await this.issueRefreshToken({
+      userId: user.id,
+      empresaId: payload.empresaId,
+      familyId,
+      expiresAt,
+    });
+
+    this.logger.log(`Login exitoso: [${dto.email}]`);
+
+    return {
+      access_token,
+      refresh_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        rolId: payload.rolId,
+        rolNombre: payload.rolNombre,
+        empresa: user.empresa?.name ?? '',
+      },
+    };
+  }
+
+  async refresh(refreshToken: string): Promise<RefreshResponse> {
+    const tokenHash = AuthService.hashToken(refreshToken);
+    const existing = await this.refreshTokenRepository.findByTokenHash(tokenHash);
+
+    if (!existing) {
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    if (existing.revokedAt) {
+      // El token ya fue rotado antes: esta presentación es un reuso,
+      // posible robo. Se corta toda la sesión (familia) como contención.
+      await this.refreshTokenRepository.revokeFamily(existing.familyId);
+      this.logger.warn(
+        `Reuso de refresh token detectado, sesión revocada [userId=${existing.userId}]`,
+      );
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    if (existing.expiresAt <= new Date()) {
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    const user = await this.userRepository.findById(existing.userId);
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    const payload = this.buildJwtPayload(user);
+    const access_token = await this.jwtService.signAsync(payload);
+
+    // Límite absoluto de sesión: se copia el mismo expiresAt del token
+    // original en vez de extenderlo en cada rotación.
+    const newRefreshToken = await this.issueRefreshToken({
+      userId: existing.userId,
+      empresaId: existing.empresaId,
+      familyId: existing.familyId,
+      expiresAt: existing.expiresAt,
+    });
+
+    await this.refreshTokenRepository.revokeById(
+      existing.id,
+      AuthService.hashToken(newRefreshToken),
+    );
+
+    return { access_token, refresh_token: newRefreshToken };
+  }
+
+  private buildJwtPayload(user: User): JwtPayload {
     const rolNombre: RolNombre | null =
       user.rol?.nombre && Object.values(ROLES).includes(user.rol.nombre as RolNombre)
         ? (user.rol.nombre as RolNombre)
         : null;
 
-    const payload: JwtPayload = {
+    return {
       sub: user.id,
       email: user.email,
       rolId: user.rol?.id ?? null,
@@ -103,21 +194,35 @@ export class AuthService {
       empresaId: user.empresa?.id ?? null,
       jti: '',
     };
+  }
 
-    const access_token = await this.jwtService.signAsync(payload);
+  private buildRefreshTokenExpiration(): Date {
+    const days =
+      this.configService.get<number>('REFRESH_TOKEN_EXPIRES_DAYS') ??
+      DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS;
 
-    this.logger.log(`Login exitoso: [${dto.email}]`);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + Number(days));
+    return expiresAt;
+  }
 
-    return {
-      access_token,
-      user: {
-        id: user.id,
-        email: user.email,
-        rolId: user.rol?.id ?? null,
-        rolNombre,
-        empresa: user.empresa?.name ?? '',
-      },
-    };
+  private async issueRefreshToken(params: {
+    userId: number;
+    empresaId: number | null;
+    familyId: string;
+    expiresAt: Date;
+  }): Promise<string> {
+    const plainToken = randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
+
+    await this.refreshTokenRepository.create({
+      tokenHash: AuthService.hashToken(plainToken),
+      userId: params.userId,
+      empresaId: params.empresaId,
+      familyId: params.familyId,
+      expiresAt: params.expiresAt,
+    });
+
+    return plainToken;
   }
 
   private checkLockStatus(lockedUntil: Date | null, email: string): void {
@@ -152,7 +257,10 @@ export class AuthService {
     }
   }
 
-  async logout(accessToken: string): Promise<{ message: string }> {
+  async logout(
+    accessToken: string,
+    refreshToken?: string,
+  ): Promise<{ message: string }> {
     try {
       const payload = await this.jwtService.verifyAsync(accessToken);
 
@@ -165,6 +273,10 @@ export class AuthService {
         expiresAt,
       });
 
+      if (refreshToken) {
+        await this.revokeRefreshTokenFamily(refreshToken);
+      }
+
       this.logger.log(`Logout: [${payload.email}]`);
 
       return { message: 'Sesión cerrada correctamente' };
@@ -173,6 +285,15 @@ export class AuthService {
         return { message: 'Sesión cerrada correctamente' };
       }
       throw new UnauthorizedException('Token inválido');
+    }
+  }
+
+  private async revokeRefreshTokenFamily(refreshToken: string): Promise<void> {
+    const tokenHash = AuthService.hashToken(refreshToken);
+    const existing = await this.refreshTokenRepository.findByTokenHash(tokenHash);
+
+    if (existing) {
+      await this.refreshTokenRepository.revokeFamily(existing.familyId);
     }
   }
 

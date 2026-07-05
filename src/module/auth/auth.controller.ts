@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -12,9 +13,12 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
+import { LogoutDto } from './dto/logout.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import type { AuthenticatedRequest } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
@@ -24,6 +28,8 @@ export class AuthController {
 
   @Post('login')
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Inicio de sesion de usuario' })
   @ApiResponse({
@@ -32,6 +38,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Credenciales incorrectas.' })
   @ApiResponse({ status: 403, description: 'Usuario inactivo o cuenta bloqueada por intentos fallidos.' })
+  @ApiResponse({ status: 429, description: 'Demasiados intentos de login. Intente nuevamente en unos minutos.' })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
@@ -48,7 +55,26 @@ export class AuthController {
     status: 401,
     description: 'Token invalido, ausente o revocado.',
   })
-  logout(@Req() request: AuthenticatedRequest) {
-    return this.authService.logout(request.accessToken ?? '');
+  logout(@Req() request: AuthenticatedRequest, @Body() body?: LogoutDto) {
+    return this.authService.logout(
+      request.accessToken ?? '',
+      body?.refresh_token,
+    );
+  }
+
+  @Post('refresh')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Renovación de access_token via refresh_token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Renovación exitosa. Retorna un nuevo access_token y refresh_token (rotado).',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Refresh token inválido, expirado o ya utilizado.',
+  })
+  refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refresh(refreshTokenDto.refresh_token);
   }
 }
