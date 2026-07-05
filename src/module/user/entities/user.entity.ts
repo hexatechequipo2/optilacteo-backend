@@ -22,7 +22,7 @@ export class User {
   @Column({ default: 0 })
   failedLoginAttempts!: number;
 
-  @Column({ type: 'timestamp', nullable: true, default: null })
+  @Column({ type: 'timestamptz', nullable: true, default: null })
   lockedUntil!: Date | null;
 
   @ManyToOne(() => Empresa, (empresa) => empresa.users, { nullable: true })

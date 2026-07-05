@@ -21,7 +21,6 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 
 @ApiTags('proveedores')
-@Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
 @Controller('proveedores')
 export class ProveedoresController {
   constructor(private readonly proveedoresService: ProveedoresService) {}
@@ -39,6 +38,7 @@ export class ProveedoresController {
     return this.proveedoresService.findOne(id, tenant);
   }
 
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(
@@ -48,6 +48,7 @@ export class ProveedoresController {
     return this.proveedoresService.create(createProveedorDto, tenant);
   }
 
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -57,6 +58,7 @@ export class ProveedoresController {
     return this.proveedoresService.update(id, updateProveedorDto, tenant);
   }
 
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentEmpresa() tenant: TenantContext) {
     await this.proveedoresService.remove(id, tenant);
