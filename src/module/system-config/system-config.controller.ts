@@ -17,7 +17,7 @@ import { UpdateSystemConfigDto } from './dto/update-system-config.dto';
 
 @ApiTags('system-config')
 @ApiBearerAuth()
-@Controller('api/v1/system-config')
+@Controller('system-config')
 export class SystemConfigController {
   constructor(private readonly systemConfigService: SystemConfigService) {}
 
