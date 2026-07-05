@@ -46,6 +46,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
   let service: ProveedoresService;
   let mockRepo: {
     findAll: jest.Mock;
+    findAllPaginated: jest.Mock;
     findById: jest.Mock;
     findByCuit: jest.Mock;
     save: jest.Mock;
@@ -57,6 +58,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
   beforeEach(async () => {
     mockRepo = {
       findAll: jest.fn(),
+      findAllPaginated: jest.fn(),
       findById: jest.fn(),
       findByCuit: jest.fn(),
       save: jest.fn(),
@@ -74,6 +76,27 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     }).compile();
 
     service = module.get<ProveedoresService>(ProveedoresService);
+  });
+
+  describe('findAll - paginacion', () => {
+    it('usa page=1 y limit=20 por defecto y calcula skip=0', async () => {
+      mockRepo.findAllPaginated.mockResolvedValue([[buildProveedor()], 1]);
+
+      const result = await service.findAll(tenantEmpresaA, { page: 1, limit: 20 });
+
+      expect(mockRepo.findAllPaginated).toHaveBeenCalledWith(tenantEmpresaA, 0, 20);
+      expect(result.meta).toEqual({ page: 1, limit: 20, total: 1, totalPages: 1 });
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('calcula el skip correctamente para paginas mayores a 1', async () => {
+      mockRepo.findAllPaginated.mockResolvedValue([[], 45]);
+
+      const result = await service.findAll(tenantEmpresaA, { page: 3, limit: 10 });
+
+      expect(mockRepo.findAllPaginated).toHaveBeenCalledWith(tenantEmpresaA, 20, 10);
+      expect(result.meta).toEqual({ page: 3, limit: 10, total: 45, totalPages: 5 });
+    });
   });
 
   describe('findOne - lectura por id', () => {

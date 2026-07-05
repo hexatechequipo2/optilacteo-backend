@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -8,6 +8,7 @@ import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { ROLES } from '../rol/constants/roles.constants';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @ApiTags('empresa')
 @Roles(ROLES.ADMINISTRADOR)
@@ -21,8 +22,8 @@ export class EmpresaController {
   }
 
   @Get()
-  findAll() {
-    return this.empresaService.findAll();
+  findAll(@Query() pagination: PaginationQueryDto) {
+    return this.empresaService.findAll(pagination);
   }
 
   @Get('me')

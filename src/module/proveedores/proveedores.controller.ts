@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
@@ -19,6 +20,8 @@ import { ProveedorResponseDto } from './dto/proveedor-response.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import type { PaginatedResponse } from '../../common/dto/paginated-response.dto';
 
 @ApiTags('proveedores')
 @Controller('proveedores')
@@ -26,8 +29,11 @@ export class ProveedoresController {
   constructor(private readonly proveedoresService: ProveedoresService) {}
 
   @Get()
-  findAll(@CurrentEmpresa() tenant: TenantContext): Promise<ProveedorResponseDto[]> {
-    return this.proveedoresService.findAll(tenant);
+  findAll(
+    @CurrentEmpresa() tenant: TenantContext,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<PaginatedResponse<ProveedorResponseDto>> {
+    return this.proveedoresService.findAll(tenant, pagination);
   }
 
   @Get(':id')

@@ -33,6 +33,7 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
   let repository: ProveedorRepository;
   let mockTypeormRepo: {
     find: jest.Mock;
+    findAndCount: jest.Mock;
     findOne: jest.Mock;
     findOneBy: jest.Mock;
     save: jest.Mock;
@@ -44,6 +45,7 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
   beforeEach(() => {
     mockTypeormRepo = {
       find: jest.fn(),
+      findAndCount: jest.fn(),
       findOne: jest.fn(),
       findOneBy: jest.fn(),
       save: jest.fn(),
@@ -74,6 +76,34 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       expect(mockTypeormRepo.find).toHaveBeenCalledWith({
         order: { razonSocial: 'ASC' },
         where: {},
+      });
+    });
+  });
+
+  describe('findAllPaginated', () => {
+    it('para no-admin agrega empresaId al WHERE y aplica skip/take', async () => {
+      mockTypeormRepo.findAndCount.mockResolvedValue([[], 0]);
+
+      await repository.findAllPaginated(tenantEmpresaA, 20, 10);
+
+      expect(mockTypeormRepo.findAndCount).toHaveBeenCalledWith({
+        order: { razonSocial: 'ASC' },
+        where: { empresaId: 1 },
+        skip: 20,
+        take: 10,
+      });
+    });
+
+    it('para admin NO agrega filtro de empresa pero si aplica skip/take', async () => {
+      mockTypeormRepo.findAndCount.mockResolvedValue([[], 0]);
+
+      await repository.findAllPaginated(tenantAdmin, 0, 20);
+
+      expect(mockTypeormRepo.findAndCount).toHaveBeenCalledWith({
+        order: { razonSocial: 'ASC' },
+        where: {},
+        skip: 0,
+        take: 20,
       });
     });
   });

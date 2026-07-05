@@ -35,6 +35,20 @@ export abstract class TenantScopedRepository<T extends TenantEntity> {
     });
   }
 
+  protected findAllScopedPaginated(
+    tenant: TenantContext,
+    skip: number,
+    take: number,
+    options: Omit<FindManyOptions<T>, 'where' | 'skip' | 'take'> = {},
+  ): Promise<[T[], number]> {
+    return this.repo.findAndCount({
+      ...options,
+      where: this.scopedWhere(tenant),
+      skip,
+      take,
+    });
+  }
+
   protected findByIdScoped(
     id: number,
     tenant: TenantContext,

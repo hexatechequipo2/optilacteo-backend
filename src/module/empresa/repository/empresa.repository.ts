@@ -26,6 +26,15 @@ export class EmpresaRepository implements IEmpresaRepository {
     return this.repository.find({ relations: { modulos: true, users: true } });
   }
 
+  async findAllPaginated(skip: number, take: number): Promise<[Empresa[], number]> {
+    return this.repository.findAndCount({
+      relations: { modulos: true, users: true },
+      order: { id: 'ASC' },
+      skip,
+      take,
+    });
+  }
+
   async createEmpresa(empresa: Partial<Empresa>): Promise<Empresa> {
     const newEmpresa = this.repository.create(empresa);
     return this.repository.save(newEmpresa);
