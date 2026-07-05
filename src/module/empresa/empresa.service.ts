@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -17,6 +16,11 @@ import { DETALLE_POR_PLAN } from './config/plan-detalles.config';
 import { ModuloSistema } from './enums/modulo-sistema.enum';
 import { Plan } from './enums/plan.enum';
 import { ROLES } from '../rol/constants/roles.constants';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import {
+  buildPaginatedResponse,
+  type PaginatedResponse,
+} from '../../common/dto/paginated-response.dto';
 
 const PLAN_NOMBRES: Record<Plan, string> = {
   [Plan.STARTER]: 'Starter',
@@ -59,9 +63,18 @@ export class EmpresaService {
     return EmpresaMapper.toResponse(empresaConModulos!);
   }
 
-  async findAll() {
-    const empresas = await this.empresaRepository.findAll();
-    return EmpresaMapper.toResponseList(empresas);
+  async findAll(
+    pagination: PaginationQueryDto,
+  ): Promise<PaginatedResponse<ReturnType<typeof EmpresaMapper.toResponse>>> {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+    const [empresas, total] = await this.empresaRepository.findAllPaginated(skip, limit);
+    return buildPaginatedResponse(
+      EmpresaMapper.toResponseList(empresas),
+      page,
+      limit,
+      total,
+    );
   }
 
   async findOne(id: number, tenant: TenantContext) {
@@ -138,15 +151,14 @@ export class EmpresaService {
 
   // A diferencia de Proveedor (que tiene su propia columna empresaId), acá
   // el id de la propia Empresa ES el identificador del tenant: se compara
-  // directo contra tenant.empresaId. Devuelve 403 (no 404) porque así se
-  // definió explícitamente para este módulo -- a diferencia de Proveedor, acá
-  // no se prioriza ocultar la existencia del id.
+  // directo contra tenant.empresaId. Devuelve 404 (no 403), igual que
+  // Proveedor, para no revelar a un no-admin que un id de otra empresa existe.
   private assertOwnEmpresa(id: number, tenant: TenantContext): void {
     if (tenant.rolNombre === ROLES.ADMINISTRADOR) {
       return;
     }
     if (tenant.empresaId !== id) {
-      throw new ForbiddenException('No tiene permiso para acceder a esta empresa');
+      throw new NotFoundException(`Empresa con id ${id} no encontrada`);
     }
   }
 

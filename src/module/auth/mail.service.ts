@@ -13,7 +13,12 @@ export class MailService {
   });
 
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
-    const resetUrl = `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/reset-password?token=${token}`;
+    // FRONTEND_URL puede traer varios origenes separados por coma (ver
+    // main.ts); para un link de email se usa el primero como canonico.
+    const frontendUrl = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
+      .split(',')[0]
+      .trim();
+    const resetUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
 
     try {
       await this.transporter.sendMail({

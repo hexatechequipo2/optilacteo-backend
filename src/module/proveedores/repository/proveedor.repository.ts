@@ -22,6 +22,16 @@ export class ProveedorRepository
     return this.findAllScoped(tenant, { order: { razonSocial: 'ASC' } });
   }
 
+  async findAllPaginated(
+    tenant: TenantContext,
+    skip: number,
+    take: number,
+  ): Promise<[Proveedor[], number]> {
+    return this.findAllScopedPaginated(tenant, skip, take, {
+      order: { razonSocial: 'ASC' },
+    });
+  }
+
   async findById(id: number, tenant: TenantContext): Promise<Proveedor | null> {
     return this.findByIdScoped(id, tenant);
   }

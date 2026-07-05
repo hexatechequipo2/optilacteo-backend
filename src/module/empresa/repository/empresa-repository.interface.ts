@@ -5,6 +5,7 @@ import { ModuloSistema } from '../enums/modulo-sistema.enum';
 export interface IEmpresaRepository {
   findById(id: number): Promise<Empresa | null>;
   findAll(): Promise<Empresa[]>;
+  findAllPaginated(skip: number, take: number): Promise<[Empresa[], number]>;
   createEmpresa(empresa: Partial<Empresa>): Promise<Empresa>;
   updateEmpresa(id: number, empresa: Partial<Empresa>): Promise<Empresa>;
   deleteEmpresa(id: number): Promise<void>;

@@ -13,6 +13,11 @@ import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
 import { ProveedorResponseDto } from './dto/proveedor-response.dto';
 import { ROLES } from '../rol/constants/roles.constants';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import {
+  buildPaginatedResponse,
+  type PaginatedResponse,
+} from '../../common/dto/paginated-response.dto';
 
 @Injectable()
 export class ProveedoresService {
@@ -22,9 +27,23 @@ export class ProveedoresService {
     private readonly mapper: ProveedorMapper,
   ) {}
 
-  async findAll(tenant: TenantContext): Promise<ProveedorResponseDto[]> {
-    const proveedores = await this.proveedorRepository.findAll(tenant);
-    return this.mapper.toResponseDtoList(proveedores);
+  async findAll(
+    tenant: TenantContext,
+    pagination: PaginationQueryDto,
+  ): Promise<PaginatedResponse<ProveedorResponseDto>> {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+    const [proveedores, total] = await this.proveedorRepository.findAllPaginated(
+      tenant,
+      skip,
+      limit,
+    );
+    return buildPaginatedResponse(
+      this.mapper.toResponseDtoList(proveedores),
+      page,
+      limit,
+      total,
+    );
   }
 
   async findOne(id: number, tenant: TenantContext): Promise<ProveedorResponseDto> {

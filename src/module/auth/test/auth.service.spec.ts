@@ -1,4 +1,5 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ROLES } from '../../rol/constants/roles.constants';
@@ -6,6 +7,7 @@ import { USER_REPOSITORY } from '../../user/repository/user-repository.interface
 import { AuthService } from '../auth.service';
 import { LoginDto } from '../dto/login.dto';
 import { REVOKED_TOKEN_REPOSITORY } from '../repository/revoked-token-repository.interface';
+import { REFRESH_TOKEN_REPOSITORY } from '../repository/refresh-token-repository.interface';
 
 // Mock a nivel de modulo para evitar el problema con ESModules de bcrypt.
 jest.mock('bcrypt', () => ({
@@ -32,26 +34,44 @@ describe('AuthService', () => {
   let service: AuthService;
   let mockUserRepository: {
     findByEmail: jest.Mock;
+    findById: jest.Mock;
     incrementFailedAttempts: jest.Mock;
     lockUser: jest.Mock;
     resetFailedAttempts: jest.Mock;
   };
   let mockRevokedTokenRepository: { createRevokedToken: jest.Mock };
+  let mockRefreshTokenRepository: {
+    create: jest.Mock;
+    findActiveByTokenHash: jest.Mock;
+    findByTokenHash: jest.Mock;
+    revokeById: jest.Mock;
+    revokeFamily: jest.Mock;
+  };
   let mockJwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
+  let mockConfigService: { get: jest.Mock };
   const bcryptCompare = bcrypt.compare as jest.Mock;
 
   beforeEach(async () => {
     mockUserRepository = {
       findByEmail: jest.fn(),
+      findById: jest.fn(),
       incrementFailedAttempts: jest.fn().mockResolvedValue(undefined),
       lockUser: jest.fn().mockResolvedValue(undefined),
       resetFailedAttempts: jest.fn().mockResolvedValue(undefined),
     };
     mockRevokedTokenRepository = { createRevokedToken: jest.fn() };
+    mockRefreshTokenRepository = {
+      create: jest.fn().mockResolvedValue({ id: 1 }),
+      findActiveByTokenHash: jest.fn(),
+      findByTokenHash: jest.fn(),
+      revokeById: jest.fn().mockResolvedValue(undefined),
+      revokeFamily: jest.fn().mockResolvedValue(undefined),
+    };
     mockJwtService = {
       signAsync: jest.fn().mockResolvedValue('token_jwt_firmado'),
       verifyAsync: jest.fn(),
     };
+    mockConfigService = { get: jest.fn().mockReturnValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,13 +81,20 @@ describe('AuthService', () => {
           provide: REVOKED_TOKEN_REPOSITORY,
           useValue: mockRevokedTokenRepository,
         },
+        {
+          provide: REFRESH_TOKEN_REPOSITORY,
+          useValue: mockRefreshTokenRepository,
+        },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     jest.clearAllMocks();
     mockJwtService.signAsync.mockResolvedValue('token_jwt_firmado');
+    mockRefreshTokenRepository.create.mockResolvedValue({ id: 1 });
+    mockConfigService.get.mockReturnValue(undefined);
   });
 
   describe('login - caso exitoso', () => {
@@ -331,6 +358,32 @@ describe('AuthService', () => {
           expiresAt: new Date(1760000000 * 1000),
         }),
       );
+      expect(mockRefreshTokenRepository.revokeFamily).not.toHaveBeenCalled();
+    });
+
+    it('deberia revocar tambien la familia del refresh_token cuando se envia', async () => {
+      // Arrange
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 1,
+        email: 'admin@empresa.com',
+        empresaId: 1,
+        exp: 1760000000,
+      });
+      mockRevokedTokenRepository.createRevokedToken.mockResolvedValue({
+        id: 1,
+      });
+      mockRefreshTokenRepository.findByTokenHash.mockResolvedValue({
+        id: 10,
+        familyId: 'family-123',
+      });
+
+      // Act
+      await service.logout('token_jwt_firmado', 'refresh_plano');
+
+      // Assert
+      expect(mockRefreshTokenRepository.revokeFamily).toHaveBeenCalledWith(
+        'family-123',
+      );
     });
 
     it('deberia lanzar UnauthorizedException cuando el token es invalido', async () => {
@@ -339,6 +392,110 @@ describe('AuthService', () => {
 
       // Act & Assert
       await expect(service.logout('token_invalido')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('refresh', () => {
+    it('deberia emitir un access_token y refresh_token nuevos cuando el token es valido', async () => {
+      // Arrange
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+      mockRefreshTokenRepository.findByTokenHash.mockResolvedValue({
+        id: 5,
+        userId: 1,
+        empresaId: 1,
+        familyId: 'family-123',
+        expiresAt: futureDate,
+        revokedAt: null,
+      });
+      mockUserRepository.findById.mockResolvedValue(activeUser);
+
+      // Act
+      const result = await service.refresh('refresh_valido');
+
+      // Assert
+      expect(result.access_token).toBe('token_jwt_firmado');
+      expect(typeof result.refresh_token).toBe('string');
+      expect(mockRefreshTokenRepository.revokeById).toHaveBeenCalledWith(
+        5,
+        expect.any(String),
+      );
+      expect(mockRefreshTokenRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 1,
+          empresaId: 1,
+          familyId: 'family-123',
+          expiresAt: futureDate,
+        }),
+      );
+    });
+
+    it('deberia lanzar UnauthorizedException cuando el refresh_token no existe', async () => {
+      // Arrange
+      mockRefreshTokenRepository.findByTokenHash.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.refresh('inexistente')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('deberia lanzar UnauthorizedException y revocar la familia cuando el refresh_token ya fue usado (reuso)', async () => {
+      // Arrange
+      mockRefreshTokenRepository.findByTokenHash.mockResolvedValue({
+        id: 5,
+        userId: 1,
+        empresaId: 1,
+        familyId: 'family-123',
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        revokedAt: new Date(),
+      });
+
+      // Act & Assert
+      await expect(service.refresh('reusado')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockRefreshTokenRepository.revokeFamily).toHaveBeenCalledWith(
+        'family-123',
+      );
+    });
+
+    it('deberia lanzar UnauthorizedException cuando el refresh_token esta expirado', async () => {
+      // Arrange
+      mockRefreshTokenRepository.findByTokenHash.mockResolvedValue({
+        id: 5,
+        userId: 1,
+        empresaId: 1,
+        familyId: 'family-123',
+        expiresAt: new Date(Date.now() - 1000),
+        revokedAt: null,
+      });
+
+      // Act & Assert
+      await expect(service.refresh('expirado')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockRefreshTokenRepository.revokeFamily).not.toHaveBeenCalled();
+    });
+
+    it('deberia lanzar UnauthorizedException cuando el usuario ya no esta activo', async () => {
+      // Arrange
+      mockRefreshTokenRepository.findByTokenHash.mockResolvedValue({
+        id: 5,
+        userId: 1,
+        empresaId: 1,
+        familyId: 'family-123',
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        revokedAt: null,
+      });
+      mockUserRepository.findById.mockResolvedValue({
+        ...activeUser,
+        isActive: false,
+      });
+
+      // Act & Assert
+      await expect(service.refresh('valido_pero_usuario_inactivo')).rejects.toThrow(
         UnauthorizedException,
       );
     });

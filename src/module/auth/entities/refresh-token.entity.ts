@@ -1,13 +1,7 @@
-import {
-  Column,
-  CreateDateColumn,
-  DeleteDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('revoked_tokens')
-export class RevokedToken {
+@Entity('refresh_tokens')
+export class RefreshToken {
   @PrimaryGeneratedColumn()
   id!: number;
 
@@ -20,12 +14,18 @@ export class RevokedToken {
   @Column({ name: 'empresa_id', type: 'int', nullable: true })
   empresaId!: number | null;
 
+  @Column({ name: 'family_id', type: 'uuid' })
+  familyId!: string;
+
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt!: Date;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt?: Date | null;
+  @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
+  revokedAt!: Date | null;
+
+  @Column({ name: 'replaced_by_hash', type: 'varchar', nullable: true })
+  replacedByHash!: string | null;
 }

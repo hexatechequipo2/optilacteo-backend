@@ -4,6 +4,7 @@ import { User } from './module/user/entities/user.entity';
 import { Empresa } from './module/empresa/entities/empresa.entity';
 import { EmpresaModulo } from './module/empresa/entities/empresa-modulo.entity';
 import { RevokedToken } from './module/auth/entities/revoked-token.entity';
+import { RefreshToken } from './module/auth/entities/refresh-token.entity';
 import { PasswordResetTokenEntity } from './module/auth/entities/password-reset-token.entity';
 import { Proveedor } from './module/proveedores/entities/proveedor.entity';
 import { SystemConfig } from './module/system-config/entities/system-config.entity';
@@ -22,6 +23,7 @@ export default new DataSource({
     Empresa,
     EmpresaModulo,
     RevokedToken,
+    RefreshToken,
     PasswordResetTokenEntity,
     Proveedor,
     SystemConfig,

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -8,6 +8,7 @@ import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { ROLES } from '../rol/constants/roles.constants';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @ApiTags('empresa')
 @Controller('empresa')
@@ -22,12 +23,15 @@ export class EmpresaController {
 
   @Get()
   @Roles(ROLES.ADMINISTRADOR)
-  findAll() {
-    return this.empresaService.findAll();
+  findAll(@Query() pagination: PaginationQueryDto) {
+    return this.empresaService.findAll(pagination);
   }
 
+  // Sin @Roles(): cualquier rol autenticado puede ver los datos de su
+  // propia empresa (ver comentario en EmpresaService.findMine). Antes
+  // estaba bloqueado por el @Roles(ADMINISTRADOR) a nivel de clase que
+  // tenía todo el controller.
   @Get('me')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
   findMine(@CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.findMine(tenant);
   }

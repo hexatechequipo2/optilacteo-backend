@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
 import { LoginDto } from '../dto/login.dto';
@@ -7,6 +8,7 @@ import { ROLES } from '../../rol/constants/roles.constants';
 
 const successfulLoginResponse = {
   access_token: 'token_jwt_firmado',
+  refresh_token: 'refresh_token_plano',
   user: {
     id: 1,
     email: 'admin@empresa.com',
@@ -18,15 +20,22 @@ const successfulLoginResponse = {
 
 describe('AuthController', () => {
   let controller: AuthController;
-  let mockAuthService: { login: jest.Mock; logout: jest.Mock };
+  let mockAuthService: {
+    login: jest.Mock;
+    logout: jest.Mock;
+    refresh: jest.Mock;
+  };
 
   beforeEach(async () => {
-    mockAuthService = { login: jest.fn(), logout: jest.fn() };
+    mockAuthService = { login: jest.fn(), logout: jest.fn(), refresh: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [{ provide: AuthService, useValue: mockAuthService }],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
   });
@@ -69,6 +78,7 @@ describe('AuthController', () => {
       };
       const responseSinRol = {
         access_token: 'token_jwt_firmado',
+        refresh_token: 'refresh_token_plano',
         user: {
           id: 2,
           email: 'sinrol@empresa.com',
@@ -101,8 +111,64 @@ describe('AuthController', () => {
       const result = await controller.logout(request);
 
       // Assert
-      expect(mockAuthService.logout).toHaveBeenCalledWith('token_jwt_firmado');
+      expect(mockAuthService.logout).toHaveBeenCalledWith(
+        'token_jwt_firmado',
+        undefined,
+      );
       expect(result).toEqual({ message: 'Sesion cerrada correctamente' });
+    });
+
+    it('deberia reenviar el refresh_token al servicio cuando viene en el body', async () => {
+      // Arrange
+      const request = {
+        accessToken: 'token_jwt_firmado',
+      } as AuthenticatedRequest;
+      mockAuthService.logout.mockResolvedValue({
+        message: 'Sesion cerrada correctamente',
+      });
+
+      // Act
+      await controller.logout(request, { refresh_token: 'refresh_plano' });
+
+      // Assert
+      expect(mockAuthService.logout).toHaveBeenCalledWith(
+        'token_jwt_firmado',
+        'refresh_plano',
+      );
+    });
+  });
+
+  describe('POST /refresh', () => {
+    it('deberia devolver un nuevo access_token y refresh_token', async () => {
+      // Arrange
+      const refreshResponse = {
+        access_token: 'nuevo_access_token',
+        refresh_token: 'nuevo_refresh_token',
+      };
+      mockAuthService.refresh.mockResolvedValue(refreshResponse);
+
+      // Act
+      const result = await controller.refresh({
+        refresh_token: 'refresh_token_viejo',
+      });
+
+      // Assert
+      expect(mockAuthService.refresh).toHaveBeenCalledWith(
+        'refresh_token_viejo',
+      );
+      expect(result).toEqual(refreshResponse);
+    });
+
+    it('deberia propagar la excepcion cuando el refresh_token es invalido', async () => {
+      // Arrange
+      mockAuthService.refresh.mockRejectedValue(
+        new Error('Refresh token inválido'),
+      );
+
+      // Act & Assert
+      await expect(
+        controller.refresh({ refresh_token: 'invalido' }),
+      ).rejects.toThrow('Refresh token inválido');
     });
   });
 });

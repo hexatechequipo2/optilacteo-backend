@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
@@ -19,16 +20,20 @@ import { ProveedorResponseDto } from './dto/proveedor-response.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import type { PaginatedResponse } from '../../common/dto/paginated-response.dto';
 
 @ApiTags('proveedores')
-@Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
 @Controller('proveedores')
 export class ProveedoresController {
   constructor(private readonly proveedoresService: ProveedoresService) {}
 
   @Get()
-  findAll(@CurrentEmpresa() tenant: TenantContext): Promise<ProveedorResponseDto[]> {
-    return this.proveedoresService.findAll(tenant);
+  findAll(
+    @CurrentEmpresa() tenant: TenantContext,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<PaginatedResponse<ProveedorResponseDto>> {
+    return this.proveedoresService.findAll(tenant, pagination);
   }
 
   @Get(':id')
@@ -39,6 +44,7 @@ export class ProveedoresController {
     return this.proveedoresService.findOne(id, tenant);
   }
 
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(
@@ -48,6 +54,7 @@ export class ProveedoresController {
     return this.proveedoresService.create(createProveedorDto, tenant);
   }
 
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -57,6 +64,7 @@ export class ProveedoresController {
     return this.proveedoresService.update(id, updateProveedorDto, tenant);
   }
 
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentEmpresa() tenant: TenantContext) {
     await this.proveedoresService.remove(id, tenant);
