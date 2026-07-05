@@ -1,6 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
-import { Role } from '../enums/role.enum';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Empresa } from '../../empresa/entities/empresa.entity';
+import { Rol } from '../../rol/entities/rol.entity';
 
 @Entity('users')
 export class User {
@@ -16,9 +16,6 @@ export class User {
   @Column()
   password!: string;
 
-  @Column({ type: 'enum', enum: Role, default: Role.ADMIN })
-  role!: Role;
-
   @Column({ default: true })
   isActive!: boolean;
 
@@ -30,4 +27,8 @@ export class User {
 
   @ManyToOne(() => Empresa, (empresa) => empresa.users, { nullable: true })
   empresa?: Empresa | null;
+
+  @ManyToOne(() => Rol, { nullable: true })
+  @JoinColumn({ name: 'rol' })
+  rol?: Rol | null;
 }

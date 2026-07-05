@@ -1,17 +1,28 @@
-import { Inject, Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import type { IUserRepository } from './repository/user-repository.interface';
+
 import { USER_REPOSITORY } from './repository/user-repository.interface';
+import type { IUserRepository } from './repository/user-repository.interface';
+
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserMapper } from './mappers/user.mapper';
+
 import { User } from './entities/user.entity';
 import { Empresa } from '../empresa/entities/empresa.entity';
+import { Rol } from '../rol/entities/rol.entity';
+
 import { EmpresaService } from '../empresa/empresa.service';
 
-const BCRYPT_SALT_ROUNDS = 10;
+const SALT_ROUNDS = 10;
 
 @Injectable()
 export class UserService {
@@ -20,30 +31,42 @@ export class UserService {
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly userRepository: IUserRepository,
+
     @InjectRepository(Empresa)
     private readonly empresaRepository: Repository<Empresa>,
+
+    @InjectRepository(Rol)
+    private readonly rolRepository: Repository<Rol>,
+
     private readonly empresaService: EmpresaService,
   ) {}
 
   async create(dto: CreateUserDto) {
     const empresa = await this.findEmpresaOrFail(dto.empresaId);
+    const rol = await this.findRolOrFail(dto.rolId);
 
-    // NUEVO: validar que la empresa no haya alcanzado el límite de usuarios de su plan
     const limiteUsuarios = await this.empresaService.getLimiteUsuarios(dto.empresaId);
+
     const usuariosActuales = await this.userRepository.countByEmpresa(dto.empresaId);
 
     if (usuariosActuales >= limiteUsuarios) {
       throw new BadRequestException(
-        `La empresa alcanzó el límite de ${limiteUsuarios} usuarios para su plan actual`,
+        `La empresa alcanzó el límite de usuarios para su plan`,
       );
     }
 
-    // La contraseña se hashea en el Service (no en el Mapper) porque bcrypt.hash es async
-    const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
-    const userToCreate = UserMapper.toEntity(dto, empresa, hashedPassword);
+    const hashedPassword = await bcrypt.hash(dto.password, SALT_ROUNDS);
+
+    const userToCreate = UserMapper.toEntity(
+      dto,
+      empresa,
+      rol,
+      hashedPassword,
+    );
+
     const created = await this.userRepository.createUser(userToCreate);
 
-    this.logger.log(`Usuario creado: [${created.email}]`);
+    this.logger.log(`Usuario creado: ${created.email}`);
 
     return UserMapper.toResponse(created);
   }
@@ -55,53 +78,80 @@ export class UserService {
 
   async findOne(id: number) {
     const user = await this.userRepository.findById(id);
+
     if (!user) {
-      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+      throw new NotFoundException('Usuario no encontrado');
     }
+
     return UserMapper.toResponse(user);
   }
 
   async update(id: number, dto: UpdateUserDto) {
-    await this.findOne(id); // valida que el usuario exista, lanza 404 si no
+    await this.findOne(id);
 
-    // Solo se hashea si el dto trae password; si no viene, no se toca el campo
-    const hashedPassword =
-      dto.password !== undefined
-        ? await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS)
-        : undefined;
+    const update: Partial<User> = {};
 
-    const userToUpdate: Partial<User> = {
-      ...(dto.name !== undefined && { name: dto.name }),
-      ...(dto.email !== undefined && { email: dto.email }),
-      ...(hashedPassword !== undefined && { password: hashedPassword }),
-      ...(dto.role !== undefined && { role: dto.role }),
-    };
+    if (dto.name !== undefined) update.name = dto.name;
+    if (dto.email !== undefined) update.email = dto.email;
 
-    if (dto.empresaId !== undefined) {
-      userToUpdate.empresa = await this.findEmpresaOrFail(dto.empresaId);
+    if (dto.password) {
+      update.password = await bcrypt.hash(dto.password, SALT_ROUNDS);
     }
 
-    const updated = await this.userRepository.updateUser(id, userToUpdate);
+    if (dto.rolId) {
+      update.rol = await this.findRolOrFail(dto.rolId);
+    }
+
+    if (dto.empresaId) {
+      update.empresa = await this.findEmpresaOrFail(dto.empresaId);
+    }
+
+    const updated = await this.userRepository.updateUser(id, update);
+
     return UserMapper.toResponse(updated);
-  }
-
-  private async findEmpresaOrFail(empresaId: number): Promise<Empresa> {
-    const empresa = await this.empresaRepository.findOneBy({ id: empresaId });
-    if (!empresa) {
-      throw new NotFoundException(`Empresa con id ${empresaId} no encontrada`);
-    }
-    return empresa;
   }
 
   async deactivate(id: number) {
     await this.findOne(id);
-    const updated = await this.userRepository.updateUser(id, { isActive: false });
+
+    const updated = await this.userRepository.updateUser(id, {
+      isActive: false,
+    });
+
     return UserMapper.toResponse(updated);
   }
 
   async activate(id: number) {
     await this.findOne(id);
-    const updated = await this.userRepository.updateUser(id, { isActive: true });
+
+    const updated = await this.userRepository.updateUser(id, {
+      isActive: true,
+    });
+
     return UserMapper.toResponse(updated);
+  }
+
+  // -------------------------
+  // HELPERS
+  // -------------------------
+
+  private async findEmpresaOrFail(id: number) {
+    const empresa = await this.empresaRepository.findOneBy({ id });
+
+    if (!empresa) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+
+    return empresa;
+  }
+
+  private async findRolOrFail(id: number) {
+    const rol = await this.rolRepository.findOneBy({ id });
+
+    if (!rol) {
+      throw new NotFoundException('Rol no encontrado');
+    }
+
+    return rol;
   }
 }

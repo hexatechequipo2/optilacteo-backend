@@ -1,11 +1,11 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Role } from '../user/enums/role.enum';
-import { USER_REPOSITORY } from '../user/repository/user-repository.interface';
-import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { REVOKED_TOKEN_REPOSITORY } from './repository/revoked-token-repository.interface';
+import { ROLES } from '../../rol/constants/roles.constants';
+import { USER_REPOSITORY } from '../../user/repository/user-repository.interface';
+import { AuthService } from '../auth.service';
+import { LoginDto } from '../dto/login.dto';
+import { REVOKED_TOKEN_REPOSITORY } from '../repository/revoked-token-repository.interface';
 
 // Mock a nivel de modulo para evitar el problema con ESModules de bcrypt.
 jest.mock('bcrypt', () => ({
@@ -17,11 +17,15 @@ const activeUser = {
   id: 1,
   email: 'admin@empresa.com',
   password: 'hash_seguro',
-  role: Role.ADMIN,
+  rol: {
+    id: 1,
+    nombre: ROLES.ADMINISTRADOR,
+    permisos: [],
+  },
   isActive: true,
   failedLoginAttempts: 0,
   lockedUntil: null,
-  empresa: { id: 1, empresaId: 1, name: 'LacteosNorte' },
+  empresa: { id: 1, name: 'LacteosNorte' },
 };
 
 describe('AuthService', () => {
@@ -83,15 +87,40 @@ describe('AuthService', () => {
       expect(result.access_token).toBe('token_jwt_firmado');
       expect(result.user.id).toBe(1);
       expect(result.user.email).toBe('admin@empresa.com');
-      expect(result.user.role).toBe(Role.ADMIN);
+      expect(result.user.rolId).toBe(1);
+      expect(result.user.rolNombre).toBe(ROLES.ADMINISTRADOR);
       expect(result.user.empresa).toBe('LacteosNorte');
-      // Se verifica que empresaId del payload JWT corresponde al id de la empresa del usuario
+      // Se verifica que el payload JWT incluye rol, permisos y empresa correctos
       expect(mockJwtService.signAsync).toHaveBeenCalledWith({
         sub: activeUser.id,
         email: activeUser.email,
-        role: activeUser.role,
+        rolId: activeUser.rol.id,
+        rolNombre: activeUser.rol.nombre,
+        permisos: [],
         empresaId: activeUser.empresa.id,
+        jti: '',
       });
+    });
+
+    it('deberia retornar rolId y rolNombre en null cuando el usuario no tiene rol asignado', async () => {
+      // Arrange
+      const userSinRol = { ...activeUser, rol: null };
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave123',
+      };
+      mockUserRepository.findByEmail.mockResolvedValue(userSinRol);
+      bcryptCompare.mockResolvedValue(true);
+
+      // Act
+      const result = await service.login(dto);
+
+      // Assert
+      expect(result.user.rolId).toBeNull();
+      expect(result.user.rolNombre).toBeNull();
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ rolId: null, rolNombre: null, permisos: [] }),
+      );
     });
   });
 
@@ -277,7 +306,8 @@ describe('AuthService', () => {
       mockJwtService.verifyAsync.mockResolvedValue({
         sub: 1,
         email: 'admin@empresa.com',
-        role: Role.ADMIN,
+        rolId: 1,
+        rolNombre: ROLES.ADMINISTRADOR,
         empresaId: 1,
         jti: 'session-id',
         exp: 1760000000,
@@ -290,7 +320,7 @@ describe('AuthService', () => {
       const result = await service.logout(accessToken);
 
       // Assert
-      expect(result).toEqual({ message: 'Sesion cerrada correctamente' });
+      expect(result).toEqual({ message: 'Sesión cerrada correctamente' });
       expect(
         mockRevokedTokenRepository.createRevokedToken,
       ).toHaveBeenCalledWith(

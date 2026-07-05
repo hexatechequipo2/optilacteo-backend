@@ -3,10 +3,11 @@ import { ProveedorRepository } from '../repository/proveedor.repository';
 import { Proveedor } from '../entities/proveedor.entity';
 import { TipoProveedor } from '../enums/tipo-proveedor.enum';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
+import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
-const tenantEmpresaA: TenantContext = { empresaId: 1, isAdmin: false };
-const tenantAdmin: TenantContext = { empresaId: null, isAdmin: true };
+const tenantEmpresaA: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
+const tenantAdmin: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
 
 function buildProveedor(overrides: Partial<Proveedor> = {}): Proveedor {
   return {
