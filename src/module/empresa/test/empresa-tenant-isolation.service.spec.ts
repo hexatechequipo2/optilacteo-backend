@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EmpresaService } from '../empresa.service';
 import { EMPRESA_REPOSITORY } from '../repository/empresa-repository.interface';
@@ -33,6 +33,7 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
   let mockEmpresaRepository: {
     findById: jest.Mock;
     findAll: jest.Mock;
+    findAllPaginated: jest.Mock;
     createEmpresa: jest.Mock;
     updateEmpresa: jest.Mock;
     deleteEmpresa: jest.Mock;
@@ -46,6 +47,7 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
     mockEmpresaRepository = {
       findById: jest.fn(),
       findAll: jest.fn(),
+      findAllPaginated: jest.fn(),
       createEmpresa: jest.fn(),
       updateEmpresa: jest.fn(),
       deleteEmpresa: jest.fn(),
@@ -65,6 +67,27 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
     service = module.get<EmpresaService>(EmpresaService);
   });
 
+  describe('findAll - paginacion', () => {
+    it('usa page=1 y limit=20 por defecto y calcula skip=0', async () => {
+      mockEmpresaRepository.findAllPaginated.mockResolvedValue([[empresaA, empresaB], 2]);
+
+      const result = await service.findAll({ page: 1, limit: 20 });
+
+      expect(mockEmpresaRepository.findAllPaginated).toHaveBeenCalledWith(0, 20);
+      expect(result.meta).toEqual({ page: 1, limit: 20, total: 2, totalPages: 1 });
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('calcula el skip correctamente para paginas mayores a 1', async () => {
+      mockEmpresaRepository.findAllPaginated.mockResolvedValue([[], 45]);
+
+      const result = await service.findAll({ page: 3, limit: 10 });
+
+      expect(mockEmpresaRepository.findAllPaginated).toHaveBeenCalledWith(20, 10);
+      expect(result.meta).toEqual({ page: 3, limit: 10, total: 45, totalPages: 5 });
+    });
+  });
+
   describe('findOne', () => {
     it('un usuario de la Empresa A puede ver su propia empresa', async () => {
       mockEmpresaRepository.findById.mockResolvedValue(empresaA);
@@ -75,8 +98,8 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
       expect(mockEmpresaRepository.findById).toHaveBeenCalledWith(1);
     });
 
-    it('un usuario de la Empresa A NO puede ver la Empresa B por id (403)', async () => {
-      await expect(service.findOne(2, tenantEmpresaA)).rejects.toThrow(ForbiddenException);
+    it('un usuario de la Empresa A NO puede ver la Empresa B por id (404)', async () => {
+      await expect(service.findOne(2, tenantEmpresaA)).rejects.toThrow(NotFoundException);
       // El chequeo corta antes de tocar el repositorio.
       expect(mockEmpresaRepository.findById).not.toHaveBeenCalled();
     });
@@ -91,10 +114,10 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
   });
 
   describe('update', () => {
-    it('un usuario de la Empresa A NO puede actualizar la Empresa B (403)', async () => {
+    it('un usuario de la Empresa A NO puede actualizar la Empresa B (404)', async () => {
       await expect(
         service.update(2, { name: 'Hackeada' }, tenantEmpresaA),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
       expect(mockEmpresaRepository.updateEmpresa).not.toHaveBeenCalled();
     });
 
@@ -109,17 +132,17 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
   });
 
   describe('activate / deactivate / remove', () => {
-    it('un usuario de la Empresa A NO puede desactivar la Empresa B (403)', async () => {
-      await expect(service.deactivate(2, tenantEmpresaA)).rejects.toThrow(ForbiddenException);
+    it('un usuario de la Empresa A NO puede desactivar la Empresa B (404)', async () => {
+      await expect(service.deactivate(2, tenantEmpresaA)).rejects.toThrow(NotFoundException);
       expect(mockEmpresaRepository.hasActiveUsers).not.toHaveBeenCalled();
     });
 
-    it('un usuario de la Empresa A NO puede activar la Empresa B (403)', async () => {
-      await expect(service.activate(2, tenantEmpresaA)).rejects.toThrow(ForbiddenException);
+    it('un usuario de la Empresa A NO puede activar la Empresa B (404)', async () => {
+      await expect(service.activate(2, tenantEmpresaA)).rejects.toThrow(NotFoundException);
     });
 
-    it('remove() hereda la proteccion de deactivate() (403 para empresa ajena)', async () => {
-      await expect(service.remove(2, tenantEmpresaA)).rejects.toThrow(ForbiddenException);
+    it('remove() hereda la proteccion de deactivate() (404 para empresa ajena)', async () => {
+      await expect(service.remove(2, tenantEmpresaA)).rejects.toThrow(NotFoundException);
     });
 
     it('un usuario de la Empresa A SI puede desactivar su propia empresa', async () => {
@@ -134,14 +157,14 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
   });
 
   describe('activarModulo / desactivarModulo', () => {
-    it('un usuario de la Empresa A NO puede tocar modulos de la Empresa B (403)', async () => {
+    it('un usuario de la Empresa A NO puede tocar modulos de la Empresa B (404)', async () => {
       await expect(
         service.activarModulo(2, { modulo: 'dashboard' } as never, tenantEmpresaA),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
 
       await expect(
         service.desactivarModulo(2, { modulo: 'dashboard' } as never, tenantEmpresaA),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
 
       expect(mockEmpresaRepository.findModulo).not.toHaveBeenCalled();
     });
