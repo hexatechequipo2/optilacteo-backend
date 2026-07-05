@@ -25,12 +25,8 @@ export class UserMapper {
       name: user.name,
       email: user.email,
       isActive: user.isActive,
-      rol: user.rol
-        ? {
-            id: user.rol.id,
-            nombre: user.rol.nombre,
-          }
-        : null,
+      rolId: user.rol?.id ?? null,
+      rolNombre: user.rol?.nombre ?? null,
       empresa: user.empresa
         ? {
             id: user.empresa.id,

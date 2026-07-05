@@ -32,8 +32,10 @@ export class UserRepository implements IUserRepository {
   }
 
   async findAll(): Promise<User[]> {
-    return this.repository.find({ relations: { empresa: true } });
-  }
+    return this.repository.find({
+      relations: { empresa: true, rol: true },
+  });
+}
 
   async createUser(user: Partial<User>): Promise<User> {
     const newUser = this.repository.create(user);
