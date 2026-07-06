@@ -27,6 +27,7 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MINUTES = 15;
 const REFRESH_TOKEN_BYTES = 64;
 const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS = 7;
+const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME = 30;
 
 export interface LoginResponse {
   access_token: string;
@@ -103,7 +104,7 @@ export class AuthService {
     const access_token = await this.jwtService.signAsync(payload);
 
     const familyId = randomUUID();
-    const expiresAt = this.buildRefreshTokenExpiration();
+    const expiresAt = this.buildRefreshTokenExpiration(dto.rememberMe ?? false);
     const refresh_token = await this.issueRefreshToken({
       userId: user.id,
       empresaId: payload.empresaId,
@@ -196,10 +197,12 @@ export class AuthService {
     };
   }
 
-  private buildRefreshTokenExpiration(): Date {
-    const days =
-      this.configService.get<number>('REFRESH_TOKEN_EXPIRES_DAYS') ??
-      DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS;
+  private buildRefreshTokenExpiration(rememberMe: boolean): Date {
+    const days = rememberMe
+      ? this.configService.get<number>('REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME') ??
+        DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME
+      : this.configService.get<number>('REFRESH_TOKEN_EXPIRES_DAYS') ??
+        DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS;
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + Number(days));
