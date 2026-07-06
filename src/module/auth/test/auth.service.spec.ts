@@ -151,6 +151,88 @@ describe('AuthService', () => {
     });
   });
 
+  describe('login - rememberMe', () => {
+    it('deberia usar REFRESH_TOKEN_EXPIRES_DAYS (corto) cuando rememberMe es false u omitido', async () => {
+      // Arrange
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave123',
+        rememberMe: false,
+      };
+      mockUserRepository.findByEmail.mockResolvedValue(activeUser);
+      bcryptCompare.mockResolvedValue(true);
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'REFRESH_TOKEN_EXPIRES_DAYS' ? 7 : undefined,
+      );
+
+      // Act
+      await service.login(dto);
+
+      // Assert
+      expect(mockConfigService.get).toHaveBeenCalledWith(
+        'REFRESH_TOKEN_EXPIRES_DAYS',
+      );
+      expect(mockConfigService.get).not.toHaveBeenCalledWith(
+        'REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME',
+      );
+
+      const createdArgs = mockRefreshTokenRepository.create.mock.calls[0][0];
+      const diffDays = Math.round(
+        (createdArgs.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+      expect(diffDays).toBe(7);
+    });
+
+    it('deberia usar REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME (largo) cuando rememberMe es true', async () => {
+      // Arrange
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave123',
+        rememberMe: true,
+      };
+      mockUserRepository.findByEmail.mockResolvedValue(activeUser);
+      bcryptCompare.mockResolvedValue(true);
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME' ? 30 : undefined,
+      );
+
+      // Act
+      await service.login(dto);
+
+      // Assert
+      expect(mockConfigService.get).toHaveBeenCalledWith(
+        'REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME',
+      );
+
+      const createdArgs = mockRefreshTokenRepository.create.mock.calls[0][0];
+      const diffDays = Math.round(
+        (createdArgs.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+      expect(diffDays).toBe(30);
+    });
+
+    it('deberia usar el default de 30 dias cuando rememberMe es true y no hay config', async () => {
+      // Arrange
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave123',
+        rememberMe: true,
+      };
+      mockUserRepository.findByEmail.mockResolvedValue(activeUser);
+      bcryptCompare.mockResolvedValue(true);
+
+      // Act
+      await service.login(dto);
+
+      // Assert
+      const createdArgs = mockRefreshTokenRepository.create.mock.calls[0][0];
+      const diffDays = Math.round(
+        (createdArgs.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+      expect(diffDays).toBe(30);
+    });
+  });
+
   describe('login - email no registrado', () => {
     it('deberia lanzar UnauthorizedException con mensaje generico cuando el email no existe', async () => {
       // Arrange
