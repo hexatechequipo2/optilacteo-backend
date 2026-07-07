@@ -154,4 +154,14 @@ export class UserService {
 
     return rol;
   }
+
+  async unlock(id: number) {
+    await this.findOne(id); // valida existencia, tira 404 si no existe
+
+    await this.userRepository.resetFailedAttempts(id);
+
+    this.logger.log(`Usuario desbloqueado manualmente: id=${id}`);
+
+    return this.findOne(id);
+  }
 }
