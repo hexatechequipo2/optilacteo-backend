@@ -18,6 +18,7 @@ import {
   buildPaginatedResponse,
   type PaginatedResponse,
 } from '../../common/dto/paginated-response.dto';
+import { EstadoProveedor } from './enums/estado-proveedor.enum';
 
 @Injectable()
 export class ProveedoresService {
@@ -94,15 +95,36 @@ export class ProveedoresService {
     return this.mapper.toResponseDto(saved);
   }
 
+// Soft delete: el proveedor no se borra físicamente, pasa a estado
+  // SUSPENDIDA. Sigue apareciendo en findAll (el frontend lo muestra con
+  // badge "Suspendida"), pero queda excluido de countByEmpresa (ACTIVA).
   async remove(id: number, tenant: TenantContext): Promise<void> {
     const proveedor = await this.proveedorRepository.findById(id, tenant);
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
-    const deleted = await this.proveedorRepository.delete(id, tenant);
+    const deleted = await this.proveedorRepository.softDelete(id, tenant);
     if (!deleted) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
+  }
+
+  // Reactiva un proveedor suspendido, devolviéndolo a estado ACTIVA.
+  async activate(id: number, tenant: TenantContext): Promise<ProveedorResponseDto> {
+    const proveedor = await this.proveedorRepository.findById(id, tenant);
+    if (!proveedor) {
+      throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
+    }
+    const updated = await this.proveedorRepository.setEstado(
+      id,
+      EstadoProveedor.ACTIVA,
+      tenant,
+    );
+    if (!updated) {
+      throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
+    }
+    const proveedorActualizado = await this.proveedorRepository.findById(id, tenant);
+    return this.mapper.toResponseDto(proveedorActualizado!);
   }
 
   // Admin gestiona proveedores de cualquier empresa: debe indicar empresaId

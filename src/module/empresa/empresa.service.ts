@@ -96,22 +96,35 @@ export class EmpresaService {
     return this.findOne(tenant.empresaId, tenant);
   }
 
-  async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
-    this.assertOwnEmpresa(id, tenant);
-    await this.findOne(id, tenant);
-
-    const empresaToUpdate = {
-      ...(dto.name !== undefined && { name: dto.name }),
-      ...(dto.cuit !== undefined && { cuit: dto.cuit }),
-      ...(dto.email !== undefined && { email: dto.email }),
-      ...(dto.telefono !== undefined && { telefono: dto.telefono }),
-      ...(dto.direccion !== undefined && { direccion: dto.direccion }),
-      ...(dto.plan !== undefined && { plan: dto.plan }),
-    };
-
-    const updated = await this.empresaRepository.updateEmpresa(id, empresaToUpdate);
-    return EmpresaMapper.toResponse(updated);
+async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
+  this.assertOwnEmpresa(id, tenant);
+  const empresaActual = await this.empresaRepository.findById(id);
+  if (!empresaActual) {
+    throw new NotFoundException(`Empresa con id ${id} no encontrada`);
   }
+
+  const empresaToUpdate = {
+    ...(dto.name !== undefined && { name: dto.name }),
+    ...(dto.cuit !== undefined && { cuit: dto.cuit }),
+    ...(dto.email !== undefined && { email: dto.email }),
+    ...(dto.telefono !== undefined && { telefono: dto.telefono }),
+    ...(dto.direccion !== undefined && { direccion: dto.direccion }),
+    ...(dto.plan !== undefined && { plan: dto.plan }),
+  };
+
+  const updated = await this.empresaRepository.updateEmpresa(id, empresaToUpdate);
+
+  // Si cambió el plan, sincronizar módulos según el nuevo plan
+  if (dto.plan !== undefined && dto.plan !== empresaActual.plan) {
+    const modulosNuevoPlan = DETALLE_POR_PLAN[dto.plan].modulos;
+    await this.empresaRepository.syncModulos(id, modulosNuevoPlan);
+    // (método a crear: activa los módulos del nuevo plan, y decide
+    // qué hacer con los que ya no están permitidos: ¿desactivar o eliminar?)
+  }
+
+  const empresaConModulos = await this.empresaRepository.findById(id);
+  return EmpresaMapper.toResponse(empresaConModulos!);
+}
 
   async deactivate(id: number, tenant: TenantContext) {
     this.assertOwnEmpresa(id, tenant);

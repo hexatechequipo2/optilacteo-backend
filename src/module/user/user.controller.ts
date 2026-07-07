@@ -4,7 +4,10 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('user')       
+@ApiBearerAuth()
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}

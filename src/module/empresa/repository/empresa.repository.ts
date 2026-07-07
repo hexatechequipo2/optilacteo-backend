@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Empresa } from '../entities/empresa.entity';
 import { EmpresaModulo } from '../entities/empresa-modulo.entity';
 import { ModuloSistema } from '../enums/modulo-sistema.enum';
@@ -78,5 +78,55 @@ export class EmpresaRepository implements IEmpresaRepository {
       throw new Error(`EmpresaModulo with id ${id} not found after update`);
     }
     return updated;
+  }
+
+  async syncModulos(empresaId: number, modulosNuevoPlan: ModuloSistema[]): Promise<void> {
+    // 1. Traer los módulos actuales de la empresa
+    const modulosActuales = await this.moduloRepository.find({
+      where: { empresa: { id: empresaId } },
+    });
+
+    const modulosActualesCodigos = modulosActuales.map((m) => m.modulo);
+
+    // 2. Activar (crear) los módulos del nuevo plan que la empresa no tenía
+    const modulosAAgregar = modulosNuevoPlan.filter(
+      (m) => !modulosActualesCodigos.includes(m),
+    );
+
+    if (modulosAAgregar.length > 0) {
+      const nuevos = this.moduloRepository.create(
+        modulosAAgregar.map((modulo) => ({
+          modulo,
+          isActive: true,
+          empresa: { id: empresaId } as Empresa,
+        })),
+      );
+      await this.moduloRepository.save(nuevos);
+    }
+
+    // 3. Desactivar los módulos que la empresa tenía pero el nuevo plan ya no incluye
+    const modulosAQuitar = modulosActuales.filter(
+      (m) => !modulosNuevoPlan.includes(m.modulo),
+    );
+
+    if (modulosAQuitar.length > 0) {
+      await this.moduloRepository.update(
+        { id: In(modulosAQuitar.map((m) => m.id)) },
+        { isActive: false },
+      );
+    }
+
+    // 4. Reactivar los módulos que el nuevo plan sí incluye pero estaban
+    // desactivados manualmente (por ejemplo, si venían de un downgrade previo)
+    const modulosAReactivar = modulosActuales.filter(
+      (m) => modulosNuevoPlan.includes(m.modulo) && !m.isActive,
+    );
+
+    if (modulosAReactivar.length > 0) {
+      await this.moduloRepository.update(
+        { id: In(modulosAReactivar.map((m) => m.id)) },
+        { isActive: true },
+      );
+    }
   }
 }

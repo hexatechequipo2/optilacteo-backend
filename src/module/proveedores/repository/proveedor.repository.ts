@@ -5,6 +5,7 @@ import { TenantScopedRepository } from '../../../common/repository/tenant-scoped
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { Proveedor } from '../entities/proveedor.entity';
 import { IProveedorRepository } from './proveedor-interface.repository';
+import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 
 @Injectable()
 export class ProveedorRepository
@@ -64,11 +65,22 @@ export class ProveedorRepository
     return this.repo.findOneBy({ id });
   }
 
-  // Mismo criterio que update(): empresa_id va en el WHERE del DELETE físico,
-  // y se informa si realmente borró algo (affected) en vez de asumir éxito.
-  async delete(id: number, tenant: TenantContext): Promise<boolean> {
-    const result = await this.repo.delete(
+  // Soft delete: pasa el estado a SUSPENDIDA en vez de borrar la fila
+  // o tocar un campo isActive separado.
+  async softDelete(id: number, tenant: TenantContext): Promise<boolean> {
+    return this.setEstado(id, EstadoProveedor.SUSPENDIDA, tenant);
+  }
+
+  // Cambia el estado del proveedor (usado tanto por softDelete como por
+  // activate). Mismo criterio de atomicidad: empresa_id va en el WHERE.
+  async setEstado(
+    id: number,
+    estado: EstadoProveedor,
+    tenant: TenantContext,
+  ): Promise<boolean> {
+    const result = await this.repo.update(
       this.scopedWhere(tenant, { id } as FindOptionsWhere<Proveedor>),
+      { estado },
     );
     return !!result.affected;
   }
