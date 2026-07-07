@@ -2,10 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RolController } from '../rol.controller';
 import { RolService } from '../rol.service';
 import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
+import type { TenantContext } from '../../../common/types/tenant-context.type';
+import { ROLES } from '../constants/roles.constants';
 
 // Los metadatos de @Roles (GERENTE/ADMINISTRADOR a nivel de clase) no se
 // testean aqui por reflexion; este archivo se enfoca en que cada metodo
 // del controller delegue en RolService con los parametros correctos.
+
+const tenantGerente: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
 describe('RolController', () => {
   let controller: RolController;
@@ -91,13 +95,13 @@ describe('RolController', () => {
   });
 
   describe('updatePermiso', () => {
-    it('deberia convertir el id a number y delegar en rolService.updatePermiso con el body', async () => {
+    it('deberia convertir el id a number y delegar en rolService.updatePermiso con el body y el tenant', async () => {
       const dto = { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false };
       mockRolService.updatePermiso.mockResolvedValue({ id: 5, permisos: [dto] });
 
-      await controller.updatePermiso('5', dto as never);
+      await controller.updatePermiso('5', dto as never, tenantGerente);
 
-      expect(mockRolService.updatePermiso).toHaveBeenCalledWith(5, dto);
+      expect(mockRolService.updatePermiso).toHaveBeenCalledWith(5, dto, tenantGerente);
     });
   });
 
