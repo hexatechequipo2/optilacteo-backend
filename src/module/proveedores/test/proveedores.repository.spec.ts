@@ -38,7 +38,6 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
     findOneBy: jest.Mock;
     save: jest.Mock;
     update: jest.Mock;
-    delete: jest.Mock;
     countBy: jest.Mock;
   };
 
@@ -50,7 +49,6 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       findOneBy: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
-      delete: jest.fn(),
       countBy: jest.fn(),
     };
     repository = new ProveedorRepository(mockTypeormRepo as unknown as Repository<Proveedor>);
@@ -163,27 +161,66 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
     });
   });
 
-  describe('delete - filtro atomico en la sentencia DELETE (cierre de TOCTOU)', () => {
-    it('para no-admin, la query DELETE fisica lleva empresaId en el WHERE', async () => {
-      mockTypeormRepo.delete.mockResolvedValue({ affected: 1, raw: [] });
+  describe('softDelete - cambia estado a SUSPENDIDA con filtro atomico (cierre de TOCTOU)', () => {
+    it('para no-admin, la query UPDATE fisica lleva empresaId en el WHERE y fija estado SUSPENDIDA', async () => {
+      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
 
-      await repository.delete(10, tenantEmpresaA);
+      await repository.softDelete(10, tenantEmpresaA);
 
-      expect(mockTypeormRepo.delete).toHaveBeenCalledWith({ id: 10, empresaId: 1 });
+      expect(mockTypeormRepo.update).toHaveBeenCalledWith(
+        { id: 10, empresaId: 1 },
+        { estado: EstadoProveedor.SUSPENDIDA },
+      );
     });
 
-    it('para admin, la query DELETE fisica NO lleva filtro de empresa', async () => {
-      mockTypeormRepo.delete.mockResolvedValue({ affected: 1, raw: [] });
+    it('para admin, la query UPDATE fisica NO lleva filtro de empresa', async () => {
+      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
 
-      await repository.delete(10, tenantAdmin);
+      await repository.softDelete(10, tenantAdmin);
 
-      expect(mockTypeormRepo.delete).toHaveBeenCalledWith({ id: 10 });
+      expect(mockTypeormRepo.update).toHaveBeenCalledWith(
+        { id: 10 },
+        { estado: EstadoProveedor.SUSPENDIDA },
+      );
     });
 
-    it('si affected es 0, devuelve false en vez de asumir que borro algo', async () => {
-      mockTypeormRepo.delete.mockResolvedValue({ affected: 0, raw: [] });
+    it('si affected es 0 (la fila ya no pertenece a esta empresa en el instante de la query), devuelve false en vez de asumir exito', async () => {
+      mockTypeormRepo.update.mockResolvedValue({ affected: 0, raw: [], generatedMaps: [] });
 
-      const result = await repository.delete(10, tenantEmpresaA);
+      const result = await repository.softDelete(10, tenantEmpresaA);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('setEstado - usado por softDelete y por activate, mismo filtro atomico', () => {
+    it('para no-admin, fija el estado recibido y filtra por empresaId', async () => {
+      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+
+      const result = await repository.setEstado(10, EstadoProveedor.ACTIVA, tenantEmpresaA);
+
+      expect(mockTypeormRepo.update).toHaveBeenCalledWith(
+        { id: 10, empresaId: 1 },
+        { estado: EstadoProveedor.ACTIVA },
+      );
+      expect(result).toBe(true);
+    });
+
+    it('para admin, NO agrega filtro de empresa', async () => {
+      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+
+      await repository.setEstado(10, EstadoProveedor.ACTIVA, tenantAdmin);
+
+      expect(mockTypeormRepo.update).toHaveBeenCalledWith(
+        { id: 10 },
+        { estado: EstadoProveedor.ACTIVA },
+      );
+    });
+
+    it('si affected es 0, devuelve false en vez de asumir que actualizo algo', async () => {
+      mockTypeormRepo.update.mockResolvedValue({ affected: 0, raw: [], generatedMaps: [] });
+
+      const result = await repository.setEstado(10, EstadoProveedor.ACTIVA, tenantEmpresaA);
 
       expect(result).toBe(false);
     });
@@ -196,6 +233,29 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       await repository.findByCuit('20-12345678-9');
 
       expect(mockTypeormRepo.findOneBy).toHaveBeenCalledWith({ cuit: '20-12345678-9' });
+    });
+  });
+
+  describe('save', () => {
+    it('deberia delegar directamente en el save de TypeORM', async () => {
+      const proveedor = buildProveedor();
+      mockTypeormRepo.save.mockResolvedValue(proveedor);
+
+      const result = await repository.save(proveedor);
+
+      expect(mockTypeormRepo.save).toHaveBeenCalledWith(proveedor);
+      expect(result).toBe(proveedor);
+    });
+  });
+
+  describe('countByEmpresa', () => {
+    it('deberia contar por empresaId (usado para excluir SUSPENDIDA/TRIAL del total activo)', async () => {
+      mockTypeormRepo.countBy.mockResolvedValue(3);
+
+      const result = await repository.countByEmpresa(1);
+
+      expect(mockTypeormRepo.countBy).toHaveBeenCalledWith({ empresaId: 1 });
+      expect(result).toBe(3);
     });
   });
 });
