@@ -20,6 +20,8 @@ export class UserMapper {
   }
 
   static toResponse(user: User) {
+    const isLocked = !!(user.lockedUntil && user.lockedUntil > new Date());
+
     return {
       id: user.id,
       name: user.name,
@@ -33,6 +35,8 @@ export class UserMapper {
             name: user.empresa.name,
           }
         : null,
+      isLocked,
+      lockedUntil: user.lockedUntil ?? null,
     };
   }
 

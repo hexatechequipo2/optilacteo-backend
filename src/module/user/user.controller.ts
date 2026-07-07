@@ -53,4 +53,10 @@ export class UserController {
   deactivateById(@Param('id') id: string) {
     return this.userService.deactivate(+id);
   }
+
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Patch(':id/desbloquear')
+  unlock(@Param('id') id: string) {
+    return this.userService.unlock(+id);
+}
 }
