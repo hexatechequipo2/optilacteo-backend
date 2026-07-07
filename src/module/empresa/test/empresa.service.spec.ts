@@ -428,7 +428,91 @@ describe('EmpresaService', () => {
       expect(starter.empresasAsignadas).toBe(2);
       expect(pro.empresasAsignadas).toBe(1);
       expect(enterprise.empresasAsignadas).toBe(0);
+      // NOTA: la formula real de mrr en el service es (precio * count) / 1000,
+      // lo cual no coincide con el criterio de HU-58 ("precio x cantidad de
+      // empresas"). Se deja fijado el valor actual sin validar que sea
+      // "correcto" -- reportado aparte como posible bug, no se testea el
+      // valor "esperado" segun HU-58 para no bloquear un futuro fix.
       expect(starter.mrr).toBe((DETALLE_POR_PLAN[Plan.STARTER].precioMensual * 2) / 1000);
+    });
+
+    it('deberia incluir precio mensual y limites de usuarios/sensores de cada plan segun DETALLE_POR_PLAN', async () => {
+      // Arrange
+      mockEmpresaRepository.findAll.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getResumenPlanes();
+
+      // Assert
+      const starter = result.find((p) => p.nombre === 'Starter')!;
+      const pro = result.find((p) => p.nombre === 'Pro')!;
+      const enterprise = result.find((p) => p.nombre === 'Enterprise')!;
+      expect(starter.precio).toBe(DETALLE_POR_PLAN[Plan.STARTER].precioMensual);
+      expect(starter.maxUsuarios).toBe(DETALLE_POR_PLAN[Plan.STARTER].maxUsuarios);
+      expect(starter.maxSensores).toBe(DETALLE_POR_PLAN[Plan.STARTER].maxSensores);
+      expect(pro.precio).toBe(DETALLE_POR_PLAN[Plan.PRO].precioMensual);
+      expect(enterprise.precio).toBe(DETALLE_POR_PLAN[Plan.ENTERPRISE].precioMensual);
+    });
+
+    it('Starter deberia incluir solo Dashboard y Recepcion', async () => {
+      // Arrange
+      mockEmpresaRepository.findAll.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getResumenPlanes();
+
+      // Assert
+      const starter = result.find((p) => p.nombre === 'Starter')!;
+      expect(starter.modulos).toEqual([
+        { nombre: 'Dashboard', codigo: ModuloSistema.DASHBOARD },
+        { nombre: 'Recepción', codigo: ModuloSistema.RECEPCION },
+      ]);
+    });
+
+    it('Enterprise deberia incluir los 8 modulos del sistema, incluido Asistente de voz', async () => {
+      // Arrange
+      mockEmpresaRepository.findAll.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getResumenPlanes();
+
+      // Assert
+      const enterprise = result.find((p) => p.nombre === 'Enterprise')!;
+      expect(enterprise.modulos).toHaveLength(8);
+      expect(enterprise.modulos).toContainEqual({
+        nombre: 'Asistente de voz',
+        codigo: ModuloSistema.ASISTENTE_VOZ,
+      });
+      expect(enterprise.modulos.map((m) => m.codigo)).toEqual(
+        expect.arrayContaining(Object.values(ModuloSistema)),
+      );
+    });
+
+    it('Pro deberia incluir los modulos intermedios pero no Asistente de voz', async () => {
+      // Arrange
+      mockEmpresaRepository.findAll.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getResumenPlanes();
+
+      // Assert
+      const pro = result.find((p) => p.nombre === 'Pro')!;
+      expect(pro.modulos.map((m) => m.codigo)).not.toContain(ModuloSistema.ASISTENTE_VOZ);
+      expect(pro.modulos).toHaveLength(7);
+    });
+
+    it('deberia devolver empresasAsignadas=0 y mrr=0 para un plan sin empresas asignadas', async () => {
+      // Arrange
+      mockEmpresaRepository.findAll.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getResumenPlanes();
+
+      // Assert
+      result.forEach((plan) => {
+        expect(plan.empresasAsignadas).toBe(0);
+        expect(plan.mrr).toBe(0);
+      });
     });
   });
 });
