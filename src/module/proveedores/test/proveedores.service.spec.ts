@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProveedoresService } from '../proveedores.service';
 import { PROVEEDOR_REPOSITORY } from '../repository/proveedor-interface.repository';
@@ -51,7 +56,8 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     findByCuit: jest.Mock;
     save: jest.Mock;
     update: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
+    setEstado: jest.Mock;
     countByEmpresa: jest.Mock;
   };
 
@@ -63,7 +69,8 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
       findByCuit: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
+      setEstado: jest.fn(),
       countByEmpresa: jest.fn(),
     };
 
@@ -105,6 +112,15 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
       await expect(service.findOne(99, tenantEmpresaA)).rejects.toThrow(NotFoundException);
       expect(mockRepo.findById).toHaveBeenCalledWith(99, tenantEmpresaA);
+    });
+
+    it('devuelve el proveedor mapeado cuando el repo lo encuentra', async () => {
+      mockRepo.findById.mockResolvedValue(buildProveedor());
+
+      const result = await service.findOne(10, tenantEmpresaA);
+
+      expect(result.id).toBe(10);
+      expect(result.razonSocial).toBe('Tambo El Sol');
     });
   });
 
@@ -148,6 +164,14 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
       expect(result.empresaId).toBe(5);
     });
+
+    it('lanza ConflictException si el CUIT ya esta registrado por otro proveedor', async () => {
+      const dto = buildCreateDto();
+      mockRepo.findByCuit.mockResolvedValue(buildProveedor());
+
+      await expect(service.create(dto, tenantEmpresaA)).rejects.toThrow(ConflictException);
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('update - write-path y TOCTOU', () => {
@@ -176,28 +200,77 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         service.update(10, { razonSocial: 'x' }, tenantEmpresaA),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('lanza ConflictException si intenta cambiar el CUIT a uno ya usado por otro proveedor', async () => {
+      mockRepo.findById.mockResolvedValue(buildProveedor());
+      mockRepo.findByCuit.mockResolvedValue(buildProveedor({ id: 20, cuit: '27-11111111-1' }));
+
+      await expect(
+        service.update(10, { cuit: '27-11111111-1' }, tenantEmpresaA),
+      ).rejects.toThrow(ConflictException);
+      expect(mockRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('no valida el CUIT contra si mismo cuando el DTO manda el mismo CUIT que ya tiene', async () => {
+      const proveedor = buildProveedor();
+      mockRepo.findById.mockResolvedValue(proveedor);
+      mockRepo.update.mockImplementation((entity: Proveedor) => Promise.resolve(entity));
+
+      await service.update(10, { cuit: proveedor.cuit }, tenantEmpresaA);
+
+      expect(mockRepo.findByCuit).not.toHaveBeenCalled();
+    });
   });
 
-  describe('remove - TOCTOU', () => {
+  describe('remove - soft delete (pasa a SUSPENDIDA) y TOCTOU', () => {
     it('propaga NotFoundException si el id no pertenece a este tenant', async () => {
       mockRepo.findById.mockResolvedValue(null);
 
       await expect(service.remove(10, tenantEmpresaA)).rejects.toThrow(NotFoundException);
-      expect(mockRepo.delete).not.toHaveBeenCalled();
+      expect(mockRepo.softDelete).not.toHaveBeenCalled();
     });
 
-    it('propaga NotFoundException si la query fisica de DELETE no borro filas (TOCTOU)', async () => {
+    it('propaga NotFoundException si la query fisica de UPDATE (softDelete) no afecto filas (TOCTOU)', async () => {
       mockRepo.findById.mockResolvedValue(buildProveedor());
-      mockRepo.delete.mockResolvedValue(false);
+      mockRepo.softDelete.mockResolvedValue(false);
 
       await expect(service.remove(10, tenantEmpresaA)).rejects.toThrow(NotFoundException);
     });
 
-    it('resuelve sin error cuando el proveedor existe para este tenant y se borra', async () => {
+    it('resuelve sin error cuando el proveedor existe para este tenant y pasa a SUSPENDIDA', async () => {
       mockRepo.findById.mockResolvedValue(buildProveedor());
-      mockRepo.delete.mockResolvedValue(true);
+      mockRepo.softDelete.mockResolvedValue(true);
 
       await expect(service.remove(10, tenantEmpresaA)).resolves.toBeUndefined();
+      expect(mockRepo.softDelete).toHaveBeenCalledWith(10, tenantEmpresaA);
+    });
+  });
+
+  describe('activate - reactiva un proveedor suspendido (vuelve a ACTIVA)', () => {
+    it('propaga NotFoundException si el id no pertenece a este tenant', async () => {
+      mockRepo.findById.mockResolvedValue(null);
+
+      await expect(service.activate(10, tenantEmpresaA)).rejects.toThrow(NotFoundException);
+      expect(mockRepo.setEstado).not.toHaveBeenCalled();
+    });
+
+    it('propaga NotFoundException si la query fisica de setEstado no afecto filas (TOCTOU)', async () => {
+      mockRepo.findById.mockResolvedValue(buildProveedor({ estado: EstadoProveedor.SUSPENDIDA }));
+      mockRepo.setEstado.mockResolvedValue(false);
+
+      await expect(service.activate(10, tenantEmpresaA)).rejects.toThrow(NotFoundException);
+    });
+
+    it('fija el estado en ACTIVA y devuelve el proveedor recargado', async () => {
+      mockRepo.findById
+        .mockResolvedValueOnce(buildProveedor({ estado: EstadoProveedor.SUSPENDIDA }))
+        .mockResolvedValueOnce(buildProveedor({ estado: EstadoProveedor.ACTIVA }));
+      mockRepo.setEstado.mockResolvedValue(true);
+
+      const result = await service.activate(10, tenantEmpresaA);
+
+      expect(mockRepo.setEstado).toHaveBeenCalledWith(10, EstadoProveedor.ACTIVA, tenantEmpresaA);
+      expect(result.estado).toBe(EstadoProveedor.ACTIVA);
     });
   });
 
