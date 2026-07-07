@@ -117,6 +117,7 @@ describe('AuthService', () => {
       expect(result.user.rolId).toBe(1);
       expect(result.user.rolNombre).toBe(ROLES.ADMINISTRADOR);
       expect(result.user.empresa).toBe('LacteosNorte');
+      expect(result.user.empresaId).toBe(activeUser.empresa.id);
       // Se verifica que el payload JWT incluye rol, permisos y empresa correctos
       expect(mockJwtService.signAsync).toHaveBeenCalledWith({
         sub: activeUser.id,
