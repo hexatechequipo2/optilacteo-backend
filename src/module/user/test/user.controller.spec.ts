@@ -1,11 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from '../user.controller';
 import { UserService } from '../user.service';
+import type { TenantContext } from '../../../common/types/tenant-context.type';
+import { ROLES } from '../../rol/constants/roles.constants';
 
 // Los metadatos de @Roles (GERENTE/ADMINISTRADOR) no se testean aqui por
 // reflexion; este archivo se enfoca en que cada metodo del controller
 // delegue en UserService con los parametros correctos, incluida la
 // conversion manual de id (string -> number via '+id', no ParseIntPipe).
+
+const tenantGerente: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
 describe('UserController', () => {
   let controller: UserController;
@@ -37,7 +41,7 @@ describe('UserController', () => {
   });
 
   describe('create', () => {
-    it('deberia delegar en userService.create con el DTO recibido en el body', async () => {
+    it('deberia delegar en userService.create con el DTO y el tenant del usuario autenticado', async () => {
       const dto = {
         name: 'Juan Pérez',
         email: 'juan@lacteosnorte.com',
@@ -47,19 +51,19 @@ describe('UserController', () => {
       };
       mockUserService.create.mockResolvedValue({ id: 1, ...dto });
 
-      await controller.create(dto as never);
+      await controller.create(dto as never, tenantGerente);
 
-      expect(mockUserService.create).toHaveBeenCalledWith(dto);
+      expect(mockUserService.create).toHaveBeenCalledWith(dto, tenantGerente);
     });
   });
 
   describe('findAll', () => {
-    it('deberia delegar en userService.findAll sin argumentos', async () => {
+    it('deberia delegar en userService.findAll con el tenant del usuario autenticado', async () => {
       mockUserService.findAll.mockResolvedValue([]);
 
-      await controller.findAll();
+      await controller.findAll(tenantGerente);
 
-      expect(mockUserService.findAll).toHaveBeenCalledWith();
+      expect(mockUserService.findAll).toHaveBeenCalledWith(tenantGerente);
     });
   });
 
@@ -74,13 +78,13 @@ describe('UserController', () => {
   });
 
   describe('update', () => {
-    it('deberia convertir el id a number y delegar en userService.update con el body', async () => {
+    it('deberia convertir el id a number y delegar en userService.update con el body y el tenant', async () => {
       const dto = { name: 'Nuevo nombre' };
       mockUserService.update.mockResolvedValue({ id: 3, ...dto });
 
-      await controller.update('3', dto as never);
+      await controller.update('3', dto as never, tenantGerente);
 
-      expect(mockUserService.update).toHaveBeenCalledWith(3, dto);
+      expect(mockUserService.update).toHaveBeenCalledWith(3, dto, tenantGerente);
     });
   });
 

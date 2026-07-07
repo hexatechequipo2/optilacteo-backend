@@ -4,9 +4,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
+import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
+import type { TenantContext } from '../../common/types/tenant-context.type';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-@ApiTags('user')       
+@ApiTags('user')
 @ApiBearerAuth()
 @Controller('user')
 export class UserController {
@@ -14,14 +16,17 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+  create(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.userService.create(createUserDto, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Get()
-  findAll() {
-    return this.userService.findAll();
+  findAll(@CurrentEmpresa() tenant: TenantContext) {
+    return this.userService.findAll(tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
@@ -32,8 +37,12 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.userService.update(+id, updateUserDto, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)

@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,6 +22,8 @@ import { Empresa } from '../empresa/entities/empresa.entity';
 import { Rol } from '../rol/entities/rol.entity';
 
 import { EmpresaService } from '../empresa/empresa.service';
+import { ROLES } from '../rol/constants/roles.constants';
+import type { TenantContext } from '../../common/types/tenant-context.type';
 
 const SALT_ROUNDS = 10;
 
@@ -41,13 +44,15 @@ export class UserService {
     private readonly empresaService: EmpresaService,
   ) {}
 
-  async create(dto: CreateUserDto) {
-    const empresa = await this.findEmpresaOrFail(dto.empresaId);
+  async create(dto: CreateUserDto, tenant: TenantContext) {
+    const empresaId = this.resolveEmpresaId(dto.empresaId, tenant);
+    const empresa = await this.findEmpresaOrFail(empresaId);
     const rol = await this.findRolOrFail(dto.rolId);
+    this.guardAsignacionDeRol(rol, tenant);
 
-    const limiteUsuarios = await this.empresaService.getLimiteUsuarios(dto.empresaId);
+    const limiteUsuarios = await this.empresaService.getLimiteUsuarios(empresaId);
 
-    const usuariosActuales = await this.userRepository.countByEmpresa(dto.empresaId);
+    const usuariosActuales = await this.userRepository.countByEmpresa(empresaId);
 
     if (usuariosActuales >= limiteUsuarios) {
       throw new BadRequestException(
@@ -71,8 +76,8 @@ export class UserService {
     return UserMapper.toResponse(created);
   }
 
-  async findAll() {
-    const users = await this.userRepository.findAll();
+  async findAll(tenant: TenantContext) {
+    const users = await this.userRepository.findAll(tenant);
     return UserMapper.toResponseList(users);
   }
 
@@ -86,7 +91,7 @@ export class UserService {
     return UserMapper.toResponse(user);
   }
 
-  async update(id: number, dto: UpdateUserDto) {
+  async update(id: number, dto: UpdateUserDto, tenant: TenantContext) {
     await this.findOne(id);
 
     const update: Partial<User> = {};
@@ -99,7 +104,9 @@ export class UserService {
     }
 
     if (dto.rolId) {
-      update.rol = await this.findRolOrFail(dto.rolId);
+      const rol = await this.findRolOrFail(dto.rolId);
+      this.guardAsignacionDeRol(rol, tenant);
+      update.rol = rol;
     }
 
     if (dto.empresaId) {
@@ -131,6 +138,16 @@ export class UserService {
     return UserMapper.toResponse(updated);
   }
 
+  async unlock(id: number) {
+    await this.findOne(id); // valida existencia, tira 404 si no existe
+
+    await this.userRepository.resetFailedAttempts(id);
+
+    this.logger.log(`Usuario desbloqueado manualmente: id=${id}`);
+
+    return this.findOne(id);
+  }
+
   // -------------------------
   // HELPERS
   // -------------------------
@@ -155,13 +172,31 @@ export class UserService {
     return rol;
   }
 
-  async unlock(id: number) {
-    await this.findOne(id); // valida existencia, tira 404 si no existe
+  // Un Gerente siempre crea usuarios dentro de su propia empresa: se ignora
+  // el empresaId que venga en el body y se fuerza el del JWT (mismo criterio
+  // que ProveedoresService.resolveEmpresaId). El Administrador sí puede
+  // elegir la empresa del nuevo usuario, por eso el DTO la exige siempre.
+  private resolveEmpresaId(bodyEmpresaId: number, tenant: TenantContext): number {
+    if (tenant.rolNombre === ROLES.ADMINISTRADOR) {
+      return bodyEmpresaId;
+    }
+    if (tenant.empresaId === null) {
+      throw new ForbiddenException('El usuario no tiene una empresa asociada');
+    }
+    return tenant.empresaId;
+  }
 
-    await this.userRepository.resetFailedAttempts(id);
-
-    this.logger.log(`Usuario desbloqueado manualmente: id=${id}`);
-
-    return this.findOne(id);
+  // Un Gerente puede crear/editar usuarios de su empresa pero no puede
+  // otorgar el rol Administrador (evita escalar privilegios por fuera
+  // del selector del frontend).
+  private guardAsignacionDeRol(rol: Rol, tenant: TenantContext) {
+    if (
+      tenant.rolNombre === ROLES.GERENTE &&
+      rol.nombre === ROLES.ADMINISTRADOR
+    ) {
+      throw new ForbiddenException(
+        'Un Gerente no puede asignar el rol Administrador',
+      );
+    }
   }
 }
