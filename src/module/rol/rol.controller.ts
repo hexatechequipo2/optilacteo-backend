@@ -6,6 +6,8 @@ import { UpdateRolDto } from './dto/update-rol.dto';
 import { UpdatePermisoDto } from '../permiso/dto/update-permiso.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from './constants/roles.constants';
+import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
+import type { TenantContext } from '../../common/types/tenant-context.type';
 
 @ApiTags('rol')
 @ApiBearerAuth()
@@ -39,8 +41,12 @@ export class RolController {
   }
 
   @Patch(':id/permisos')
-  updatePermiso(@Param('id') id: string, @Body() dto: UpdatePermisoDto) {
-    return this.rolService.updatePermiso(+id, dto);
+  updatePermiso(
+    @Param('id') id: string,
+    @Body() dto: UpdatePermisoDto,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.rolService.updatePermiso(+id, dto, tenant);
   }
 
   @Delete(':id')

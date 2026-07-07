@@ -1,9 +1,10 @@
 import { User } from '../entities/user.entity';
+import type { TenantContext } from '../../../common/types/tenant-context.type';
 
 export interface IUserRepository {
   findByEmail(email: string): Promise<User | null>;
   findById(id: number): Promise<User | null>;
-  findAll(): Promise<User[]>;
+  findAll(tenant: TenantContext): Promise<User[]>;
   createUser(user: Partial<User>): Promise<User>;
   updateUser(id: number, user: Partial<User>): Promise<User>;
   deleteUser(id: number): Promise<void>;

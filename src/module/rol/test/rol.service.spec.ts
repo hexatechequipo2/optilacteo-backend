@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RolService } from '../rol.service';
@@ -8,6 +8,17 @@ import { User } from '../../user/entities/user.entity';
 import { Rol } from '../entities/rol.entity';
 import { CreateRolDto } from '../dto/create-rol.dto';
 import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
+import { ROLES } from '../constants/roles.constants';
+import type { TenantContext } from '../../../common/types/tenant-context.type';
+
+const tenantAdministrador: TenantContext = {
+  empresaId: null,
+  rolNombre: ROLES.ADMINISTRADOR,
+};
+const tenantGerente: TenantContext = {
+  empresaId: 1,
+  rolNombre: ROLES.GERENTE,
+};
 
 function buildEmpresa(overrides: Partial<Empresa> = {}): Empresa {
   return { id: 1, name: 'Lacteos Norte', ...overrides } as Empresa;
@@ -248,7 +259,11 @@ describe('RolService', () => {
       mockRolRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.updatePermiso(999, { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false }),
+        service.updatePermiso(
+          999,
+          { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
+          tenantAdministrador,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -259,11 +274,11 @@ describe('RolService', () => {
       mockRolRepository.findById.mockResolvedValue(rol);
       mockRolRepository.findPermiso.mockResolvedValue(null);
 
-      await service.updatePermiso(5, {
-        modulo: ModuloSistema.SENSORES_IOT,
-        canRead: true,
-        canWrite: false,
-      });
+      await service.updatePermiso(
+        5,
+        { modulo: ModuloSistema.SENSORES_IOT, canRead: true, canWrite: false },
+        tenantAdministrador,
+      );
 
       expect(mockRolRepository.createPermisos).toHaveBeenCalledWith([
         { modulo: ModuloSistema.SENSORES_IOT, canRead: true, canWrite: false, rol },
@@ -277,11 +292,11 @@ describe('RolService', () => {
       mockRolRepository.findById.mockResolvedValue(rol);
       mockRolRepository.findPermiso.mockResolvedValue(permisoExistente);
 
-      await service.updatePermiso(5, {
-        modulo: ModuloSistema.DASHBOARD,
-        canRead: true,
-        canWrite: true,
-      });
+      await service.updatePermiso(
+        5,
+        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true },
+        tenantAdministrador,
+      );
 
       expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(7, true, true);
       expect(mockRolRepository.createPermisos).not.toHaveBeenCalled();
@@ -293,11 +308,11 @@ describe('RolService', () => {
       mockRolRepository.findById.mockResolvedValue(rol);
       mockRolRepository.findPermiso.mockResolvedValue(permisoExistente);
 
-      await service.updatePermiso(5, {
-        modulo: ModuloSistema.DASHBOARD,
-        canRead: false,
-        canWrite: false,
-      });
+      await service.updatePermiso(
+        5,
+        { modulo: ModuloSistema.DASHBOARD, canRead: false, canWrite: false },
+        tenantAdministrador,
+      );
 
       expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(7, false, false);
     });
@@ -310,15 +325,73 @@ describe('RolService', () => {
       mockRolRepository.findById.mockResolvedValueOnce(rol).mockResolvedValueOnce(rolActualizado);
       mockRolRepository.findPermiso.mockResolvedValue({ id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false });
 
-      const result = await service.updatePermiso(5, {
-        modulo: ModuloSistema.DASHBOARD,
-        canRead: true,
-        canWrite: true,
-      });
+      const result = await service.updatePermiso(
+        5,
+        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true },
+        tenantAdministrador,
+      );
 
       expect(result.permisos).toEqual([
         { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true },
       ]);
+    });
+
+    it('lanza ForbiddenException si un Gerente intenta editar los permisos del rol Administrador', async () => {
+      mockRolRepository.findById.mockResolvedValue(buildRol({ nombre: ROLES.ADMINISTRADOR }));
+
+      await expect(
+        service.updatePermiso(
+          5,
+          { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
+          tenantGerente,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockRolRepository.updatePermiso).not.toHaveBeenCalled();
+      expect(mockRolRepository.createPermisos).not.toHaveBeenCalled();
+    });
+
+    it('lanza ForbiddenException si un Gerente intenta editar los permisos del rol Gerente', async () => {
+      mockRolRepository.findById.mockResolvedValue(buildRol({ nombre: ROLES.GERENTE }));
+
+      await expect(
+        service.updatePermiso(
+          5,
+          { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
+          tenantGerente,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockRolRepository.updatePermiso).not.toHaveBeenCalled();
+      expect(mockRolRepository.createPermisos).not.toHaveBeenCalled();
+    });
+
+    it('permite a un Gerente editar los permisos de un rol de empleado (no Administrador ni Gerente)', async () => {
+      const rol = buildRol({ nombre: 'Operario de línea' });
+      const permisoExistente = { id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false };
+      mockRolRepository.findById.mockResolvedValue(rol);
+      mockRolRepository.findPermiso.mockResolvedValue(permisoExistente);
+
+      await service.updatePermiso(
+        5,
+        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true },
+        tenantGerente,
+      );
+
+      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(7, true, true);
+    });
+
+    it('permite a un Administrador editar los permisos de cualquier rol, incluido Gerente', async () => {
+      const rol = buildRol({ nombre: ROLES.GERENTE });
+      const permisoExistente = { id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false };
+      mockRolRepository.findById.mockResolvedValue(rol);
+      mockRolRepository.findPermiso.mockResolvedValue(permisoExistente);
+
+      await service.updatePermiso(
+        5,
+        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true },
+        tenantAdministrador,
+      );
+
+      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(7, true, true);
     });
   });
 });

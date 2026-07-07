@@ -1,6 +1,8 @@
 import { Repository } from 'typeorm';
 import { UserRepository } from '../repository/user.repository';
 import { User } from '../entities/user.entity';
+import { ROLES } from '../../rol/constants/roles.constants';
+import type { TenantContext } from '../../../common/types/tenant-context.type';
 
 function buildUser(overrides: Partial<User> = {}): User {
   return {
@@ -71,12 +73,26 @@ describe('UserRepository', () => {
   });
 
   describe('findAll', () => {
-    it('deberia listar cargando las relaciones empresa y rol', async () => {
+    it('deberia listar sin filtro de empresa cuando el tenant es Administrador', async () => {
       mockTypeormRepo.find.mockResolvedValue([]);
+      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
 
-      await repository.findAll();
+      await repository.findAll(tenant);
 
       expect(mockTypeormRepo.find).toHaveBeenCalledWith({
+        where: {},
+        relations: { empresa: true, rol: true },
+      });
+    });
+
+    it('deberia filtrar por la empresa del tenant cuando no es Administrador', async () => {
+      mockTypeormRepo.find.mockResolvedValue([]);
+      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
+
+      await repository.findAll(tenant);
+
+      expect(mockTypeormRepo.find).toHaveBeenCalledWith({
+        where: { empresa: { id: 1 } },
         relations: { empresa: true, rol: true },
       });
     });

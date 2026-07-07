@@ -1,4 +1,10 @@
-import { Inject, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { IRolRepository } from './repository/rol-interface.repository';
@@ -10,6 +16,8 @@ import { RolMapper } from './mappers/rol.mapper';
 import { Empresa } from '../empresa/entities/empresa.entity';
 import { PERMISOS_POR_ROL } from './config/roles-permisos.config';
 import { User } from '../user/entities/user.entity';
+import { ROLES } from './constants/roles.constants';
+import type { TenantContext } from '../../common/types/tenant-context.type';
 
 @Injectable()
 export class RolService {
@@ -87,8 +95,9 @@ export class RolService {
     return { message: `Rol con id ${id} eliminado correctamente` };
   }
 
-  async updatePermiso(rolId: number, dto: UpdatePermisoDto) {
-    await this.findOne(rolId);
+  async updatePermiso(rolId: number, dto: UpdatePermisoDto, tenant: TenantContext) {
+    const rol = await this.findOne(rolId);
+    this.guardEdicionDePermisos(rol, tenant);
 
     const permiso = await this.rolRepository.findPermiso(rolId, dto.modulo);
     if (!permiso) {
@@ -114,5 +123,19 @@ export class RolService {
       throw new NotFoundException(`Empresa con id ${empresaId} no encontrada`);
     }
     return empresa;
+  }
+
+  // Un Gerente puede editar los permisos de roles de empleados, pero no los
+  // de Administrador ni los de su propio rol (Gerente) — mismo criterio que
+  // UserService.guardAsignacionDeRol.
+  private guardEdicionDePermisos(rol: { nombre: string }, tenant: TenantContext) {
+    if (
+      tenant.rolNombre === ROLES.GERENTE &&
+      (rol.nombre === ROLES.ADMINISTRADOR || rol.nombre === ROLES.GERENTE)
+    ) {
+      throw new ForbiddenException(
+        'Un Gerente no puede editar los permisos de Administrador ni de Gerente',
+      );
+    }
   }
 }

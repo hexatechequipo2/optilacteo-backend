@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { IUserRepository } from './user-repository.interface';
+import { ROLES } from '../../rol/constants/roles.constants';
+import type { TenantContext } from '../../../common/types/tenant-context.type';
 
 @Injectable()
 export class UserRepository implements IUserRepository {
@@ -31,11 +33,17 @@ export class UserRepository implements IUserRepository {
     });
   }
 
-  async findAll(): Promise<User[]> {
+  async findAll(tenant: TenantContext): Promise<User[]> {
+    const where: FindOptionsWhere<User> =
+      tenant.rolNombre === ROLES.ADMINISTRADOR
+        ? {}
+        : { empresa: { id: tenant.empresaId ?? -1 } };
+
     return this.repository.find({
+      where,
       relations: { empresa: true, rol: true },
-  });
-}
+    });
+  }
 
   async createUser(user: Partial<User>): Promise<User> {
     const newUser = this.repository.create(user);

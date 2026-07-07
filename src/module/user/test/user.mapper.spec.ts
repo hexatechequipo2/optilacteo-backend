@@ -77,6 +77,8 @@ describe('UserMapper', () => {
         name: 'Juan Pérez',
         email: 'juan@lacteosnorte.com',
         isActive: true,
+        isLocked: false,
+        lockedUntil: null,
         rolId: 2,
         rolNombre: 'GERENTE',
         empresa: { id: 1, name: 'Lacteos Norte' },

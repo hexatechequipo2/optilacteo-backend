@@ -38,6 +38,7 @@ export interface LoginResponse {
     rolId: number | null;
     rolNombre: string | null;
     empresa: string;
+    empresaId: number | null;
   };
 }
 
@@ -123,6 +124,7 @@ export class AuthService {
         rolId: payload.rolId,
         rolNombre: payload.rolNombre,
         empresa: user.empresa?.name ?? '',
+        empresaId: payload.empresaId,
       },
     };
   }
