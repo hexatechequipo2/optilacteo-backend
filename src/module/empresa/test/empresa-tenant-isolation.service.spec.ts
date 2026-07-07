@@ -122,7 +122,12 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
     });
 
     it('admin puede actualizar cualquier empresa', async () => {
-      mockEmpresaRepository.findById.mockResolvedValue(empresaB);
+      // update() llama a findById dos veces: una para validar que la empresa
+      // existe y otra al final para construir la respuesta con los datos ya
+      // actualizados. Hay que mockear ambas llamadas por separado.
+      mockEmpresaRepository.findById
+        .mockResolvedValueOnce(empresaB)
+        .mockResolvedValueOnce({ ...empresaB, name: 'Nuevo nombre' });
       mockEmpresaRepository.updateEmpresa.mockResolvedValue({ ...empresaB, name: 'Nuevo nombre' });
 
       const result = await service.update(2, { name: 'Nuevo nombre' }, tenantAdmin);
