@@ -12,8 +12,8 @@ export class Empresa {
   @Column({ unique: true })
   name!: string;
 
-  @Column({ nullable: true })
-  cuit?: string;
+  @Column({ unique: true })
+  cuit!: string;
 
   @Column({ nullable: true })
   email?: string;

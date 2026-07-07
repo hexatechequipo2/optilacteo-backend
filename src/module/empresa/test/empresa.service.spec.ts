@@ -37,6 +37,7 @@ describe('EmpresaService', () => {
   let service: EmpresaService;
   let mockEmpresaRepository: {
     findById: jest.Mock;
+    findByCuit: jest.Mock;
     findAll: jest.Mock;
     findAllPaginated: jest.Mock;
     createEmpresa: jest.Mock;
@@ -52,6 +53,7 @@ describe('EmpresaService', () => {
   beforeEach(async () => {
     mockEmpresaRepository = {
       findById: jest.fn(),
+      findByCuit: jest.fn().mockResolvedValue(null),
       findAll: jest.fn(),
       findAllPaginated: jest.fn(),
       createEmpresa: jest.fn(),
@@ -113,7 +115,7 @@ describe('EmpresaService', () => {
       'deberia asignar el plan %s y habilitar automaticamente sus modulos correspondientes',
       async (plan) => {
         // Arrange
-        const dto: CreateEmpresaDto = { name: 'Empresa Test', plan };
+        const dto: CreateEmpresaDto = { name: 'Empresa Test', cuit: '30-99999999-9', plan };
         const empresaCreada = { ...empresaBase, id: 5, plan };
         mockEmpresaRepository.createEmpresa.mockResolvedValue(empresaCreada);
         mockEmpresaRepository.createModulos.mockResolvedValue([]);
@@ -152,10 +154,20 @@ describe('EmpresaService', () => {
       );
     });
 
-    // NOTA: el codigo actual no valida formato de CUIT ni unicidad (no hay
-    // constraint unique en la entidad/migracion ni chequeo en el service).
-    // Por eso no se incluyen aqui casos de "CUIT invalido" o "CUIT duplicado":
-    // agregarlos requeriria implementar esa validacion primero.
+    it('deberia rechazar el alta con ConflictException si el CUIT ya esta registrado por otra empresa', async () => {
+      // Arrange
+      const dto: CreateEmpresaDto = {
+        name: 'Lacteos Norte',
+        cuit: '30-12345678-9',
+        plan: Plan.STARTER,
+      };
+      mockEmpresaRepository.findByCuit.mockResolvedValue(empresaBase);
+
+      // Act & Assert
+      await expect(service.create(dto)).rejects.toThrow(ConflictException);
+      expect(mockEmpresaRepository.findByCuit).toHaveBeenCalledWith('30-12345678-9');
+      expect(mockEmpresaRepository.createEmpresa).not.toHaveBeenCalled();
+    });
   });
 
   describe('update - edicion de empresa', () => {
@@ -222,6 +234,36 @@ describe('EmpresaService', () => {
 
       // Assert
       expect(mockEmpresaRepository.syncModulos).not.toHaveBeenCalled();
+    });
+
+    it('deberia rechazar la edicion con ConflictException si el nuevo CUIT ya esta en uso por otra empresa', async () => {
+      // Arrange
+      const empresaActual = { ...empresaBase };
+      mockEmpresaRepository.findById.mockResolvedValue(empresaActual);
+      mockEmpresaRepository.findByCuit.mockResolvedValue({ ...empresaBase, id: 2 });
+
+      // Act & Assert
+      await expect(
+        service.update(1, { cuit: '20-99999999-9' }, tenantAdmin),
+      ).rejects.toThrow(ConflictException);
+      expect(mockEmpresaRepository.findByCuit).toHaveBeenCalledWith('20-99999999-9');
+      expect(mockEmpresaRepository.updateEmpresa).not.toHaveBeenCalled();
+    });
+
+    it('NO deberia chequear duplicado de CUIT si el valor enviado es el mismo que ya tenia la empresa', async () => {
+      // Arrange
+      const empresaActual = { ...empresaBase };
+      mockEmpresaRepository.findById
+        .mockResolvedValueOnce(empresaActual)
+        .mockResolvedValueOnce(empresaActual);
+      mockEmpresaRepository.updateEmpresa.mockResolvedValue(empresaActual);
+
+      // Act
+      await service.update(1, { cuit: empresaActual.cuit }, tenantAdmin);
+
+      // Assert
+      expect(mockEmpresaRepository.findByCuit).not.toHaveBeenCalled();
+      expect(mockEmpresaRepository.updateEmpresa).toHaveBeenCalled();
     });
   });
 

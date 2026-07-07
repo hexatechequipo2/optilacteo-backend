@@ -47,6 +47,11 @@ export class EmpresaService {
   ) {}
 
   async create(dto: CreateEmpresaDto) {
+    const cuitEnUso = await this.empresaRepository.findByCuit(dto.cuit);
+    if (cuitEnUso) {
+      throw new ConflictException(`Ya existe una empresa con el CUIT ${dto.cuit}`);
+    }
+
     const empresaToCreate = EmpresaMapper.toEntity(dto);
     const created = await this.empresaRepository.createEmpresa(empresaToCreate);
 
@@ -101,6 +106,13 @@ async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
   const empresaActual = await this.empresaRepository.findById(id);
   if (!empresaActual) {
     throw new NotFoundException(`Empresa con id ${id} no encontrada`);
+  }
+
+  if (dto.cuit !== undefined && dto.cuit !== empresaActual.cuit) {
+    const cuitEnUso = await this.empresaRepository.findByCuit(dto.cuit);
+    if (cuitEnUso) {
+      throw new ConflictException(`El CUIT ${dto.cuit} ya está en uso por otra empresa`);
+    }
   }
 
   const empresaToUpdate = {

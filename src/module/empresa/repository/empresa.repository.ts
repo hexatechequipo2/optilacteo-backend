@@ -22,6 +22,10 @@ export class EmpresaRepository implements IEmpresaRepository {
     });
   }
 
+  async findByCuit(cuit: string): Promise<Empresa | null> {
+    return this.repository.findOneBy({ cuit });
+  }
+
   async findAll(): Promise<Empresa[]> {
     return this.repository.find({ relations: { modulos: true, users: true } });
   }

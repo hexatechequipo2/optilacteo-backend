@@ -15,6 +15,7 @@ describe('EmpresaRepository', () => {
   let repository: EmpresaRepository;
   let mockRepo: {
     findOne: jest.Mock;
+    findOneBy: jest.Mock;
     find: jest.Mock;
     findAndCount: jest.Mock;
     create: jest.Mock;
@@ -33,6 +34,7 @@ describe('EmpresaRepository', () => {
   beforeEach(() => {
     mockRepo = {
       findOne: jest.fn(),
+      findOneBy: jest.fn(),
       find: jest.fn(),
       findAndCount: jest.fn(),
       create: jest.fn(),
@@ -67,6 +69,31 @@ describe('EmpresaRepository', () => {
         relations: { users: true, modulos: true },
       });
       expect(result).toEqual({ id: 1 });
+    });
+  });
+
+  describe('findByCuit', () => {
+    it('deberia buscar una empresa por cuit exacto', async () => {
+      // Arrange
+      mockRepo.findOneBy.mockResolvedValue({ id: 1, cuit: '30-12345678-9' });
+
+      // Act
+      const result = await repository.findByCuit('30-12345678-9');
+
+      // Assert
+      expect(mockRepo.findOneBy).toHaveBeenCalledWith({ cuit: '30-12345678-9' });
+      expect(result).toEqual({ id: 1, cuit: '30-12345678-9' });
+    });
+
+    it('deberia devolver null si no hay ninguna empresa con ese cuit', async () => {
+      // Arrange
+      mockRepo.findOneBy.mockResolvedValue(null);
+
+      // Act
+      const result = await repository.findByCuit('99-99999999-9');
+
+      // Assert
+      expect(result).toBeNull();
     });
   });
 
