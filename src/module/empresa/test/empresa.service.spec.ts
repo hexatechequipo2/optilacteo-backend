@@ -451,7 +451,7 @@ describe('EmpresaService', () => {
   });
 
   describe('getResumenPlanes', () => {
-    it('deberia retornar los 3 planes con la cantidad de empresas asignadas y el MRR calculado', async () => {
+    it('deberia retornar los 3 planes con la cantidad de empresas asignadas', async () => {
       // Arrange
       mockEmpresaRepository.findAll.mockResolvedValue([
         { ...empresaBase, id: 1, plan: Plan.STARTER },
@@ -470,12 +470,6 @@ describe('EmpresaService', () => {
       expect(starter.empresasAsignadas).toBe(2);
       expect(pro.empresasAsignadas).toBe(1);
       expect(enterprise.empresasAsignadas).toBe(0);
-      // NOTA: la formula real de mrr en el service es (precio * count) / 1000,
-      // lo cual no coincide con el criterio de HU-58 ("precio x cantidad de
-      // empresas"). Se deja fijado el valor actual sin validar que sea
-      // "correcto" -- reportado aparte como posible bug, no se testea el
-      // valor "esperado" segun HU-58 para no bloquear un futuro fix.
-      expect(starter.mrr).toBe((DETALLE_POR_PLAN[Plan.STARTER].precioMensual * 2) / 1000);
     });
 
     it('deberia incluir precio mensual y limites de usuarios/sensores de cada plan segun DETALLE_POR_PLAN', async () => {
@@ -543,18 +537,5 @@ describe('EmpresaService', () => {
       expect(pro.modulos).toHaveLength(7);
     });
 
-    it('deberia devolver empresasAsignadas=0 y mrr=0 para un plan sin empresas asignadas', async () => {
-      // Arrange
-      mockEmpresaRepository.findAll.mockResolvedValue([]);
-
-      // Act
-      const result = await service.getResumenPlanes();
-
-      // Assert
-      result.forEach((plan) => {
-        expect(plan.empresasAsignadas).toBe(0);
-        expect(plan.mrr).toBe(0);
-      });
-    });
   });
 });

@@ -214,7 +214,6 @@ async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
         maxSensores: detalle.maxSensores,
         modulos: detalle.modulos.map((m) => ({ nombre: MODULO_NOMBRES[m], codigo: m })),
         empresasAsignadas: count,
-        mrr: (detalle.precioMensual * count) / 1000,
       };
     });
   }
