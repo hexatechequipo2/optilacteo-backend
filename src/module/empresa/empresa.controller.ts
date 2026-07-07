@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
@@ -11,6 +11,7 @@ import { ROLES } from '../rol/constants/roles.constants';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @ApiTags('empresa')
+@ApiBearerAuth()
 @Controller('empresa')
 export class EmpresaController {
   constructor(private readonly empresaService: EmpresaService) {}

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -32,6 +33,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Inicio de sesion de usuario' })
+  @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: 200,
     description: 'Login exitoso. Retorna access_token JWT y datos del usuario.',
@@ -47,6 +49,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cierre de sesion manual' })
+  @ApiBody({ type: LogoutDto, required: false })
   @ApiResponse({
     status: 200,
     description: 'Logout exitoso. El token queda invalidado en el servidor.',
@@ -66,6 +69,7 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Renovación de access_token via refresh_token' })
+  @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({
     status: 200,
     description: 'Renovación exitosa. Retorna un nuevo access_token y refresh_token (rotado).',

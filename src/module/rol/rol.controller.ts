@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeController, ApiTags } from '@nestjs/swagger';
 import { RolService } from './rol.service';
 import { CreateRolDto } from './dto/create-rol.dto';
 import { UpdateRolDto } from './dto/update-rol.dto';
@@ -8,6 +8,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from './constants/roles.constants';
 
 @ApiTags('rol')
+@ApiBearerAuth()
+@ApiExcludeController()
 @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
 @Controller('rol')
 export class RolController {

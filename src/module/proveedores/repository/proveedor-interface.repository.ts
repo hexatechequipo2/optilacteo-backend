@@ -1,5 +1,6 @@
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { Proveedor } from '../entities/proveedor.entity';
+import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 
 export interface IProveedorRepository {
   findAll(tenant: TenantContext): Promise<Proveedor[]>;
@@ -12,7 +13,8 @@ export interface IProveedorRepository {
   findByCuit(cuit: string): Promise<Proveedor | null>;
   save(proveedor: Proveedor): Promise<Proveedor>;
   update(proveedor: Proveedor, tenant: TenantContext): Promise<Proveedor | null>;
-  delete(id: number, tenant: TenantContext): Promise<boolean>;
+  softDelete(id: number, tenant: TenantContext): Promise<boolean>;
+  setEstado(id: number, estado: EstadoProveedor, tenant: TenantContext): Promise<boolean>;
   countByEmpresa(empresaId: number): Promise<number>;
 }
 

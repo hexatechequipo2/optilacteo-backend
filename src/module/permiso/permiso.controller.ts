@@ -1,11 +1,13 @@
 import { Controller, Get, Body, Patch, Param, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeController, ApiTags } from '@nestjs/swagger';
 import { PermisoService } from './permiso.service';
 import { UpdatePermisoDto } from './dto/update-permiso.dto';
 import { ROLES } from '../rol/constants/roles.constants';
 import { Roles } from '../../common/decorators/roles.decorator';
 
 @ApiTags('permiso')
+@ApiBearerAuth()
+@ApiExcludeController()
 @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
 @Controller('permiso')
 export class PermisoController {

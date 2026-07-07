@@ -17,13 +17,14 @@ import { ProveedoresService } from './proveedores.service';
 import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
 import { ProveedorResponseDto } from './dto/proveedor-response.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import type { PaginatedResponse } from '../../common/dto/paginated-response.dto';
 
 @ApiTags('proveedores')
+@ApiBearerAuth()
 @Controller('proveedores')
 export class ProveedoresController {
   constructor(private readonly proveedoresService: ProveedoresService) {}
@@ -65,9 +66,19 @@ export class ProveedoresController {
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Patch(':id/activar')
+  activate(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentEmpresa() tenant: TenantContext,
+  ): Promise<ProveedorResponseDto> {
+    return this.proveedoresService.activate(id, tenant);
+  }
+
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentEmpresa() tenant: TenantContext) {
     await this.proveedoresService.remove(id, tenant);
     return { message: `Proveedor con id "${id}" eliminado correctamente` };
   }
+
 }

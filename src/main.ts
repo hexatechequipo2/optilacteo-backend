@@ -38,6 +38,7 @@ async function bootstrap() {
     .setTitle('Optilacteo API')
     .setDescription('Documentación de la API de Optilacteo Backend')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
