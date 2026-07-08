@@ -14,6 +14,8 @@ import {
 } from '@nestjs/swagger';
 import { SystemConfigService } from './system-config.service';
 import { UpdateSystemConfigDto } from './dto/update-system-config.dto';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { ROLES } from '../rol/constants/roles.constants';
 
 @ApiTags('system-config')
 @ApiBearerAuth()
@@ -32,6 +34,7 @@ export class SystemConfigController {
     return this.systemConfigService.getConfig();
   }
 
+  @Roles(ROLES.ADMINISTRADOR)
   @Patch('inactivity-timeout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar tiempo de inactividad en minutos' })
@@ -42,6 +45,10 @@ export class SystemConfigController {
   @ApiResponse({
     status: 400,
     description: 'Datos invalidos',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No tiene permisos para modificar esta configuracion',
   })
   updateInactivityTimeout(@Body() dto: UpdateSystemConfigDto) {
     return this.systemConfigService.updateInactivityTimeout(dto);
