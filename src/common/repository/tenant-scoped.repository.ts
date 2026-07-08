@@ -1,4 +1,4 @@
-import { FindManyOptions, FindOptionsWhere, Repository } from 'typeorm';
+import { FindManyOptions, FindOptionsWhere, Repository, SelectQueryBuilder } from 'typeorm';
 import type { TenantContext } from '../types/tenant-context.type';
 import { ROLES, type RolNombre } from '../../module/rol/constants/roles.constants';
 
@@ -25,6 +25,14 @@ export abstract class TenantScopedRepository<T extends TenantEntity> {
     };
   }
 
+  protected scopedQueryBuilder(tenant: TenantContext, alias: string): SelectQueryBuilder<T> {
+    const qb = this.repo.createQueryBuilder(alias);
+    if (!this.isGlobalAccess(tenant)) {
+      qb.andWhere(`${alias}.empresaId = :empresaId`, { empresaId: tenant.empresaId });
+    }
+    return qb;
+  }
+  
   protected findAllScoped(
     tenant: TenantContext,
     options: Omit<FindManyOptions<T>, 'where'> = {},

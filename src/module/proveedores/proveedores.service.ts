@@ -19,6 +19,7 @@ import {
   type PaginatedResponse,
 } from '../../common/dto/paginated-response.dto';
 import { EstadoProveedor } from './enums/estado-proveedor.enum';
+import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
 
 @Injectable()
 export class ProveedoresService {
@@ -30,14 +31,15 @@ export class ProveedoresService {
 
   async findAll(
     tenant: TenantContext,
-    pagination: PaginationQueryDto,
+    query: ProveedorFilterQueryDto,
   ): Promise<PaginatedResponse<ProveedorResponseDto>> {
-    const { page, limit } = pagination;
+    const { page, limit, tipo, search } = query;
     const skip = (page - 1) * limit;
     const [proveedores, total] = await this.proveedorRepository.findAllPaginated(
       tenant,
       skip,
       limit,
+      { tipo, search },
     );
     return buildPaginatedResponse(
       this.mapper.toResponseDtoList(proveedores),

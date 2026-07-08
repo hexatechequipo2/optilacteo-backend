@@ -4,7 +4,7 @@ import { FindOptionsWhere, Repository } from 'typeorm';
 import { TenantScopedRepository } from '../../../common/repository/tenant-scoped.repository';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { Proveedor } from '../entities/proveedor.entity';
-import { IProveedorRepository } from './proveedor-interface.repository';
+import { IProveedorRepository, ProveedorFilters } from './proveedor-interface.repository';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 
 @Injectable()
@@ -23,22 +23,44 @@ export class ProveedorRepository
     return this.findAllScoped(tenant, { order: { razonSocial: 'ASC' } });
   }
 
+  // Usa QueryBuilder (en vez de findAllScopedPaginated) porque la búsqueda
+  // necesita un OR entre razonSocial y cuit con ILIKE, algo que el
+  // FindOptionsWhere plano de TypeORM no puede expresar directamente.
   async findAllPaginated(
     tenant: TenantContext,
     skip: number,
     take: number,
+    filters?: ProveedorFilters,
   ): Promise<[Proveedor[], number]> {
-    return this.findAllScopedPaginated(tenant, skip, take, {
-      order: { razonSocial: 'ASC' },
-    });
+    const qb = this.scopedQueryBuilder(tenant, 'proveedor')
+      .orderBy('proveedor.razonSocial', 'ASC')
+      .skip(skip)
+      .take(take);
+
+    if (filters?.tipo) {
+      qb.andWhere('proveedor.tipo = :tipo', { tipo: filters.tipo });
+    }
+
+    if (filters?.search) {
+      qb.andWhere(
+        `(proveedor.razonSocial ILIKE :search
+          OR proveedor.cuit ILIKE :search
+          OR proveedor.telefono ILIKE :search
+          OR proveedor.emailContacto ILIKE :search
+          OR proveedor.provincia ILIKE :search
+          OR proveedor.localidad ILIKE :search
+          OR proveedor.capacidad::text ILIKE :search)`,
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    return qb.getManyAndCount();
   }
 
   async findById(id: number, tenant: TenantContext): Promise<Proveedor | null> {
     return this.findByIdScoped(id, tenant);
   }
 
-  // El CUIT tiene constraint UNIQUE global en la tabla (no por empresa),
-  // por eso esta búsqueda no se filtra por tenant: la unicidad es del sistema.
   async findByCuit(cuit: string): Promise<Proveedor | null> {
     return this.repo.findOneBy({ cuit });
   }
@@ -47,12 +69,6 @@ export class ProveedorRepository
     return this.repo.save(proveedor);
   }
 
-  // Filtra empresa_id en la propia sentencia UPDATE (no solo en el findById
-  // previo del service) para que el chequeo de ownership sea atómico con la
-  // escritura y no quede ventana entre "leer" y "escribir" (TOCTOU). Si
-  // affected === 0, el filtro no matcheó ninguna fila (id inexistente o ya
-  // no pertenece a esta empresa en el instante de la query) y se devuelve
-  // null en vez de asumir éxito silencioso; el service decide el 404.
   async update(proveedor: Proveedor, tenant: TenantContext): Promise<Proveedor | null> {
     const { id, empresa, createdAt, updatedAt, ...columns } = proveedor;
     const result = await this.repo.update(
@@ -65,14 +81,10 @@ export class ProveedorRepository
     return this.repo.findOneBy({ id });
   }
 
-  // Soft delete: pasa el estado a SUSPENDIDA en vez de borrar la fila
-  // o tocar un campo isActive separado.
   async softDelete(id: number, tenant: TenantContext): Promise<boolean> {
     return this.setEstado(id, EstadoProveedor.SUSPENDIDA, tenant);
   }
 
-  // Cambia el estado del proveedor (usado tanto por softDelete como por
-  // activate). Mismo criterio de atomicidad: empresa_id va en el WHERE.
   async setEstado(
     id: number,
     estado: EstadoProveedor,

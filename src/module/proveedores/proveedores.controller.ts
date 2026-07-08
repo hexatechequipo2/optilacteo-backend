@@ -22,6 +22,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import type { PaginatedResponse } from '../../common/dto/paginated-response.dto';
+import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
 
 @ApiTags('proveedores')
 @ApiBearerAuth()
@@ -32,9 +33,9 @@ export class ProveedoresController {
   @Get()
   findAll(
     @CurrentEmpresa() tenant: TenantContext,
-    @Query() pagination: PaginationQueryDto,
+    @Query() query: ProveedorFilterQueryDto,
   ): Promise<PaginatedResponse<ProveedorResponseDto>> {
-    return this.proveedoresService.findAll(tenant, pagination);
+    return this.proveedoresService.findAll(tenant, query);
   }
 
   @Get(':id')

@@ -1,6 +1,12 @@
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { Proveedor } from '../entities/proveedor.entity';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
+import { TipoProveedor } from '../enums/tipo-proveedor.enum';
+
+export interface ProveedorFilters {
+  tipo?: TipoProveedor;
+  search?: string;
+}
 
 export interface IProveedorRepository {
   findAll(tenant: TenantContext): Promise<Proveedor[]>;
@@ -8,6 +14,7 @@ export interface IProveedorRepository {
     tenant: TenantContext,
     skip: number,
     take: number,
+    filters?: ProveedorFilters,
   ): Promise<[Proveedor[], number]>;
   findById(id: number, tenant: TenantContext): Promise<Proveedor | null>;
   findByCuit(cuit: string): Promise<Proveedor | null>;
