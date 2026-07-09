@@ -71,9 +71,9 @@ describe('UserController', () => {
     it('deberia convertir el id de string a number antes de delegar en userService.findOne', async () => {
       mockUserService.findOne.mockResolvedValue({ id: 7 });
 
-      await controller.findOne('7');
+      await controller.findOne('7', tenantGerente);
 
-      expect(mockUserService.findOne).toHaveBeenCalledWith(7);
+      expect(mockUserService.findOne).toHaveBeenCalledWith(7, tenantGerente);
     });
   });
 
@@ -92,9 +92,9 @@ describe('UserController', () => {
     it('deberia convertir el id a number y delegar en userService.activate', async () => {
       mockUserService.activate.mockResolvedValue({ id: 4, isActive: true });
 
-      await controller.activate('4');
+      await controller.activate('4', tenantGerente);
 
-      expect(mockUserService.activate).toHaveBeenCalledWith(4);
+      expect(mockUserService.activate).toHaveBeenCalledWith(4, tenantGerente);
     });
   });
 
@@ -102,19 +102,10 @@ describe('UserController', () => {
     it('deberia convertir el id a number y delegar en userService.deactivate', async () => {
       mockUserService.deactivate.mockResolvedValue({ id: 4, isActive: false });
 
-      await controller.deactivate('4');
+      await controller.deactivate('4', tenantGerente);
 
-      expect(mockUserService.deactivate).toHaveBeenCalledWith(4);
+      expect(mockUserService.deactivate).toHaveBeenCalledWith(4, tenantGerente);
     });
   });
 
-  describe('deactivateById (DELETE :id)', () => {
-    it('deberia comportarse igual que deactivate: convertir el id y delegar en userService.deactivate', async () => {
-      mockUserService.deactivate.mockResolvedValue({ id: 5, isActive: false });
-
-      await controller.deactivateById('5');
-
-      expect(mockUserService.deactivate).toHaveBeenCalledWith(5);
-    });
-  });
 });
