@@ -16,6 +16,8 @@ import { Rol } from '../rol/entities/rol.entity';
 import { EmpresaService } from '../empresa/empresa.service';
 import { ROLES } from '../rol/constants/roles.constants';
 import type { TenantContext } from '../../common/types/tenant-context.type';
+import { UserFilterQueryDto } from './dto/user-filter-query.dto';
+import { buildPaginatedResponse, PaginatedResponse } from '../../common/dto/paginated-response.dto';
 
 const SALT_ROUNDS = 10;
 
@@ -57,9 +59,19 @@ export class UserService {
     return UserMapper.toResponse(created);
   }
 
-  async findAll(tenant: TenantContext) {
-    const users = await this.userRepository.findAll(tenant);
-    return UserMapper.toResponseList(users);
+  async findAll(
+    tenant: TenantContext,
+    query: UserFilterQueryDto,
+  ): Promise<PaginatedResponse<ReturnType<typeof UserMapper.toResponse>>> {
+    const { page, limit, ...filters } = query;
+    const skip = (page - 1) * limit;
+    const [users, total] = await this.userRepository.findAllPaginated(
+      tenant,
+      skip,
+      limit,
+      filters,
+    );
+    return buildPaginatedResponse(UserMapper.toResponseList(users), page, limit, total);
   }
 
   async findOne(id: number, tenant: TenantContext) {

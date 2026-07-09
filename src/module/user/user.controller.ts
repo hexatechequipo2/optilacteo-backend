@@ -8,6 +8,8 @@ import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorato
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { UserFilterQueryDto } from './dto/user-filter-query.dto';
+import { Query } from '@nestjs/common';
 
 @ApiTags('user')
 @ApiBearerAuth()
@@ -24,8 +26,11 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Get()
-  findAll(@CurrentEmpresa() tenant: TenantContext) {
-    return this.userService.findAll(tenant);
+  findAll(
+    @CurrentEmpresa() tenant: TenantContext,
+    @Query() query: UserFilterQueryDto,
+  ) {
+    return this.userService.findAll(tenant, query);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
