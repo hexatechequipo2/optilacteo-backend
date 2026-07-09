@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
-import { ProveedoresService } from './proveedores.service';
+import { ProveedoresService } from './proveedor.service';
 import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
 import { ProveedorResponseDto } from './dto/proveedor-response.dto';

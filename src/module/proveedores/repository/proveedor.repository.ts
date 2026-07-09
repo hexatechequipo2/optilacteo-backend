@@ -58,7 +58,12 @@ export class ProveedorRepository
   }
 
   async findById(id: number, tenant: TenantContext): Promise<Proveedor | null> {
-    return this.findByIdScoped(id, tenant);
+    // Usamos el scopedQueryBuilder para mantener la seguridad multi-tenant
+    const qb = this.scopedQueryBuilder(tenant, 'proveedor')
+      .leftJoinAndSelect('proveedor.empresa', 'empresa') // <-- CARGAMOS LA RELACIÓN
+      .where('proveedor.id = :id', { id });
+
+    return qb.getOne();
   }
 
   async findByCuit(cuit: string): Promise<Proveedor | null> {

@@ -13,7 +13,6 @@ import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
 import { ProveedorResponseDto } from './dto/proveedor-response.dto';
 import { ROLES } from '../rol/constants/roles.constants';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import {
   buildPaginatedResponse,
   type PaginatedResponse,
@@ -28,6 +27,16 @@ export class ProveedoresService {
     private readonly proveedorRepository: IProveedorRepository,
     private readonly mapper: ProveedorMapper,
   ) {}
+
+  // Guardia de seguridad para aislamiento multi-tenant
+  private assertOwnEmpresa(proveedor: any, tenant: TenantContext) {
+    if (!proveedor || !proveedor.empresa?.id) {
+      throw new NotFoundException('Proveedor no encontrado');
+    }
+    if (tenant.rolNombre !== ROLES.ADMINISTRADOR && proveedor.empresa.id !== tenant.empresaId) {
+      throw new NotFoundException('Proveedor no encontrado');
+    }
+  }
 
   async findAll(
     tenant: TenantContext,
@@ -54,6 +63,7 @@ export class ProveedoresService {
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
+    this.assertOwnEmpresa(proveedor, tenant);
     return this.mapper.toResponseDto(proveedor);
   }
 
@@ -61,9 +71,7 @@ export class ProveedoresService {
     const empresaId = this.resolveEmpresaId(dto.empresaId, tenant);
     const existing = await this.proveedorRepository.findByCuit(dto.cuit);
     if (existing) {
-      throw new ConflictException(
-        `Ya existe un proveedor registrado con el CUIT ${dto.cuit}`,
-      );
+      throw new ConflictException(`Ya existe un proveedor registrado con el CUIT ${dto.cuit}`);
     }
     const entity = this.mapper.toEntity(dto, empresaId);
     const saved = await this.proveedorRepository.save(entity);
@@ -79,49 +87,46 @@ export class ProveedoresService {
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
+    this.assertOwnEmpresa(proveedor, tenant);
+
     if (dto.cuit && dto.cuit !== proveedor.cuit) {
       const cuitEnUso = await this.proveedorRepository.findByCuit(dto.cuit);
       if (cuitEnUso) {
-        throw new ConflictException(
-          `El CUIT ${dto.cuit} ya está en uso por otro proveedor`,
-        );
+        throw new ConflictException(`El CUIT ${dto.cuit} ya está en uso por otro proveedor`);
       }
     }
-    const empresaId =
-      dto.empresaId !== undefined ? this.resolveEmpresaId(dto.empresaId, tenant) : undefined;
+    
+    const empresaId = dto.empresaId !== undefined ? this.resolveEmpresaId(dto.empresaId, tenant) : undefined;
     const updated = this.mapper.applyUpdate(proveedor, dto, empresaId);
     const saved = await this.proveedorRepository.update(updated, tenant);
+    
     if (!saved) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
     return this.mapper.toResponseDto(saved);
   }
 
-// Soft delete: el proveedor no se borra físicamente, pasa a estado
-  // SUSPENDIDA. Sigue apareciendo en findAll (el frontend lo muestra con
-  // badge "Suspendida"), pero queda excluido de countByEmpresa (ACTIVA).
   async remove(id: number, tenant: TenantContext): Promise<void> {
     const proveedor = await this.proveedorRepository.findById(id, tenant);
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
+    this.assertOwnEmpresa(proveedor, tenant);
+    
     const deleted = await this.proveedorRepository.softDelete(id, tenant);
     if (!deleted) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
   }
 
-  // Reactiva un proveedor suspendido, devolviéndolo a estado ACTIVA.
   async activate(id: number, tenant: TenantContext): Promise<ProveedorResponseDto> {
     const proveedor = await this.proveedorRepository.findById(id, tenant);
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
-    const updated = await this.proveedorRepository.setEstado(
-      id,
-      EstadoProveedor.ACTIVA,
-      tenant,
-    );
+    this.assertOwnEmpresa(proveedor, tenant);
+
+    const updated = await this.proveedorRepository.setEstado(id, EstadoProveedor.ACTIVA, tenant);
     if (!updated) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
@@ -129,16 +134,10 @@ export class ProveedoresService {
     return this.mapper.toResponseDto(proveedorActualizado!);
   }
 
-  // Admin gestiona proveedores de cualquier empresa: debe indicar empresaId
-  // explícito en el body. El resto de los roles siempre pertenece a una
-  // empresa: el valor se fuerza desde el JWT y se ignora lo que venga en el
-  // body, para que no puedan crear/reasignar un proveedor a otra empresa.
   private resolveEmpresaId(bodyEmpresaId: number | undefined, tenant: TenantContext): number {
     if (tenant.rolNombre === ROLES.ADMINISTRADOR) {
       if (bodyEmpresaId === undefined) {
-        throw new BadRequestException(
-          'El id de empresa es obligatorio para el rol admin',
-        );
+        throw new BadRequestException('El id de empresa es obligatorio para el rol admin');
       }
       return bodyEmpresaId;
     }

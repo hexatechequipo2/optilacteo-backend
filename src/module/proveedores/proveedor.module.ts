@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Proveedor } from './entities/proveedor.entity';
-import { ProveedoresController } from './proveedores.controller';
-import { ProveedoresService } from './proveedores.service';
+import { ProveedoresController } from './proveedor.controller';
+import { ProveedoresService } from './proveedor.service';
 import { ProveedorRepository } from './repository/proveedor.repository';
 import { PROVEEDOR_REPOSITORY } from './repository/proveedor-interface.repository';
 import { ProveedorMapper } from './mappers/proveedor.mapper';
