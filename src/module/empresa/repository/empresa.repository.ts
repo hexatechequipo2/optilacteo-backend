@@ -4,7 +4,7 @@ import { In, Repository } from 'typeorm';
 import { Empresa } from '../entities/empresa.entity';
 import { EmpresaModulo } from '../entities/empresa-modulo.entity';
 import { ModuloSistema } from '../enums/modulo-sistema.enum';
-import { IEmpresaRepository } from './empresa-repository.interface';
+import { EmpresaFilters, IEmpresaRepository } from './empresa-repository.interface';
 
 @Injectable()
 export class EmpresaRepository implements IEmpresaRepository {
@@ -30,28 +30,51 @@ export class EmpresaRepository implements IEmpresaRepository {
     return this.repository.find({ relations: { modulos: true, users: true } });
   }
 
-  async findAllPaginated(skip: number, take: number): Promise<[Empresa[], number]> {
-    return this.repository.findAndCount({
-      relations: { modulos: true, users: true },
-      order: { id: 'ASC' },
-      skip,
-      take,
-    });
-  }
+  async findAllPaginated(
+    skip: number,
+    take: number,
+    filters?: EmpresaFilters,
+  ): Promise<[Empresa[], number]> {
+    const qb = this.repository
+      .createQueryBuilder('empresa')
+      .leftJoinAndSelect('empresa.modulos', 'modulos')
+      .leftJoinAndSelect('empresa.users', 'users')
+      .orderBy('empresa.id', 'ASC')
+      .skip(skip)
+      .take(take);
 
-  async createEmpresa(empresa: Partial<Empresa>): Promise<Empresa> {
-    const newEmpresa = this.repository.create(empresa);
-    return this.repository.save(newEmpresa);
-  }
-
-  async updateEmpresa(id: number, empresa: Partial<Empresa>): Promise<Empresa> {
-    await this.repository.update(id, empresa);
-    const updated = await this.findById(id);
-    if (!updated) {
-      throw new Error(`Empresa with id ${id} not found after update`);
+    if (filters?.name) {
+      qb.andWhere('empresa.name ILIKE :name', { name: `%${filters.name}%` });
     }
-    return updated;
+    if (filters?.cuit) {
+      qb.andWhere('empresa.cuit ILIKE :cuit', { cuit: `%${filters.cuit}%` });
+    }
+    if (filters?.email) {
+      qb.andWhere('empresa.email ILIKE :email', { email: `%${filters.email}%` });
+    }
+    if (filters?.plan) {
+      qb.andWhere('empresa.plan = :plan', { plan: filters.plan });
+    }
+    if (filters?.isActive !== undefined) {
+      qb.andWhere('empresa.isActive = :isActive', { isActive: filters.isActive });
+    }
+
+    return qb.getManyAndCount();
   }
+
+    async createEmpresa(empresa: Partial<Empresa>): Promise<Empresa> {
+      const newEmpresa = this.repository.create(empresa);
+      return this.repository.save(newEmpresa);
+    }
+
+    async updateEmpresa(id: number, empresa: Partial<Empresa>): Promise<Empresa> {
+      await this.repository.update(id, empresa);
+      const updated = await this.findById(id);
+      if (!updated) {
+        throw new Error(`Empresa with id ${id} not found after update`);
+      }
+      return updated;
+    }
 
   async deleteEmpresa(id: number): Promise<void> {
     await this.repository.delete(id);

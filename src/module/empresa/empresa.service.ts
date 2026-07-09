@@ -21,6 +21,7 @@ import {
   buildPaginatedResponse,
   type PaginatedResponse,
 } from '../../common/dto/paginated-response.dto';
+import { EmpresaFilterQueryDto } from './dto/empresa-filter-query.dto';
 
 const PLAN_NOMBRES: Record<Plan, string> = {
   [Plan.STARTER]: 'Starter',
@@ -69,11 +70,11 @@ export class EmpresaService {
   }
 
   async findAll(
-    pagination: PaginationQueryDto,
+    query: EmpresaFilterQueryDto,
   ): Promise<PaginatedResponse<ReturnType<typeof EmpresaMapper.toResponse>>> {
-    const { page, limit } = pagination;
+    const { page, limit, ...filters } = query;
     const skip = (page - 1) * limit;
-    const [empresas, total] = await this.empresaRepository.findAllPaginated(skip, limit);
+    const [empresas, total] = await this.empresaRepository.findAllPaginated(skip, limit, filters);
     return buildPaginatedResponse(
       EmpresaMapper.toResponseList(empresas),
       page,

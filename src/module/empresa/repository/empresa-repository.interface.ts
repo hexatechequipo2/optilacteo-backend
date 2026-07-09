@@ -1,12 +1,25 @@
 import { Empresa } from '../entities/empresa.entity';
 import { EmpresaModulo } from '../entities/empresa-modulo.entity';
 import { ModuloSistema } from '../enums/modulo-sistema.enum';
+import { Plan } from '../enums/plan.enum';
+
+export interface EmpresaFilters {
+  name?: string;
+  cuit?: string;
+  email?: string;
+  plan?: Plan;
+  isActive?: boolean;
+}
 
 export interface IEmpresaRepository {
   findById(id: number): Promise<Empresa | null>;
   findByCuit(cuit: string): Promise<Empresa | null>;
   findAll(): Promise<Empresa[]>;
-  findAllPaginated(skip: number, take: number): Promise<[Empresa[], number]>;
+  findAllPaginated(
+    skip: number,
+    take: number,
+    filters?: EmpresaFilters,
+  ): Promise<[Empresa[], number]>;
   createEmpresa(empresa: Partial<Empresa>): Promise<Empresa>;
   updateEmpresa(id: number, empresa: Partial<Empresa>): Promise<Empresa>;
   deleteEmpresa(id: number): Promise<void>;

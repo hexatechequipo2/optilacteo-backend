@@ -8,8 +8,8 @@ import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { ROLES } from '../rol/constants/roles.constants';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { EmpresaFilterQueryDto } from './dto/empresa-filter-query.dto';
 
 @ApiTags('empresa')
 @ApiBearerAuth()
@@ -26,8 +26,8 @@ export class EmpresaController {
 
   @Get()
   @Roles(ROLES.ADMINISTRADOR)
-  findAll(@Query() pagination: PaginationQueryDto) {
-    return this.empresaService.findAll(pagination);
+  findAll(@Query() query: EmpresaFilterQueryDto) {
+    return this.empresaService.findAll(query);
   }
 
   // Sin @Roles(): cualquier rol autenticado puede ver los datos de su
