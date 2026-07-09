@@ -23,6 +23,7 @@ import { ROLES } from '../rol/constants/roles.constants';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import type { PaginatedResponse } from '../../common/dto/paginated-response.dto';
 import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
+import { AuditLog } from '../audit/decorators/audit-log.decorator';
 
 @ApiTags('proveedores')
 @ApiBearerAuth()
@@ -49,6 +50,7 @@ export class ProveedoresController {
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @AuditLog('PROVEEDOR_CREAR', 'Proveedor')
   create(
     @Body() createProveedorDto: CreateProveedorDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -58,6 +60,7 @@ export class ProveedoresController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
+  @AuditLog('PROVEEDOR_ACTUALIZAR', 'Proveedor')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProveedorDto: UpdateProveedorDto,
@@ -68,6 +71,7 @@ export class ProveedoresController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/activar')
+  @AuditLog('PROVEEDOR_ACTIVAR', 'Proveedor')
   activate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentEmpresa() tenant: TenantContext,
@@ -77,6 +81,7 @@ export class ProveedoresController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Delete(':id')
+  @AuditLog('PROVEEDOR_ELIMINAR', 'Proveedor')
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentEmpresa() tenant: TenantContext) {
     await this.proveedoresService.remove(id, tenant);
     return { message: `Proveedor con id "${id}" eliminado correctamente` };

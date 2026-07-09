@@ -10,6 +10,7 @@ import { Proveedor } from './module/proveedores/entities/proveedor.entity';
 import { SystemConfig } from './module/system-config/entities/system-config.entity';
 import { Rol } from './module/rol/entities/rol.entity';
 import { PermisoModulo } from './module/permiso/entities/permiso-modulo.entity';
+import { AuditLog } from './module/audit/entity/audit-log.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -29,6 +30,7 @@ export default new DataSource({
     SystemConfig,
     Rol,
     PermisoModulo,
+    AuditLog
   ],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,

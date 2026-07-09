@@ -21,6 +21,7 @@ import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import type { AuthenticatedRequest } from './guards/jwt-auth.guard';
+import { AuditLog } from '../audit/decorators/audit-log.decorator';
 
 @ApiTags('auth')
 @Controller()
@@ -32,6 +33,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
+  @AuditLog('LOGIN', 'Auth')
   @ApiOperation({ summary: 'Inicio de sesion de usuario' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
@@ -48,6 +50,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
+  @AuditLog('LOGOUT', 'Auth')
   @ApiOperation({ summary: 'Cierre de sesion manual' })
   @ApiBody({ type: LogoutDto, required: false })
   @ApiResponse({

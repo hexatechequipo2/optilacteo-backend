@@ -4,6 +4,7 @@ import { PasswordResetService } from './password-reset.service';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from './decorators/public.decorator';
+import { AuditLog } from '../audit/decorators/audit-log.decorator';
 
 @ApiTags('Auth — Reset de contraseña')
 @Controller()
@@ -13,6 +14,7 @@ export class PasswordResetController {
   @Post('request-password-reset')
   @Public()
   @HttpCode(HttpStatus.OK)
+  @AuditLog('PASSWORD_REQUEST', 'Usuario')
   @ApiOperation({
     summary: 'Solicitar restablecimiento de contraseña',
     description:
@@ -34,6 +36,7 @@ export class PasswordResetController {
   @Post('reset-password')
   @Public()
   @HttpCode(HttpStatus.OK)
+  @AuditLog('PASSWORD_RESET', 'Usuario')
   @ApiOperation({
     summary: 'Confirmar nueva contraseña',
     description:

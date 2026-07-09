@@ -7,6 +7,7 @@ import { ROLES } from '../rol/constants/roles.constants';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AuditLog } from '../audit/decorators/audit-log.decorator';
 
 @ApiTags('user')
 @ApiBearerAuth()
@@ -16,6 +17,7 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Post()
+  @AuditLog('USUARIO_CREAR', 'Usuario')
   create(@Body() dto: CreateUserDto, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.create(dto, tenant);
   }
@@ -34,24 +36,28 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
+  @AuditLog('USUARIO_ACTUALIZAR', 'Usuario')
   update(@Param('id') id: string, @Body() dto: UpdateUserDto, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.update(+id, dto, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/activar')
+  @AuditLog('USUARIO_ACTIVAR', 'Usuario')
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.activate(+id, tenant);
   }
   
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desactivar')
+  @AuditLog('USUARIO_DESACTIVAR', 'Usuario')
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.deactivate(+id, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desbloquear')
+  @AuditLog('USUARIO_DESBLOQUEAR', 'Usuario')
   unlock(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.unlock(+id, tenant);
   }
