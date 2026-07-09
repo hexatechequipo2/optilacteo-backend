@@ -6,7 +6,7 @@ import { AppService } from './app.service';
 import { UserModule } from './module/user/user.module';
 import { EmpresaModule } from './module/empresa/empresa.module';
 import { AuthModule } from './module/auth/auth.module';
-import { ProveedoresModule } from '././module/proveedores/proveedores.module';
+import { ProveedoresModule } from './module/proveedores/proveedor.module';
 import { SystemConfigModule } from './module/system-config/system-config.module';
 import { RolModule } from './module/rol/rol.module';
 import { PermisoModule } from './module/permiso/permiso.module';

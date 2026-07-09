@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProveedoresController } from '../proveedores.controller';
-import { ProveedoresService } from '../proveedores.service';
+import { ProveedoresController } from '../proveedor.controller';
+import { ProveedoresService } from '../proveedor.service';
 import { TipoProveedor } from '../enums/tipo-proveedor.enum';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 import { ROLES } from '../../rol/constants/roles.constants';

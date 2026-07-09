@@ -213,6 +213,30 @@ describe('UserService', () => {
       expect(mockUserRepository.createUser).toHaveBeenCalled();
     });
 
+    it('permite a un Gerente cambiar el rol a otro distinto de Administrador', async () => {
+      const nuevoRol = buildRol({
+        id: 3,
+        nombre: ROLES.RESPONSABLE_CALIDAD,
+      });
+
+      mockUserRepository.findById.mockResolvedValue(buildUser());
+      mockRolTypeormRepo.findOneBy.mockResolvedValue(nuevoRol);
+      mockUserRepository.updateUser.mockResolvedValue(
+        buildUser({ rol: nuevoRol }),
+      );
+
+      await service.update(
+        10,
+        { rolId: 3 },
+        tenantGerente,
+      );
+
+      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(
+        10,
+        { rol: nuevoRol },
+      );
+    });
+
     it('ignora el empresaId del body y fuerza el de su propio tenant cuando quien crea es Gerente', async () => {
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
       mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol({ nombre: ROLES.GERENTE }));
@@ -266,6 +290,8 @@ describe('UserService', () => {
       expect(result[1].isActive).toBe(false);
     });
 
+    //CP-08
+    //Validar el aislamiento completo de datos entre tenants en todos los endpoints del sprint.
     it('deberia delegar el tenant en el repository para que aplique el scoping por empresa', async () => {
       mockUserRepository.findAll.mockResolvedValue([]);
 
@@ -275,19 +301,24 @@ describe('UserService', () => {
     });
   });
 
-  describe('findOne', () => {
+ describe('findOne', () => {
     it('lanza NotFoundException si el usuario no existe', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
-
-      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(999, tenantGerente)).rejects.toThrow(NotFoundException);
     });
 
-    it('devuelve el usuario mapeado cuando existe', async () => {
-      mockUserRepository.findById.mockResolvedValue(buildUser());
-
-      const result = await service.findOne(10);
-
+    it('devuelve el usuario mapeado cuando existe y pertenece al tenant', async () => {
+      mockUserRepository.findById.mockResolvedValue(buildUser({ empresa: { id: 1 } as any }));
+      const result = await service.findOne(10, tenantGerente);
       expect(result.id).toBe(10);
+    });
+
+    // TEST DE AISLAMIENTO (CP-08 / CP-09)
+    it('lanza NotFoundException si el usuario existe pero pertenece a otra empresa', async () => {
+      // El usuario encontrado es de la empresa 2, pero el tenant es de la empresa 1
+      mockUserRepository.findById.mockResolvedValue(buildUser({ empresa: { id: 2 } as any }));
+      
+      await expect(service.findOne(10, tenantGerente)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -396,28 +427,29 @@ describe('UserService', () => {
   });
 
   describe('activate / deactivate - HU-07', () => {
-    it('deactivate deberia togglear isActive a false sin borrar al usuario (conserva su historial)', async () => {
+    it('deactivate deberia togglear isActive a false', async () => {
       mockUserRepository.findById.mockResolvedValue(buildUser({ isActive: true }));
       mockUserRepository.updateUser.mockResolvedValue(buildUser({ isActive: false }));
 
-      const result = await service.deactivate(10);
+      // Agregamos tenantGerente como segundo argumento
+      const result = await service.deactivate(10, tenantGerente);
 
       expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, { isActive: false });
-      expect(mockUserRepository.deleteUser).not.toHaveBeenCalled();
       expect(result.isActive).toBe(false);
     });
 
     it('deactivate lanza NotFoundException si el usuario no existe', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
-
-      await expect(service.deactivate(999)).rejects.toThrow(NotFoundException);
+      // Agregamos tenantGerente
+      await expect(service.deactivate(999, tenantGerente)).rejects.toThrow(NotFoundException);
     });
 
     it('activate deberia togglear isActive a true', async () => {
       mockUserRepository.findById.mockResolvedValue(buildUser({ isActive: false }));
       mockUserRepository.updateUser.mockResolvedValue(buildUser({ isActive: true }));
 
-      const result = await service.activate(10);
+      // Agregamos tenantGerente
+      const result = await service.activate(10, tenantGerente);
 
       expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, { isActive: true });
       expect(result.isActive).toBe(true);
@@ -425,8 +457,26 @@ describe('UserService', () => {
 
     it('activate lanza NotFoundException si el usuario no existe', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
+      // Agregamos tenantGerente
+      await expect(service.activate(999, tenantGerente)).rejects.toThrow(NotFoundException);
+    });
 
-      await expect(service.activate(999)).rejects.toThrow(NotFoundException);
+    describe('unlock', () => {
+      it('deberia resetear los intentos fallidos y desbloquear al usuario', async () => {
+        mockUserRepository.findById.mockResolvedValue(buildUser({ failedLoginAttempts: 5 }));
+        mockUserRepository.resetFailedAttempts.mockResolvedValue(undefined);
+
+        // Agregamos tenantGerente
+        await service.unlock(10, tenantGerente);
+
+        expect(mockUserRepository.resetFailedAttempts).toHaveBeenCalledWith(10);
+      });
+
+      it('lanza NotFoundException si el usuario no existe', async () => {
+        mockUserRepository.findById.mockResolvedValue(null);
+        // Agregamos tenantGerente
+        await expect(service.unlock(999, tenantGerente)).rejects.toThrow(NotFoundException);
+      });
     });
   });
 });

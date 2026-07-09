@@ -65,6 +65,8 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
       expect(resultado.message).toBeDefined();
     });
 
+    //CP-07
+    //Validar que la solicitud de restablecimiento con email no registrado no revela información sensible.
     it('criterio #1 (seguridad): cuando el email NO está registrado, debe responder igual sin revelar que no existe', async () => {
       mockUserRepository.findByEmail.mockResolvedValue(null);
 
@@ -73,6 +75,9 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
       expect(mockMailService.sendPasswordResetEmail).not.toHaveBeenCalled();
       expect(resultado.message).toBeDefined();
     });
+
+    //CP-06
+    // Validar que el enlace de restablecimiento es de un solo uso.
 
     it('criterio #2 y #3: el token generado debe tener fecha de expiración a 30 minutos y estar marcado como no usado', async () => {
       mockUserRepository.findByEmail.mockResolvedValue({
@@ -96,6 +101,8 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
     });
   });
 
+  //CP-04 
+  // Validar el flujo completo de restablecimiento de contraseña por email.
   describe('resetPassword', () => {
     it('criterio #4 y #5: cuando el token es válido y las contraseñas coinciden, debe actualizar la contraseña y confirmar el cambio', async () => {
       const futuro = new Date(Date.now() + 10 * 60 * 1000);
@@ -133,6 +140,9 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
       ).rejects.toThrow(BadRequestException);
     });
 
+    //CP-06
+    // Validar que el enlace de restablecimiento es de un solo uso.
+
     it('criterio #3: cuando el token ya fue utilizado, debe lanzar BadRequestException', async () => {
       mockTokenRepository.findByToken.mockResolvedValue({
         id:        'token-uuid-1',
@@ -151,6 +161,9 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
       ).rejects.toThrow(BadRequestException);
     });
 
+    
+  //CP-05 
+  // Validar el rechazo de enlace de restablecimiento vencido.
     it('criterio #2: cuando el token ha expirado, debe lanzar BadRequestException', async () => {
       const pasado = new Date(Date.now() - 31 * 60 * 1000); 
       mockTokenRepository.findByToken.mockResolvedValue({

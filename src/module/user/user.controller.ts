@@ -16,11 +16,8 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Post()
-  create(
-    @Body() createUserDto: CreateUserDto,
-    @CurrentEmpresa() tenant: TenantContext,
-  ) {
-    return this.userService.create(createUserDto, tenant);
+  create(@Body() dto: CreateUserDto, @CurrentEmpresa() tenant: TenantContext) {
+    return this.userService.create(dto, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
@@ -31,41 +28,31 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.userService.findOne(+id);
+  findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
+    return this.userService.findOne(+id, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-    @CurrentEmpresa() tenant: TenantContext,
-  ) {
-    return this.userService.update(+id, updateUserDto, tenant);
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @CurrentEmpresa() tenant: TenantContext) {
+    return this.userService.update(+id, dto, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/activar')
-  activate(@Param('id') id: string) {
-    return this.userService.activate(+id);
+  activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
+    return this.userService.activate(+id, tenant);
   }
   
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desactivar')
-  deactivate(@Param('id') id: string) {
-    return this.userService.deactivate(+id);
-  }
-
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Delete(':id')
-  deactivateById(@Param('id') id: string) {
-    return this.userService.deactivate(+id);
+  deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
+    return this.userService.deactivate(+id, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desbloquear')
-  unlock(@Param('id') id: string) {
-    return this.userService.unlock(+id);
-}
+  unlock(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
+    return this.userService.unlock(+id, tenant);
+  }
 }

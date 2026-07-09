@@ -39,9 +39,21 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
     save: jest.Mock;
     update: jest.Mock;
     countBy: jest.Mock;
+    createQueryBuilder: jest.Mock;
   };
 
   beforeEach(() => {
+    const queryBuilderMock = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getOne: jest.fn(),
+      getManyAndCount: jest.fn(),
+    };
+
     mockTypeormRepo = {
       find: jest.fn(),
       findAndCount: jest.fn(),
@@ -50,7 +62,9 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       save: jest.fn(),
       update: jest.fn(),
       countBy: jest.fn(),
-    };
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
+    } as any; 
+
     repository = new ProveedorRepository(mockTypeormRepo as unknown as Repository<Proveedor>);
   });
 
@@ -80,51 +94,83 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
 
   describe('findAllPaginated', () => {
     it('para no-admin agrega empresaId al WHERE y aplica skip/take', async () => {
-      mockTypeormRepo.findAndCount.mockResolvedValue([[], 0]);
+      // 1. Obtenemos el mock del QB que definiste en el beforeEach
+      const qb = mockTypeormRepo.createQueryBuilder();
+      qb.getManyAndCount.mockResolvedValue([[], 0]);
 
+      // 2. Ejecutamos el método
       await repository.findAllPaginated(tenantEmpresaA, 20, 10);
 
-      expect(mockTypeormRepo.findAndCount).toHaveBeenCalledWith({
-        order: { razonSocial: 'ASC' },
-        where: { empresaId: 1 },
-        skip: 20,
-        take: 10,
-      });
+      // 3. Verificamos la cadena de llamadas del QueryBuilder
+      expect(qb.andWhere).toHaveBeenCalledWith('proveedor.empresaId = :empresaId', { empresaId: 1 });
+      expect(qb.skip).toHaveBeenCalledWith(20);
+      expect(qb.take).toHaveBeenCalledWith(10);
+      expect(qb.getManyAndCount).toHaveBeenCalled();
     });
 
     it('para admin NO agrega filtro de empresa pero si aplica skip/take', async () => {
-      mockTypeormRepo.findAndCount.mockResolvedValue([[], 0]);
+      const qb = mockTypeormRepo.createQueryBuilder();
+      qb.getManyAndCount.mockResolvedValue([[], 0]);
 
       await repository.findAllPaginated(tenantAdmin, 0, 20);
 
-      expect(mockTypeormRepo.findAndCount).toHaveBeenCalledWith({
-        order: { razonSocial: 'ASC' },
-        where: {},
-        skip: 0,
-        take: 20,
-      });
+      // El admin no debe tener filtro de empresaId
+      expect(qb.andWhere).not.toHaveBeenCalledWith(expect.stringContaining('empresaId'), expect.anything());
+      expect(qb.skip).toHaveBeenCalledWith(0);
+      expect(qb.take).toHaveBeenCalledWith(20);
+      expect(qb.getManyAndCount).toHaveBeenCalled();
     });
   });
 
-  describe('findById', () => {
-    it('para no-admin agrega empresaId al WHERE (no puede leer un id de otra empresa)', async () => {
-      mockTypeormRepo.findOne.mockResolvedValue(null);
+describe('findById', () => {
+  it('para no-admin agrega empresaId al WHERE (no puede leer un id de otra empresa)', async () => {
+    const qb = mockTypeormRepo.createQueryBuilder();
+    qb.getOne.mockResolvedValue(null);
 
-      await repository.findById(99, tenantEmpresaA);
+    await repository.findById(99, tenantEmpresaA);
 
-      expect(mockTypeormRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 99, empresaId: 1 },
-      });
-    });
+    expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
+      'proveedor.empresa',
+      'empresa',
+    );
 
-    it('para admin NO agrega filtro de empresa', async () => {
-      mockTypeormRepo.findOne.mockResolvedValue(null);
+    expect(qb.where).toHaveBeenCalledWith(
+      'proveedor.id = :id',
+      { id: 99 },
+    );
 
-      await repository.findById(99, tenantAdmin);
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      'proveedor.empresaId = :empresaId',
+      { empresaId: 1 },
+    );
 
-      expect(mockTypeormRepo.findOne).toHaveBeenCalledWith({ where: { id: 99 } });
-    });
+    expect(qb.getOne).toHaveBeenCalled();
   });
+
+  it('para admin NO agrega filtro de empresa', async () => {
+    const qb = mockTypeormRepo.createQueryBuilder();
+    qb.getOne.mockResolvedValue(null);
+
+    await repository.findById(99, tenantAdmin);
+
+    expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
+      'proveedor.empresa',
+      'empresa',
+    );
+
+    expect(qb.where).toHaveBeenCalledWith(
+      'proveedor.id = :id',
+      { id: 99 },
+    );
+
+    expect(qb.andWhere).not.toHaveBeenCalledWith(
+      expect.stringContaining('empresaId'),
+      expect.anything(),
+    );
+
+    expect(qb.getOne).toHaveBeenCalled();
+  });
+});
 
   describe('update - filtro atomico en la sentencia UPDATE (cierre de TOCTOU)', () => {
     it('para no-admin, la query UPDATE fisica lleva empresaId en el WHERE', async () => {
