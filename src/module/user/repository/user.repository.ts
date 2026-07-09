@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { IUserRepository } from './user-repository.interface';
+import { IUserRepository, UserFilters } from './user-repository.interface';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
@@ -43,6 +43,49 @@ export class UserRepository implements IUserRepository {
       where,
       relations: { empresa: true, rol: true },
     });
+  }
+
+  async findAllPaginated(
+    tenant: TenantContext,
+    skip: number,
+    take: number,
+    filters?: UserFilters,
+  ): Promise<[User[], number]> {
+    const qb = this.repository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.empresa', 'empresa')
+      .leftJoinAndSelect('user.rol', 'rol')
+      .orderBy('user.name', 'ASC')
+      .skip(skip)
+      .take(take);
+
+    if (tenant.rolNombre !== ROLES.ADMINISTRADOR) {
+      qb.andWhere('empresa.id = :tenantEmpresaId', {
+        tenantEmpresaId: tenant.empresaId ?? -1,
+      });
+    }
+
+    if (filters?.name) {
+      qb.andWhere('user.name ILIKE :name', { name: `%${filters.name}%` });
+    }
+    if (filters?.email) {
+      qb.andWhere('user.email ILIKE :email', { email: `%${filters.email}%` });
+    }
+    if (filters?.isActive !== undefined) {
+      qb.andWhere('user.isActive = :isActive', { isActive: filters.isActive });
+    }
+    if (filters?.rolId) {
+      qb.andWhere('rol.id = :rolId', { rolId: filters.rolId });
+    }
+    // empresaId como filtro solo aplica si es admin: un no-admin ya está
+    // scoped arriba a su propia empresa y no debe poder pedir otra.
+    if (filters?.empresaId && tenant.rolNombre === ROLES.ADMINISTRADOR) {
+      qb.andWhere('empresa.id = :filterEmpresaId', {
+        filterEmpresaId: filters.empresaId,
+      });
+    }
+
+    return qb.getManyAndCount();
   }
 
   async createUser(user: Partial<User>): Promise<User> {
