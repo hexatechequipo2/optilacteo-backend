@@ -97,6 +97,11 @@ describe('AuthService', () => {
     mockConfigService.get.mockReturnValue(undefined);
   });
 
+  //CP-01 
+  // Valida el proceso de autenticación del sistema completo. 
+
+  //CP-08 
+  // Validar aislamiento completo de datos entre tenants en todos los endpoints del sprint.
   describe('login - caso exitoso', () => {
     it('deberia retornar access_token y datos del usuario cuando las credenciales son correctas', async () => {
       // Arrange
@@ -234,6 +239,8 @@ describe('AuthService', () => {
     });
   });
 
+  // CP-02 
+  // Validar rechazo ante credenciales inválidas sin revelar información sensible.
   describe('login - email no registrado', () => {
     it('deberia lanzar UnauthorizedException con mensaje generico cuando el email no existe', async () => {
       // Arrange
@@ -251,6 +258,8 @@ describe('AuthService', () => {
     });
   });
 
+  // CP-02 
+  // Validar rechazo ante credenciales inválidas sin revelar información sensible.
   describe('login - contrasena incorrecta', () => {
     it('deberia lanzar UnauthorizedException con mensaje generico cuando la contrasena no coincide', async () => {
       // Arrange
@@ -321,6 +330,8 @@ describe('AuthService', () => {
     });
   });
 
+  //CP-03 Bloqueo por intentos fallidos
+  // Validar el bloqueo de cuenta tras 5 intentos fallidos consecutivos.
   describe('login - bloqueo por intentos fallidos', () => {
     it('deberia incrementar el contador de intentos fallidos cuando la contrasena es incorrecta', async () => {
       // Arrange
@@ -354,13 +365,29 @@ describe('AuthService', () => {
       // Arrange — cuenta bloqueada por 15 minutos mas
       const futureDate = new Date();
       futureDate.setMinutes(futureDate.getMinutes() + 15);
-      const lockedUser = { ...activeUser, lockedUntil: futureDate, failedLoginAttempts: 5 };
-      const dto: LoginDto = { email: 'admin@empresa.com', password: 'clave123' };
+
+      const lockedUser = {
+        ...activeUser,
+        lockedUntil: futureDate,
+        failedLoginAttempts: 5,
+      };
+
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave123',
+      };
+
       mockUserRepository.findByEmail.mockResolvedValue(lockedUser);
 
       // Act & Assert
       await expect(service.login(dto)).rejects.toThrow(ForbiddenException);
+
+      // No debe siquiera verificar la contraseña
       expect(bcryptCompare).not.toHaveBeenCalled();
+
+      // Tampoco debe generar tokens
+      expect(mockJwtService.signAsync).not.toHaveBeenCalled();
+      expect(mockRefreshTokenRepository.create).not.toHaveBeenCalled();
     });
 
     it('deberia permitir login cuando el tiempo de bloqueo ya expiro', async () => {
