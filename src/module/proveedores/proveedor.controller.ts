@@ -22,8 +22,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import type { PaginatedResponse } from '../../common/dto/paginated-response.dto';
-import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
 
 @ApiTags('proveedores')
 @ApiBearerAuth()
