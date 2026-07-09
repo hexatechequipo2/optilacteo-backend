@@ -4,6 +4,7 @@ import { PermisoService } from './permiso.service';
 import { UpdatePermisoDto } from './dto/update-permiso.dto';
 import { ROLES } from '../rol/constants/roles.constants';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { AuditLog } from '../audit/decorators/audit-log.decorator';
 
 @ApiTags('permiso')
 @ApiBearerAuth()
@@ -29,6 +30,7 @@ export class PermisoController {
   }
 
   @Patch(':id')
+  @AuditLog('PERMISO_ACTUALIZAR', 'Permiso')
   update(@Param('id') id: string, @Body() dto: UpdatePermisoDto) {
     return this.permisoService.update(+id, dto);
   }

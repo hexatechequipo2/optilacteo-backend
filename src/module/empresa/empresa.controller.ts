@@ -9,6 +9,7 @@ import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { ROLES } from '../rol/constants/roles.constants';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { AuditLog } from '../audit/decorators/audit-log.decorator';
 
 @ApiTags('empresa')
 @ApiBearerAuth()
@@ -18,6 +19,7 @@ export class EmpresaController {
 
   @Post()
   @Roles(ROLES.ADMINISTRADOR)
+  @AuditLog('EMPRESA_CREAR', 'Empresa')
   create(@Body() createEmpresaDto: CreateEmpresaDto) {
     return this.empresaService.create(createEmpresaDto);
   }
@@ -48,6 +50,7 @@ export class EmpresaController {
 
   @Patch(':id')
   @Roles(ROLES.ADMINISTRADOR)
+  @AuditLog('EMPRESA_ACTUALIZAR', 'Empresa')
   update(
     @Param('id') id: string,
     @Body() updateEmpresaDto: UpdateEmpresaDto,
@@ -58,18 +61,21 @@ export class EmpresaController {
 
   @Patch(':id/activar')
   @Roles(ROLES.ADMINISTRADOR)
+  @AuditLog('EMPRESA_ACTIVAR', 'Empresa')
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.activate(+id, tenant);
   }
 
   @Patch(':id/desactivar')
   @Roles(ROLES.ADMINISTRADOR)
+  @AuditLog('EMPRESA_DESACTIVAR', 'Empresa')
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.deactivate(+id, tenant);
   }
 
   @Patch(':id/modulos/activar')
   @Roles(ROLES.ADMINISTRADOR)
+  @AuditLog('MODULO_ACTIVAR', 'Empresa')
   activarModulo(
     @Param('id') id: string,
     @Body() dto: ToggleModuloDto,
@@ -80,6 +86,7 @@ export class EmpresaController {
 
   @Patch(':id/modulos/desactivar')
   @Roles(ROLES.ADMINISTRADOR)
+  @AuditLog('MODULO_DESACTIVAR', 'Empresa')
   desactivarModulo(
     @Param('id') id: string,
     @Body() dto: ToggleModuloDto,
@@ -90,6 +97,7 @@ export class EmpresaController {
 
   @Delete(':id')
   @Roles(ROLES.ADMINISTRADOR)
+  @AuditLog('EMPRESA_ELIMINAR', 'Empresa')
   remove(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.remove(+id, tenant);
   }

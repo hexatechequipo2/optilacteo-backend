@@ -18,14 +18,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     if (exception instanceof HttpException) {
-      // Mismo shape que ya devuelven hoy nuestras HttpException
-      // (NotFoundException, ForbiddenException, etc.) -- sin cambios.
-      response.status(exception.getStatus()).json(exception.getResponse());
+      const status = exception.getStatus();
+      const exceptionResponse = exception.getResponse();
+
+      // Enmascarar Forbidden (403) a Not Found (404) para evitar Information Disclosure
+      // Esto previene que un atacante identifique la existencia de recursos ajenos.
+      if (status === HttpStatus.FORBIDDEN) {
+        response.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Recurso no encontrado',
+        });
+        return;
+      }
+
+      response.status(status).json(exceptionResponse);
       return;
     }
 
-    // Cualquier otra cosa (bug, error de driver, excepcion no controlada):
-    // mensaje generico fijo, siempre, sin importar NODE_ENV.
+    // Cualquier error no controlado (bugs, fallos de conexión, etc.)
     this.logger.error(
       `Excepcion no controlada en ${request.method} ${request.url}`,
       exception instanceof Error ? exception.stack : String(exception),
