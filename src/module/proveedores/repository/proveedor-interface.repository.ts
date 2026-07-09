@@ -4,8 +4,14 @@ import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 import { TipoProveedor } from '../enums/tipo-proveedor.enum';
 
 export interface ProveedorFilters {
+  razonSocial?: string;
+  cuit?: string;
+  telefono?: string;
+  emailContacto?: string;
+  provincia?: string;
+  localidad?: string;
   tipo?: TipoProveedor;
-  search?: string;
+  estado?: EstadoProveedor;
 }
 
 export interface IProveedorRepository {

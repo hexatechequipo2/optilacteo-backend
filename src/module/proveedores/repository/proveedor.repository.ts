@@ -23,9 +23,6 @@ export class ProveedorRepository
     return this.findAllScoped(tenant, { order: { razonSocial: 'ASC' } });
   }
 
-  // Usa QueryBuilder (en vez de findAllScopedPaginated) porque la búsqueda
-  // necesita un OR entre razonSocial y cuit con ILIKE, algo que el
-  // FindOptionsWhere plano de TypeORM no puede expresar directamente.
   async findAllPaginated(
     tenant: TenantContext,
     skip: number,
@@ -37,21 +34,39 @@ export class ProveedorRepository
       .skip(skip)
       .take(take);
 
+    if (filters?.razonSocial) {
+      qb.andWhere('proveedor.razonSocial ILIKE :razonSocial', {
+        razonSocial: `%${filters.razonSocial}%`,
+      });
+    }
+    if (filters?.cuit) {
+      qb.andWhere('proveedor.cuit ILIKE :cuit', { cuit: `%${filters.cuit}%` });
+    }
+    if (filters?.telefono) {
+      qb.andWhere('proveedor.telefono ILIKE :telefono', {
+        telefono: `%${filters.telefono}%`,
+      });
+    }
+    if (filters?.emailContacto) {
+      qb.andWhere('proveedor.emailContacto ILIKE :emailContacto', {
+        emailContacto: `%${filters.emailContacto}%`,
+      });
+    }
+    if (filters?.provincia) {
+      qb.andWhere('proveedor.provincia ILIKE :provincia', {
+        provincia: `%${filters.provincia}%`,
+      });
+    }
+    if (filters?.localidad) {
+      qb.andWhere('proveedor.localidad ILIKE :localidad', {
+        localidad: `%${filters.localidad}%`,
+      });
+    }
     if (filters?.tipo) {
       qb.andWhere('proveedor.tipo = :tipo', { tipo: filters.tipo });
     }
-
-    if (filters?.search) {
-      qb.andWhere(
-        `(proveedor.razonSocial ILIKE :search
-          OR proveedor.cuit ILIKE :search
-          OR proveedor.telefono ILIKE :search
-          OR proveedor.emailContacto ILIKE :search
-          OR proveedor.provincia ILIKE :search
-          OR proveedor.localidad ILIKE :search
-          OR proveedor.capacidad::text ILIKE :search)`,
-        { search: `%${filters.search}%` },
-      );
+    if (filters?.estado) {
+      qb.andWhere('proveedor.estado = :estado', { estado: filters.estado });
     }
 
     return qb.getManyAndCount();

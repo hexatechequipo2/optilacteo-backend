@@ -42,13 +42,13 @@ export class ProveedoresService {
     tenant: TenantContext,
     query: ProveedorFilterQueryDto,
   ): Promise<PaginatedResponse<ProveedorResponseDto>> {
-    const { page, limit, tipo, search } = query;
+    const { page, limit, ...filters } = query;
     const skip = (page - 1) * limit;
     const [proveedores, total] = await this.proveedorRepository.findAllPaginated(
       tenant,
       skip,
       limit,
-      { tipo, search },
+      filters,
     );
     return buildPaginatedResponse(
       this.mapper.toResponseDtoList(proveedores),
