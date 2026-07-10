@@ -58,12 +58,23 @@ describe('UserController', () => {
   });
 
   describe('findAll', () => {
-    it('deberia delegar en userService.findAll con el tenant del usuario autenticado', async () => {
+    it('deberia delegar en userService.findAll con el tenant y la query de paginacion', async () => {
+      const query = {
+        page: 1,
+        limit: 20,
+      };
+
       mockUserService.findAll.mockResolvedValue([]);
 
-      await controller.findAll(tenantGerente);
+      await controller.findAll(
+        tenantGerente,
+        query as never,
+      );
 
-      expect(mockUserService.findAll).toHaveBeenCalledWith(tenantGerente);
+      expect(mockUserService.findAll).toHaveBeenCalledWith(
+        tenantGerente,
+        query,
+      );
     });
   });
 

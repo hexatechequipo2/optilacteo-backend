@@ -69,6 +69,7 @@ describe('UserService', () => {
     findByEmail: jest.Mock;
     findById: jest.Mock;
     findAll: jest.Mock;
+    findAllPaginated: jest.Mock;
     createUser: jest.Mock;
     updateUser: jest.Mock;
     deleteUser: jest.Mock;
@@ -90,6 +91,7 @@ describe('UserService', () => {
       findByEmail: jest.fn(),
       findById: jest.fn(),
       findAll: jest.fn(),
+      findAllPaginated: jest.fn(),
       createUser: jest.fn(),
       updateUser: jest.fn(),
       deleteUser: jest.fn(),
@@ -277,27 +279,64 @@ describe('UserService', () => {
   });
 
   describe('findAll', () => {
-    it('deberia devolver la lista de usuarios mapeada, reflejando el estado activo/inactivo de cada uno', async () => {
-      mockUserRepository.findAll.mockResolvedValue([
-        buildUser({ id: 1, isActive: true }),
-        buildUser({ id: 2, isActive: false }),
+    it('deberia devolver la lista paginada de usuarios mapeada, reflejando el estado activo/inactivo de cada uno', async () => {
+      const query = {
+        page: 1,
+        limit: 20,
+      };
+
+      mockUserRepository.findAllPaginated.mockResolvedValue([
+        [
+          buildUser({ id: 1, isActive: true }),
+          buildUser({ id: 2, isActive: false }),
+        ],
+        2,
       ]);
 
-      const result = await service.findAll(tenantAdministrador);
+      const result = await service.findAll(
+        tenantAdministrador,
+        query,
+      );
 
-      expect(result).toHaveLength(2);
-      expect(result[0].isActive).toBe(true);
-      expect(result[1].isActive).toBe(false);
+      expect(mockUserRepository.findAllPaginated).toHaveBeenCalledWith(
+        tenantAdministrador,
+        0,
+        20,
+        {},
+      );
+
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].isActive).toBe(true);
+      expect(result.data[1].isActive).toBe(false);
+
+      expect(result.meta).toEqual({
+        page: 1,
+        limit: 20,
+        total: 2,
+        totalPages: 1,
+      });
     });
 
-    //CP-08
-    //Validar el aislamiento completo de datos entre tenants en todos los endpoints del sprint.
+    // CP-08
     it('deberia delegar el tenant en el repository para que aplique el scoping por empresa', async () => {
-      mockUserRepository.findAll.mockResolvedValue([]);
+      const query = {
+        page: 1,
+        limit: 20,
+      };
 
-      await service.findAll(tenantGerente);
+      mockUserRepository.findAllPaginated.mockResolvedValue([[], 0]);
 
-      expect(mockUserRepository.findAll).toHaveBeenCalledWith(tenantGerente);
+      await service.findAll(
+        tenantGerente,
+        query,
+      );
+
+      expect(mockUserRepository.findAllPaginated).toHaveBeenCalledWith(
+        tenantGerente,
+        0,
+        20,
+        {},
+      );
     });
   });
 
