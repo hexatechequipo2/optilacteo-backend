@@ -73,7 +73,7 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
 
       const result = await service.findAll({ page: 1, limit: 20 });
 
-      expect(mockEmpresaRepository.findAllPaginated).toHaveBeenCalledWith(0, 20);
+      expect(mockEmpresaRepository.findAllPaginated).toHaveBeenCalledWith(0, 20, {});
       expect(result.meta).toEqual({ page: 1, limit: 20, total: 2, totalPages: 1 });
       expect(result.data).toHaveLength(2);
     });
@@ -83,7 +83,7 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
 
       const result = await service.findAll({ page: 3, limit: 10 });
 
-      expect(mockEmpresaRepository.findAllPaginated).toHaveBeenCalledWith(20, 10);
+      expect(mockEmpresaRepository.findAllPaginated).toHaveBeenCalledWith(20, 10, {});
       expect(result.meta).toEqual({ page: 3, limit: 10, total: 45, totalPages: 5 });
     });
   });

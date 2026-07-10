@@ -13,11 +13,20 @@ import { Plan } from '../enums/plan.enum';
 
 describe('EmpresaRepository', () => {
   let repository: EmpresaRepository;
+  let mockQueryBuilder: {
+    leftJoinAndSelect: jest.Mock;
+    orderBy: jest.Mock;
+    skip: jest.Mock;
+    take: jest.Mock;
+    andWhere: jest.Mock;
+    getManyAndCount: jest.Mock;
+  };
   let mockRepo: {
     findOne: jest.Mock;
     findOneBy: jest.Mock;
     find: jest.Mock;
     findAndCount: jest.Mock;
+    createQueryBuilder: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     update: jest.Mock;
@@ -32,16 +41,27 @@ describe('EmpresaRepository', () => {
   };
 
   beforeEach(() => {
+    mockQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn(),
+    };
+
     mockRepo = {
       findOne: jest.fn(),
       findOneBy: jest.fn(),
       find: jest.fn(),
       findAndCount: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
       create: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };
+
     mockModuloRepo = {
       findOne: jest.fn(),
       find: jest.fn(),
@@ -49,6 +69,7 @@ describe('EmpresaRepository', () => {
       save: jest.fn(),
       update: jest.fn(),
     };
+
     repository = new EmpresaRepository(
       mockRepo as unknown as Repository<Empresa>,
       mockModuloRepo as unknown as Repository<EmpresaModulo>,
@@ -111,18 +132,37 @@ describe('EmpresaRepository', () => {
 
     it('findAllPaginated deberia aplicar order/skip/take y devolver [items, total]', async () => {
       // Arrange
-      mockRepo.findAndCount.mockResolvedValue([[{ id: 1 }], 1]);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[{ id: 1 }], 1]);
 
       // Act
       const result = await repository.findAllPaginated(20, 10);
 
       // Assert
-      expect(mockRepo.findAndCount).toHaveBeenCalledWith({
-        relations: { modulos: true, users: true },
-        order: { id: 'ASC' },
-        skip: 20,
-        take: 10,
-      });
+      expect(mockRepo.createQueryBuilder).toHaveBeenCalledWith('empresa');
+
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenNthCalledWith(
+        1,
+        'empresa.modulos',
+        'modulos',
+      );
+
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenNthCalledWith(
+        2,
+        'empresa.users',
+        'users',
+      );
+
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'empresa.id',
+        'ASC',
+      );
+
+      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(20);
+
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
+
+      expect(mockQueryBuilder.getManyAndCount).toHaveBeenCalled();
+
       expect(result).toEqual([[{ id: 1 }], 1]);
     });
   });
