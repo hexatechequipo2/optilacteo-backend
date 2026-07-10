@@ -46,47 +46,55 @@ export class UserRepository implements IUserRepository {
   }
 
   async findAllPaginated(
-    tenant: TenantContext,
-    skip: number,
-    take: number,
-    filters?: UserFilters,
-  ): Promise<[User[], number]> {
-    const qb = this.repository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.empresa', 'empresa')
-      .leftJoinAndSelect('user.rol', 'rol')
-      .orderBy('user.name', 'ASC')
-      .skip(skip)
-      .take(take);
+  tenant: TenantContext,
+  skip: number,
+  take: number,
+  filters?: UserFilters,
+): Promise<[User[], number]> {
+  const qb = this.repository
+    .createQueryBuilder('user')
+    .leftJoinAndSelect('user.empresa', 'empresa')
+    .leftJoinAndSelect('user.rol', 'rol');
 
-    if (tenant.rolNombre !== ROLES.ADMINISTRADOR) {
-      qb.andWhere('empresa.id = :tenantEmpresaId', {
-        tenantEmpresaId: tenant.empresaId ?? -1,
-      });
-    }
-
-    if (filters?.name) {
-      qb.andWhere('user.name ILIKE :name', { name: `%${filters.name}%` });
-    }
-    if (filters?.email) {
-      qb.andWhere('user.email ILIKE :email', { email: `%${filters.email}%` });
-    }
-    if (filters?.isActive !== undefined) {
-      qb.andWhere('user.isActive = :isActive', { isActive: filters.isActive });
-    }
-    if (filters?.rolId) {
-      qb.andWhere('rol.id = :rolId', { rolId: filters.rolId });
-    }
-    // empresaId como filtro solo aplica si es admin: un no-admin ya está
-    // scoped arriba a su propia empresa y no debe poder pedir otra.
-    if (filters?.empresaId && tenant.rolNombre === ROLES.ADMINISTRADOR) {
-      qb.andWhere('empresa.id = :filterEmpresaId', {
-        filterEmpresaId: filters.empresaId,
-      });
-    }
-
-    return qb.getManyAndCount();
+  // 1. Filtro de Seguridad por Tenant
+  if (tenant.rolNombre !== ROLES.ADMINISTRADOR) {
+    qb.andWhere('empresa.id = :tenantEmpresaId', {
+      tenantEmpresaId: tenant.empresaId ?? -1,
+    });
   }
+
+  // 2. Filtro de Búsqueda Flexible (OR)
+  if (filters?.name) {
+    // Esto buscará por nombre O email
+    qb.andWhere('(user.name ILIKE :term OR user.email ILIKE :term)', { 
+      term: `%${filters.name}%` 
+    });
+  }
+
+  // 3. Otros Filtros
+  if (filters?.isActive !== undefined) {
+    qb.andWhere('user.isActive = :isActive', { isActive: filters.isActive });
+  }
+  
+  if (filters?.rolId) {
+    qb.andWhere('rol.id = :rolId', { rolId: filters.rolId });
+  }
+
+  if (filters?.empresaId && tenant.rolNombre === ROLES.ADMINISTRADOR) {
+    qb.andWhere('empresa.id = :filterEmpresaId', {
+      filterEmpresaId: filters.empresaId,
+    });
+  }
+
+  // 4. Paginación y Orden (CRÍTICO: Deben ir al final)
+  qb.orderBy('user.name', 'ASC')
+    .skip(skip)
+    .take(take);
+
+  return qb.getManyAndCount();
+}
+
+ 
 
   async createUser(user: Partial<User>): Promise<User> {
     const newUser = this.repository.create(user);
