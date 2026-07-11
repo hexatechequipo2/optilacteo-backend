@@ -512,6 +512,62 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
     });
+
+    it('deberia retornar exito cuando el refresh_token enviado no existe en la BD', async () => {
+      // Arrange
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 1,
+        email: 'admin@empresa.com',
+        empresaId: 1,
+        exp: 1760000000,
+      });
+      mockRevokedTokenRepository.createRevokedToken.mockResolvedValue({
+        id: 1,
+      });
+      mockRefreshTokenRepository.findByTokenHash.mockResolvedValue(null);
+
+      // Act
+      const result = await service.logout(
+        'token_jwt_firmado',
+        'refresh_inexistente',
+      );
+
+      // Assert
+      expect(result).toEqual({ message: 'Sesión cerrada correctamente' });
+      expect(mockRefreshTokenRepository.revokeFamily).not.toHaveBeenCalled();
+    });
+
+    it('deberia lanzar UnauthorizedException cuando el payload no tiene exp', async () => {
+      // Arrange
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 1,
+        email: 'admin@empresa.com',
+        empresaId: 1,
+        // sin exp
+      });
+
+      // Act & Assert
+      await expect(service.logout('token_sin_exp')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('deberia re-lanzar el error cuando no es un error de token duplicado', async () => {
+      // Arrange
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: 1,
+        email: 'admin@empresa.com',
+        empresaId: 1,
+        exp: 1760000000,
+      });
+      const dbError = new Error('DB connection failed');
+      mockRevokedTokenRepository.createRevokedToken.mockRejectedValue(dbError);
+
+      // Act & Assert
+      await expect(service.logout('token_jwt_firmado')).rejects.toThrow(
+        'DB connection failed',
+      );
+    });
   });
 
   describe('refresh', () => {
@@ -612,9 +668,9 @@ describe('AuthService', () => {
       });
 
       // Act & Assert
-      await expect(service.refresh('valido_pero_usuario_inactivo')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.refresh('valido_pero_usuario_inactivo'),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });
