@@ -59,6 +59,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     softDelete: jest.Mock;
     setEstado: jest.Mock;
     countByEmpresa: jest.Mock;
+    findByRazonSocial: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -67,6 +68,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
       findAllPaginated: jest.fn(),
       findById: jest.fn(),
       findByCuit: jest.fn(),
+      findByRazonSocial: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
       softDelete: jest.fn(),
@@ -142,6 +144,7 @@ describe('findAll - paginacion', () => {
     it('para no-admin, ignora el empresaId del body y usa el de su JWT', async () => {
       const dto = buildCreateDto({ empresaId: 999 });
       mockRepo.findByCuit.mockResolvedValue(null);
+      mockRepo.findByRazonSocial.mockResolvedValue(null);
       mockRepo.save.mockImplementation((entity: Proveedor) => Promise.resolve(entity));
 
       const result = await service.create(dto, tenantEmpresaA);
@@ -155,6 +158,7 @@ describe('findAll - paginacion', () => {
     it('para no-admin sin empresaId en el body, igual usa el de su JWT', async () => {
       const dto = buildCreateDto();
       mockRepo.findByCuit.mockResolvedValue(null);
+      mockRepo.findByRazonSocial.mockResolvedValue(null);
       mockRepo.save.mockImplementation((entity: Proveedor) => Promise.resolve(entity));
 
       const result = await service.create(dto, tenantEmpresaA);
@@ -172,6 +176,7 @@ describe('findAll - paginacion', () => {
     it('para admin, usa el empresaId que mando explicito en el body', async () => {
       const dto = buildCreateDto({ empresaId: 5 });
       mockRepo.findByCuit.mockResolvedValue(null);
+      mockRepo.findByRazonSocial.mockResolvedValue(null);
       mockRepo.save.mockImplementation((entity: Proveedor) => Promise.resolve(entity));
 
       const result = await service.create(dto, tenantAdmin);
@@ -182,7 +187,6 @@ describe('findAll - paginacion', () => {
     it('lanza ConflictException si el CUIT ya esta registrado por otro proveedor', async () => {
       const dto = buildCreateDto();
       mockRepo.findByCuit.mockResolvedValue(buildProveedor());
-
       await expect(service.create(dto, tenantEmpresaA)).rejects.toThrow(ConflictException);
       expect(mockRepo.save).not.toHaveBeenCalled();
     });
