@@ -24,6 +24,7 @@ export interface IProveedorRepository {
   ): Promise<[Proveedor[], number]>;
   findById(id: number, tenant: TenantContext): Promise<Proveedor | null>;
   findByCuit(cuit: string): Promise<Proveedor | null>;
+  findByRazonSocial(razonSocial: string): Promise<Proveedor | null>;
   save(proveedor: Proveedor): Promise<Proveedor>;
   update(proveedor: Proveedor, tenant: TenantContext): Promise<Proveedor | null>;
   softDelete(id: number, tenant: TenantContext): Promise<boolean>;

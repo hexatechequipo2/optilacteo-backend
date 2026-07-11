@@ -1,6 +1,6 @@
 import {
   Injectable, Logger, NotFoundException, BadRequestException,
-  ForbiddenException, Inject,
+  ForbiddenException, Inject, ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -45,6 +45,13 @@ export class UserService {
     const rol = await this.findRolOrFail(dto.rolId);
     this.guardAsignacionDeRol(rol, tenant);
 
+    const usuarioPorEmail = await this.userRepository.findByEmail(dto.email);
+    if (usuarioPorEmail) {
+      throw new ConflictException({
+        field: 'email',
+        message: 'Ya existe un usuario registrado con ese email.',
+      });
+    }
     const limiteUsuarios = await this.empresaService.getLimiteUsuarios(empresaId);
     const usuariosActuales = await this.userRepository.countByEmpresa(empresaId);
 
@@ -86,6 +93,17 @@ export class UserService {
     const user = await this.userRepository.findById(id);
     if (!user) throw new NotFoundException('Usuario no encontrado');
     this.assertOwnEmpresa(user, tenant);
+
+    if (dto.email && dto.email !== user.email) {
+    const usuarioPorEmail = await this.userRepository.findByEmail(dto.email);
+
+    if (usuarioPorEmail) {
+      throw new ConflictException({
+        field: 'email',
+        message: 'Ya existe un usuario registrado con ese email.',
+      });
+    }
+  }
 
     const update: Partial<User> = {};
     if (dto.name !== undefined) update.name = dto.name;

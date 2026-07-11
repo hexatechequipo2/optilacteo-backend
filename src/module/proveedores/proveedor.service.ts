@@ -69,9 +69,23 @@ export class ProveedoresService {
 
   async create(dto: CreateProveedorDto, tenant: TenantContext): Promise<ProveedorResponseDto> {
     const empresaId = this.resolveEmpresaId(dto.empresaId, tenant);
-    const existing = await this.proveedorRepository.findByCuit(dto.cuit);
-    if (existing) {
-      throw new ConflictException(`Ya existe un proveedor registrado con el CUIT ${dto.cuit}`);
+    const proveedorPorCuit =
+      await this.proveedorRepository.findByCuit(dto.cuit);
+
+    if (proveedorPorCuit) {
+      throw new ConflictException({
+        field: 'cuit',
+        message: 'Ya existe un proveedor con ese CUIT.',
+      });
+    }
+    const proveedorPorRazonSocial =
+      await this.proveedorRepository.findByRazonSocial(dto.razonSocial);
+
+    if (proveedorPorRazonSocial) {
+      throw new ConflictException({
+        field: 'razonSocial',
+        message: 'Ya existe un proveedor con esa razón social.',
+      });
     }
     const entity = this.mapper.toEntity(dto, empresaId);
     const saved = await this.proveedorRepository.save(entity);
@@ -93,6 +107,23 @@ export class ProveedoresService {
       const cuitEnUso = await this.proveedorRepository.findByCuit(dto.cuit);
       if (cuitEnUso) {
         throw new ConflictException(`El CUIT ${dto.cuit} ya está en uso por otro proveedor`);
+      }
+    }
+
+    if (
+      dto.razonSocial &&
+      dto.razonSocial.trim() !== proveedor.razonSocial
+    ) {
+      const razonSocialEnUso =
+        await this.proveedorRepository.findByRazonSocial(
+          dto.razonSocial,
+        );
+
+      if (razonSocialEnUso) {
+        throw new ConflictException({
+          field: 'razonSocial',
+          message: 'Ya existe un proveedor con esa razón social.',
+        });
       }
     }
     

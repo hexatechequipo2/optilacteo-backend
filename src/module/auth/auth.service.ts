@@ -1,5 +1,4 @@
 import {
-  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -9,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 
 import type { IUserRepository } from '../user/repository/user-repository.interface';
 import { USER_REPOSITORY } from '../user/repository/user-repository.interface';
@@ -81,7 +81,12 @@ export class AuthService {
 
     if (!user.isActive) {
       this.logger.warn(`Login usuario inactivo: [${dto.email}]`);
-      throw new ForbiddenException(
+      // Antes: ForbiddenException (403). Se cambia a 401 porque el
+      // AllExceptionsFilter enmascara todo 403 como 404 "Recurso no
+      // encontrado" (anti information-disclosure para recursos), lo cual
+      // pisaba este mensaje especifico y evitaba que el usuario supiera
+      // que su cuenta esta inactiva.
+      throw new UnauthorizedException(
         'El usuario está inactivo. Contacte al administrador.',
       );
     }
@@ -134,6 +139,7 @@ export class AuthService {
     const existing = await this.refreshTokenRepository.findByTokenHash(tokenHash);
 
     if (!existing) {
+      this.logger.warn('Refresh con token inexistente');
       throw new UnauthorizedException('Refresh token inválido');
     }
 
@@ -148,12 +154,16 @@ export class AuthService {
     }
 
     if (existing.expiresAt <= new Date()) {
+      this.logger.warn(`Refresh token expirado [userId=${existing.userId}]`);
       throw new UnauthorizedException('Refresh token inválido');
     }
 
     const user = await this.userRepository.findById(existing.userId);
 
     if (!user || !user.isActive) {
+      this.logger.warn(
+        `Refresh con usuario inexistente o inactivo [userId=${existing.userId}]`,
+      );
       throw new UnauthorizedException('Refresh token inválido');
     }
 
@@ -233,7 +243,11 @@ export class AuthService {
   private checkLockStatus(lockedUntil: Date | null, email: string): void {
     if (lockedUntil && lockedUntil > new Date()) {
       this.logger.warn(`Cuenta bloqueada: [${email}]`);
-      throw new ForbiddenException('La cuenta está bloqueada temporalmente.');
+      // Antes: ForbiddenException (403). Ver comentario en login() sobre
+      // por que se cambia a 401 (evita el masking 403->404 del filter global).
+      throw new UnauthorizedException(
+        'La cuenta está bloqueada temporalmente.',
+      );
     }
   }
 
@@ -266,9 +280,22 @@ export class AuthService {
     accessToken: string,
     refreshToken?: string,
   ): Promise<{ message: string }> {
+    // Paso 1: verificar el JWT de forma aislada. Si falla aca, es un
+    // problema del cliente (token invalido/expirado) -> 401, con warn.
+    let payload: JwtPayload;
     try {
-      const payload = await this.jwtService.verifyAsync(accessToken);
+      payload = await this.jwtService.verifyAsync(accessToken);
+    } catch (error) {
+      this.logger.warn(
+        `Logout con token invalido: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new UnauthorizedException('Token inválido');
+    }
 
+    // Paso 2: efectos de logout (DB, revocacion). Si algo falla aca, NO es
+    // culpa del token: es un fallo interno (DB caida, etc) -> debe
+    // propagarse como 500, con log completo, en vez de disfrazarse de 401.
+    try {
       const expiresAt = this.getTokenExpirationDate(payload);
 
       await this.revokedTokenRepository.createRevokedToken({
@@ -289,7 +316,14 @@ export class AuthService {
       if (this.isDuplicateTokenError(error)) {
         return { message: 'Sesión cerrada correctamente' };
       }
-      throw new UnauthorizedException('Token inválido');
+
+      this.logger.error(
+        `Error inesperado en logout [userId=${payload.sub}]`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      // Se re-lanza tal cual: el AllExceptionsFilter lo trata como 500
+      // y loguea el stack, en vez de mentirle al cliente con "Token inválido".
+      throw error;
     }
   }
 

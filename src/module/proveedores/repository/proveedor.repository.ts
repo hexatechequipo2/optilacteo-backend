@@ -85,6 +85,14 @@ export class ProveedorRepository
     return this.repo.findOneBy({ cuit });
   }
 
+  async findByRazonSocial(
+    razonSocial: string,
+  ): Promise<Proveedor | null> {
+    return this.repo.findOneBy({
+      razonSocial,
+    });
+  }
+
   async save(proveedor: Proveedor): Promise<Proveedor> {
     return this.repo.save(proveedor);
   }

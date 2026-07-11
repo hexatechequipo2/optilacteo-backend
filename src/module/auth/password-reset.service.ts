@@ -52,9 +52,16 @@ export class PasswordResetService {
       used: false,
     });
 
-    await this.mailService.sendPasswordResetEmail(user.email, token);
+    try {
+      await this.mailService.sendPasswordResetEmail(user.email, token);
+      this.logger.log(`Token de reset generado y enviado para usuario ${user.id}`);
+    } catch (error) {
+      this.logger.error(
+        `Fallo al enviar email de reset para usuario ${user.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
 
-    this.logger.log(`Token de reset generado para usuario ${user.id}`);
     return { message: 'Si el email está registrado, recibirás un enlace de restablecimiento.' };
   }
 
