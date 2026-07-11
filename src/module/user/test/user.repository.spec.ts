@@ -30,6 +30,7 @@ describe('UserRepository', () => {
     delete: jest.Mock;
     count: jest.Mock;
     increment: jest.Mock;
+    createQueryBuilder: jest.Mock;
   };
 
   beforeEach(() => {
@@ -42,8 +43,11 @@ describe('UserRepository', () => {
       delete: jest.fn(),
       count: jest.fn(),
       increment: jest.fn(),
+      createQueryBuilder: jest.fn(),
     };
-    repository = new UserRepository(mockTypeormRepo as unknown as Repository<User>);
+    repository = new UserRepository(
+      mockTypeormRepo as unknown as Repository<User>,
+    );
   });
 
   describe('findByEmail', () => {
@@ -121,7 +125,9 @@ describe('UserRepository', () => {
 
       const result = await repository.updateUser(10, { name: 'Nuevo nombre' });
 
-      expect(mockTypeormRepo.update).toHaveBeenCalledWith(10, { name: 'Nuevo nombre' });
+      expect(mockTypeormRepo.update).toHaveBeenCalledWith(10, {
+        name: 'Nuevo nombre',
+      });
       expect(result).toBe(updatedUser);
     });
 
@@ -192,6 +198,124 @@ describe('UserRepository', () => {
 
       expect(mockTypeormRepo.count).toHaveBeenCalledWith({ where: { empresa: { id: 1 } } });
       expect(result).toBe(4);
+    });
+  });
+
+  describe('findAllPaginated', () => {
+    let mockQb: {
+      leftJoinAndSelect: jest.Mock;
+      andWhere: jest.Mock;
+      orderBy: jest.Mock;
+      skip: jest.Mock;
+      take: jest.Mock;
+      getManyAndCount: jest.Mock;
+    };
+
+    beforeEach(() => {
+      mockQb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn(),
+      };
+      mockTypeormRepo.createQueryBuilder = jest.fn().mockReturnValue(mockQb);
+    });
+
+    it('deberia retornar usuarios paginados sin filtro de empresa cuando es Administrador', async () => {
+      // Arrange
+      const users = [buildUser()];
+      mockQb.getManyAndCount.mockResolvedValue([users, 1]);
+      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+
+      // Act
+      const result = await repository.findAllPaginated(tenant, 0, 10);
+
+      // Assert
+      expect(result).toEqual([users, 1]);
+      expect(mockQb.andWhere).not.toHaveBeenCalledWith(
+        expect.stringContaining('tenantEmpresaId'),
+        expect.anything(),
+      );
+    });
+
+    it('deberia filtrar por empresa cuando el tenant no es Administrador', async () => {
+      // Arrange
+      mockQb.getManyAndCount.mockResolvedValue([[], 0]);
+      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
+
+      // Act
+      await repository.findAllPaginated(tenant, 0, 10);
+
+      // Assert
+      expect(mockQb.andWhere).toHaveBeenCalledWith(
+        'empresa.id = :tenantEmpresaId',
+        { tenantEmpresaId: 1 },
+      );
+    });
+
+    it('deberia aplicar filtro de nombre cuando se recibe filters.name', async () => {
+      // Arrange
+      mockQb.getManyAndCount.mockResolvedValue([[], 0]);
+      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+
+      // Act
+      await repository.findAllPaginated(tenant, 0, 10, { name: 'Juan' });
+
+      // Assert
+      expect(mockQb.andWhere).toHaveBeenCalledWith(
+        '(user.name ILIKE :term OR user.email ILIKE :term)',
+        { term: '%Juan%' },
+      );
+    });
+
+    it('deberia aplicar filtro de isActive cuando se recibe filters.isActive', async () => {
+      // Arrange
+      mockQb.getManyAndCount.mockResolvedValue([[], 0]);
+      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+
+      // Act
+      await repository.findAllPaginated(tenant, 0, 10, { isActive: false });
+
+      // Assert
+      expect(mockQb.andWhere).toHaveBeenCalledWith(
+        'user.isActive = :isActive',
+        { isActive: false },
+      );
+    });
+
+    it('deberia aplicar filtro de rolId cuando se recibe filters.rolId', async () => {
+      // Arrange
+      mockQb.getManyAndCount.mockResolvedValue([[], 0]);
+      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+
+      // Act
+      await repository.findAllPaginated(tenant, 0, 10, { rolId: 2 });
+
+      // Assert
+      expect(mockQb.andWhere).toHaveBeenCalledWith(
+        'rol.id = :rolId',
+        { rolId: 2 },
+      );
+    });
+
+    it('deberia aplicar filtro de empresaId solo cuando el tenant es Administrador', async () => {
+      // Arrange
+      mockQb.getManyAndCount.mockResolvedValue([[], 0]);
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
+
+      // Act
+      await repository.findAllPaginated(tenant, 0, 10, { empresaId: 3 });
+
+      // Assert
+      expect(mockQb.andWhere).toHaveBeenCalledWith(
+        'empresa.id = :filterEmpresaId',
+        { filterEmpresaId: 3 },
+      );
     });
   });
 });
