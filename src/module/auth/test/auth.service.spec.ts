@@ -290,7 +290,11 @@ describe('AuthService', () => {
       bcryptCompare.mockResolvedValue(true);
 
       // Act & Assert
-      await expect(service.login(dto)).rejects.toThrow(ForbiddenException);
+      await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+
+      await expect(service.login(dto)).rejects.toThrow(
+        'El usuario está inactivo. Contacte al administrador.',
+      );
     });
   });
 
@@ -380,8 +384,11 @@ describe('AuthService', () => {
       mockUserRepository.findByEmail.mockResolvedValue(lockedUser);
 
       // Act & Assert
-      await expect(service.login(dto)).rejects.toThrow(ForbiddenException);
+      await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
 
+      await expect(service.login(dto)).rejects.toThrow(
+        'La cuenta está bloqueada temporalmente.',
+      );
       // No debe siquiera verificar la contraseña
       expect(bcryptCompare).not.toHaveBeenCalled();
 
