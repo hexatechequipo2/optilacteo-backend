@@ -34,8 +34,13 @@ export class PasswordResetService {
     const user = await this.userRepository.findByEmail(dto.email);
 
     if (!user) {
-      this.logger.warn(`Solicitud de reset para email no registrado: ${dto.email}`);
-      return { message: 'Si el email está registrado, recibirás un enlace de restablecimiento.' };
+      this.logger.warn(
+        `Solicitud de reset para email no registrado: ${dto.email}`,
+      );
+
+      throw new BadRequestException(
+        'No existe una cuenta registrada con ese correo',
+      );
     }
 
     await this.tokenRepository.deleteByUserId(user.id.toString());
