@@ -65,15 +65,25 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
       expect(resultado.message).toBeDefined();
     });
 
-    //CP-07
-    //Validar que la solicitud de restablecimiento con email no registrado no revela información sensible.
-    it('criterio #1 (seguridad): cuando el email NO está registrado, debe responder igual sin revelar que no existe', async () => {
+    // CP-07
+    // Validar que la solicitud de restablecimiento con email no registrado
+    // sea rechazada con un BadRequestException.
+    it('criterio #1: cuando el email NO está registrado, debe lanzar BadRequestException', async () => {
       mockUserRepository.findByEmail.mockResolvedValue(null);
 
-      const resultado = await service.requestReset({ email: 'noexiste@lacteo.com' });
+      await expect(
+        service.requestReset({
+          email: 'noexiste@lacteo.com',
+        }),
+      ).rejects.toThrow(
+        new BadRequestException(
+          'No existe una cuenta registrada con ese correo',
+        ),
+      );
 
-      expect(mockMailService.sendPasswordResetEmail).not.toHaveBeenCalled();
-      expect(resultado.message).toBeDefined();
+      expect(
+        mockMailService.sendPasswordResetEmail,
+      ).not.toHaveBeenCalled();
     });
 
     //CP-06
