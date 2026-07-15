@@ -32,6 +32,6 @@ export default new DataSource({
     PermisoModulo,
     AuditLog
   ],
-  migrations: ['src/migrations/*.ts'],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,
 });
