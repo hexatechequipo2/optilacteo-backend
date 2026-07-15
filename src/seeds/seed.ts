@@ -20,6 +20,7 @@ async function seed() {
     empresa = await empresaRepo.save(
       empresaRepo.create({
         name: 'OptiLácteo Demo',
+        cuit: '20000000001',
         email: 'contacto@demo.com',
       }),
     );
