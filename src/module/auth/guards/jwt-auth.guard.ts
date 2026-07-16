@@ -8,9 +8,15 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+
 import type { IRevokedTokenRepository } from '../repository/revoked-token-repository.interface';
 import { REVOKED_TOKEN_REPOSITORY } from '../repository/revoked-token-repository.interface';
+
+import type { IUserRepository } from '../../user/repository/user-repository.interface';
+import { USER_REPOSITORY } from '../../user/repository/user-repository.interface';
+
 import type { JwtPayload } from '../types/jwt-payload.type';
 import { AuthService } from '../auth.service';
 
@@ -24,8 +30,12 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly jwtService: JwtService,
+
     @Inject(REVOKED_TOKEN_REPOSITORY)
     private readonly revokedTokenRepository: IRevokedTokenRepository,
+
+    @Inject(USER_REPOSITORY)
+    private readonly userRepository: IUserRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -46,21 +56,37 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const tokenHash = AuthService.hashToken(token);
-    const isRevoked = await this.revokedTokenRepository.existsActiveByTokenHash(
-      tokenHash,
-      new Date(),
-    );
+
+    const isRevoked =
+      await this.revokedTokenRepository.existsActiveByTokenHash(
+        tokenHash,
+        new Date(),
+      );
 
     if (isRevoked) {
       throw new UnauthorizedException('Token de sesión inválido');
     }
 
+    let payload: JwtPayload;
+
     try {
-      request.user = await this.jwtService.verifyAsync<JwtPayload>(token);
-      request.accessToken = token;
+      payload = await this.jwtService.verifyAsync<JwtPayload>(token);
     } catch {
       throw new UnauthorizedException('Token de autenticación inválido');
     }
+
+    const user = await this.userRepository.findById(payload.sub);
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Usuario inactivo');
+    }
+
+    request.user = payload;
+    request.accessToken = token;
 
     return true;
   }
