@@ -30,6 +30,9 @@ export class Empresa {
   @Column({ default: true })
   isActive!: boolean;
 
+  @Column({ type: 'varchar', nullable: true })
+  logoPath?: string | null;
+
   @OneToMany(() => User, (user) => user.empresa)
   users!: User[];
 
