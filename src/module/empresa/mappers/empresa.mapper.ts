@@ -1,5 +1,6 @@
 import { Empresa } from '../entities/empresa.entity';
 import { CreateEmpresaDto } from '../dto/create-empresa.dto';
+import { StorageService } from '../../../common/storage/storage.service';
 
 export class EmpresaMapper {
   static toEntity(dto: CreateEmpresaDto): Partial<Empresa> {
@@ -13,7 +14,7 @@ export class EmpresaMapper {
     };
   }
 
-  static toResponse(empresa: Empresa) {
+  static toResponse(empresa: Empresa, storageService?: StorageService) {
     return {
       id: empresa.id,
       name: empresa.name,
@@ -28,10 +29,14 @@ export class EmpresaMapper {
         modulo: m.modulo,
         isActive: m.isActive,
       })) ?? [],
+      logoUrl:
+        empresa.logoPath && storageService
+          ? storageService.getPublicUrl(empresa.logoPath)
+          : null,
     };
   }
 
-  static toResponseList(empresas: Empresa[]) {
-    return empresas.map((empresa) => this.toResponse(empresa));
+  static toResponseList(empresas: Empresa[], storageService?: StorageService) {
+    return empresas.map((empresa) => this.toResponse(empresa, storageService));
   }
 }

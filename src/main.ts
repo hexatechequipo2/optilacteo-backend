@@ -8,14 +8,19 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 const DEFAULT_FRONTEND_URL = 'http://localhost:5173';
 
 async function bootstrap() {
+  // MODIFICADO: ya no hace falta NestExpressApplication ni useStaticAssets,
+  // el logo vive en R2, no en el filesystem del backend.
   const app = await NestFactory.create(AppModule);
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      // Necesario para que el navegador cargue la imagen del logo desde
+      // el dominio de R2 (otro origen) sin bloquearla.
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // FRONTEND_URL admite una lista separada por comas (ej. dev y produccion
-  // a la vez) para no tener que tocar codigo cuando se agregue un dominio.
-  // Nunca wildcard: la lista siempre es explicita.
   const allowedOrigins = (process.env.FRONTEND_URL ?? DEFAULT_FRONTEND_URL)
     .split(',')
     .map((origin) => origin.trim())
