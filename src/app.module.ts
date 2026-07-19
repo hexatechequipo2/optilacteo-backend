@@ -10,8 +10,6 @@ import { ProveedoresModule } from './module/proveedores/proveedor.module';
 import { SystemConfigModule } from './module/system-config/system-config.module';
 import { RolModule } from './module/rol/rol.module';
 import { PermisoModule } from './module/permiso/permiso.module';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { AuditInterceptor } from '././module/audit/interceptor/audit-log.interceptor';
 import { AuditLogModule } from './module/audit/audit-log.module';
 
 @Module({
@@ -45,10 +43,6 @@ import { AuditLogModule } from './module/audit/audit-log.module';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_INTERCEPTOR, 
-      useClass: AuditInterceptor,
-    },
   ],
 })
 export class AppModule {}
