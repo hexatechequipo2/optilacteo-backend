@@ -11,6 +11,7 @@ import { SystemConfigModule } from './module/system-config/system-config.module'
 import { RolModule } from './module/rol/rol.module';
 import { PermisoModule } from './module/permiso/permiso.module';
 import { AuditLogModule } from './module/audit/audit-log.module';
+import { ConfigParametroModule } from './module/config-parametro/config-parametro.module';
 
 @Module({
   imports: [
@@ -38,7 +39,8 @@ import { AuditLogModule } from './module/audit/audit-log.module';
     SystemConfigModule,
     RolModule,
     PermisoModule,
-    AuditLogModule
+    AuditLogModule,
+    ConfigParametroModule
   ],
   controllers: [AppController],
   providers: [

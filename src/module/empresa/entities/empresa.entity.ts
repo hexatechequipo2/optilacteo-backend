@@ -3,6 +3,7 @@ import { User } from '../../user/entities/user.entity';
 import { Plan } from '../enums/plan.enum';
 import { EmpresaModulo } from './empresa-modulo.entity';
 import { Proveedor } from '../../proveedores/entities/proveedor.entity';
+import { ConfiguracionParametro } from '../../config-parametro/entities/config-parametro.entity';
 
 @Entity('empresas')
 export class Empresa {
@@ -41,4 +42,7 @@ export class Empresa {
 
   @OneToMany(() => Proveedor, (proveedor) => proveedor.empresa)
   proveedores!: Proveedor[];
+
+  @OneToMany(() => ConfiguracionParametro, (config) => config.empresa)
+  configuracionParametros!: ConfiguracionParametro[];
 }
