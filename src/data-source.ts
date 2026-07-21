@@ -11,6 +11,7 @@ import { SystemConfig } from './module/system-config/entities/system-config.enti
 import { Rol } from './module/rol/entities/rol.entity';
 import { PermisoModulo } from './module/permiso/entities/permiso-modulo.entity';
 import { AuditLog } from './module/audit/entity/audit-log.entity';
+import { ConfiguracionParametro } from './module/config-parametro/entities/config-parametro.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -30,7 +31,9 @@ export default new DataSource({
     SystemConfig,
     Rol,
     PermisoModulo,
-    AuditLog
+    AuditLog,
+    ConfiguracionParametro
+
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,
