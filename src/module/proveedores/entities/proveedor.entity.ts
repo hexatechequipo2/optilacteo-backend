@@ -4,12 +4,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { TipoProveedor } from '../enums/tipo-proveedor.enum';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 import { Empresa } from '../../empresa/entities/empresa.entity';
+import { Lote } from '../../lote/entities/lote.entity';
 
 @Entity('proveedores')
 export class Proveedor {
@@ -52,6 +54,9 @@ export class Proveedor {
 
   @Column({ type: 'int', name: 'empresa_id' })
   empresaId!: number;
+
+  @OneToMany(() => Lote, (lote) => lote.empresa)
+  lotes!: Lote[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
