@@ -12,6 +12,8 @@ import { Rol } from './module/rol/entities/rol.entity';
 import { PermisoModulo } from './module/permiso/entities/permiso-modulo.entity';
 import { AuditLog } from './module/audit/entity/audit-log.entity';
 import { ConfiguracionParametro } from './module/config-parametro/entities/config-parametro.entity';
+import { Lote } from './module/lote/entities/lote.entity';
+import { LoteParametro } from './module/lote/entities/lote-parametro.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -32,8 +34,9 @@ export default new DataSource({
     Rol,
     PermisoModulo,
     AuditLog,
-    ConfiguracionParametro
-
+    ConfiguracionParametro,
+    Lote,
+    LoteParametro
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,

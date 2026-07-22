@@ -12,6 +12,7 @@ import { RolModule } from './module/rol/rol.module';
 import { PermisoModule } from './module/permiso/permiso.module';
 import { AuditLogModule } from './module/audit/audit-log.module';
 import { ConfigParametroModule } from './module/config-parametro/config-parametro.module';
+import { LoteModule } from './module/lote/lote.module';
 
 @Module({
   imports: [
@@ -40,7 +41,8 @@ import { ConfigParametroModule } from './module/config-parametro/config-parametr
     RolModule,
     PermisoModule,
     AuditLogModule,
-    ConfigParametroModule
+    ConfigParametroModule,
+    LoteModule
   ],
   controllers: [AppController],
   providers: [
