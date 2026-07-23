@@ -15,6 +15,7 @@ import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prim
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
 import { EstadoLote } from '../enums/estado-lote.enum';
+import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 
 @Entity('lotes')
 export class Lote {
@@ -59,6 +60,9 @@ export class Lote {
     eager: true,
   })
   parametros!: LoteParametro[];
+
+  @Column({ type: 'enum', enum: Ubicacion, nullable: true })
+  ubicacionInicial?: Ubicacion | null;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -12,6 +12,7 @@ export class LoteMapper {
       fechaIngreso: lote.fechaIngreso,
       clasificacion: lote.clasificacion ?? null,
       destinoInicial: lote.destinoInicial ?? null,
+      ubicacionInicial: lote.ubicacionInicial ?? null,
       estado: lote.estado,
       parametros: (lote.parametros ?? []).map((p) => ({
         parametro: p.parametro,

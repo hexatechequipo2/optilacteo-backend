@@ -4,6 +4,7 @@ import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
 import { EstadoLote } from '../enums/estado-lote.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
+import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 
 export class LoteParametroResponseDto {
   @ApiProperty({ enum: Parametro })
@@ -37,6 +38,9 @@ export class LoteResponseDto {
 
   @ApiPropertyOptional({ enum: DestinoLote })
   destinoInicial?: DestinoLote | null;
+
+  @ApiPropertyOptional({ enum: Ubicacion })
+  ubicacionInicial?: Ubicacion | null;
 
   @ApiProperty({ enum: EstadoLote })
   estado!: EstadoLote;

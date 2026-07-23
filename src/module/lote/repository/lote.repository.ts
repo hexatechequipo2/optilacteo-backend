@@ -61,4 +61,5 @@ export class LoteRepository implements ILoteRepository {
   countByEmpresa(empresaId: number): Promise<number> {
     return this.repository.count({ where: { empresaId } });
   }
-}
+
+} 

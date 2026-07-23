@@ -13,6 +13,7 @@ import { PermisoModule } from './module/permiso/permiso.module';
 import { AuditLogModule } from './module/audit/audit-log.module';
 import { ConfigParametroModule } from './module/config-parametro/config-parametro.module';
 import { LoteModule } from './module/lote/lote.module';
+import { SensorModule } from './module/sensor/sensor.module';
 
 @Module({
   imports: [
@@ -42,7 +43,8 @@ import { LoteModule } from './module/lote/lote.module';
     PermisoModule,
     AuditLogModule,
     ConfigParametroModule,
-    LoteModule
+    LoteModule,
+    SensorModule
   ],
   controllers: [AppController],
   providers: [
