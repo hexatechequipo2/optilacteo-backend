@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
@@ -16,10 +17,14 @@ import { CreateLoteDto } from './dto/create-lote.dto';
 import { UpdateLoteDto } from './dto/update-lote.dto';
 import { LoteFilterQueryDto } from './dto/lote-filter-query.dto';
 import { LoteResponseDto } from './dto/lote-response.dto';
+import { LoteCreateResponseDto } from './dto/lote-create-response.dto';
 import { LoteMapper } from './mappers/lote.mapper';
 import { EstadoLote } from './enums/estado-lote.enum';
 import type { ILoteRepository } from './repository/lote-repository.interface';
 import { LOTE_REPOSITORY } from './repository/lote-repository.interface';
+import { SensorService } from '../sensor/sensor.service';
+import { EstadoSensor } from '../sensor/enums/estado-sensor.enum';
+import { SensorResponseDto } from '../sensor/dto/sensor-response.dto';
 
 @Injectable()
 export class LoteService {
@@ -30,12 +35,14 @@ export class LoteService {
     private readonly proveedorRepository: Repository<Proveedor>,
     @InjectRepository(ConfiguracionParametro)
     private readonly configParametroRepository: Repository<ConfiguracionParametro>,
+    @Inject(forwardRef(() => SensorService))
+    private readonly sensorService: SensorService,
   ) {}
 
   async create(
     dto: CreateLoteDto,
     tenant: TenantContext,
-  ): Promise<LoteResponseDto> {
+  ): Promise<LoteCreateResponseDto> {
     const empresaId = this.resolveEmpresaId(tenant);
 
     // Criterio 3: proveedor debe existir y pertenecer a la empresa.
@@ -78,12 +85,27 @@ export class LoteService {
       fechaIngreso: new Date(dto.fechaIngreso),
       clasificacion: dto.clasificacion ?? null,
       destinoInicial: dto.destinoInicial ?? null,
+      ubicacionInicial: dto.ubicacionInicial ?? null,
       estado: EstadoLote.REGISTRADO,
       parametros,
     });
 
     const saved = await this.loteRepository.save(lote);
-    return LoteMapper.toResponseDto(saved);
+
+    // Trae los sensores activos de la ubicación inicial del lote,
+    // para que el frontend pueda ofrecerlos como candidatos a asociar.
+    let sensoresDisponibles: SensorResponseDto[] = [];
+    if (saved.ubicacionInicial) {
+      sensoresDisponibles = await this.sensorService.findAll(
+        { ubicacion: saved.ubicacionInicial, estado: EstadoSensor.ACTIVO },
+        tenant,
+      );
+    }
+
+    return {
+      lote: LoteMapper.toResponseDto(saved),
+      sensoresDisponibles,
+    };
   }
 
   async findAll(query: LoteFilterQueryDto, tenant: TenantContext) {
@@ -144,9 +166,6 @@ export class LoteService {
     return LoteMapper.toResponseDto(saved);
   }
 
-  // El tenant debería venir siempre resuelto por el guard/decorator @CurrentEmpresa,
-  // pero como TenantContext.empresaId está tipado como number | null, lo validamos
-  // acá una sola vez en vez de repetir el chequeo en cada método.
   private resolveEmpresaId(tenant: TenantContext): number {
     if (tenant.empresaId == null) {
       throw new BadRequestException(
@@ -161,8 +180,6 @@ export class LoteService {
     empresaId: number,
   ): Promise<void> {
     for (const p of dto.parametros) {
-      // El rango depende de la tripleta empresa + parámetro + tipo de materia prima
-      // (así está definida la unicidad en ConfiguracionParametro).
       const config = await this.configParametroRepository.findOne({
         where: {
           empresaId,
@@ -171,7 +188,6 @@ export class LoteService {
         },
       });
       if (!config) {
-        // Sin configuración de rango para esa combinación no se puede validar; se rechaza por seguridad.
         throw new BadRequestException(
           `No existe configuración de rango para el parámetro '${p.parametro}' ` +
             `con materia prima '${dto.materiaPrima}'`,

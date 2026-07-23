@@ -13,6 +13,7 @@ import {
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
+import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 import { CreateLoteParametroDto } from './create-lote-parametro.dto';
 
 export class CreateLoteDto {
@@ -45,6 +46,11 @@ export class CreateLoteDto {
   @IsOptional()
   @IsEnum(DestinoLote)
   destinoInicial?: DestinoLote;
+
+  @ApiPropertyOptional({ enum: Ubicacion })
+  @IsOptional()
+  @IsEnum(Ubicacion)
+  ubicacionInicial?: Ubicacion;
 
   @ApiProperty({ type: [CreateLoteParametroDto] })
   @IsArray()
