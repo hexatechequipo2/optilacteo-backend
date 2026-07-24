@@ -39,7 +39,7 @@ export const PERMISOS_POR_ROL: Record<string, PermisoConfig[]> = {
     ModuloSistema.ASISTENTE_VOZ,
   ].map((modulo) => ({ modulo, canRead: true, canWrite: false })),
 
-    'Responsable de calidad': [
+  'Responsable de calidad': [
     ModuloSistema.RECEPCION,
     ModuloSistema.DESTINO_PRODUCTIVO_IA,
     ModuloSistema.MONITOREO_ALERTAS,
