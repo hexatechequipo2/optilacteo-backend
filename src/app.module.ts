@@ -14,6 +14,7 @@ import { AuditLogModule } from './module/audit/audit-log.module';
 import { ConfigParametroModule } from './module/config-parametro/config-parametro.module';
 import { LoteModule } from './module/lote/lote.module';
 import { SensorModule } from './module/sensor/sensor.module';
+import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.module';
 
 @Module({
   imports: [
@@ -44,11 +45,10 @@ import { SensorModule } from './module/sensor/sensor.module';
     AuditLogModule,
     ConfigParametroModule,
     LoteModule,
-    SensorModule
+    SensorModule,
+    LecturaSensorModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-  ],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -16,6 +16,8 @@ import { Lote } from './module/lote/entities/lote.entity';
 import { LoteParametro } from './module/lote/entities/lote-parametro.entity';
 import { Sensor } from './module/sensor/entities/sensor.entity';
 import { SensorLoteHistorial } from './module/sensor/entities/sensor-lote-historial.entity';
+import { SensorLectura } from './module/lectura-sensor/entities/sensor-lectura.entity';
+import { SensorEvento } from './module/lectura-sensor/entities/sensor-evento.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -40,7 +42,9 @@ export default new DataSource({
     Lote,
     LoteParametro,
     Sensor,
-    SensorLoteHistorial
+    SensorLoteHistorial,
+    SensorLectura,
+    SensorEvento,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,

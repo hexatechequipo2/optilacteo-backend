@@ -25,7 +25,6 @@ import { MailService } from './mail.service';
 import { PasswordResetTokenRepository } from './repository/password-reset-token.repository';
 import { PASSWORD_RESET_TOKEN_REPOSITORY } from './repository/password-reset-token.interface';
 
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -73,11 +72,15 @@ import { PASSWORD_RESET_TOKEN_REPOSITORY } from './repository/password-reset-tok
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
-    PasswordResetService, MailService,
+    PasswordResetService,
+    MailService,
     {
       provide: PASSWORD_RESET_TOKEN_REPOSITORY,
       useClass: PasswordResetTokenRepository,
     },
   ],
+  // JwtModule se reexporta para que otros módulos (ej. el gateway WS de
+  // HU-13) puedan validar tokens sin duplicar la configuración de JWT_SECRET.
+  exports: [JwtModule],
 })
 export class AuthModule {}
