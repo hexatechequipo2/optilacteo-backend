@@ -38,7 +38,7 @@ export class ProveedoresController {
   constructor(private readonly proveedoresService: ProveedoresService) {}
 
   @Get()
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.RESPONSABLE_CALIDAD)
   @Permissions(ModuloSistema.RECEPCION, 'canRead')
   findAll(
     @CurrentEmpresa() tenant: TenantContext,
@@ -48,7 +48,7 @@ export class ProveedoresController {
   }
 
   @Get(':id')
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.RESPONSABLE_CALIDAD)
   @Permissions(ModuloSistema.RECEPCION, 'canRead')
   findOne(
     @Param('id', ParseIntPipe) id: number,
