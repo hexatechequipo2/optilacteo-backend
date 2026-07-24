@@ -70,69 +70,69 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<LoginResponse> {
-    const user = await this.userRepository.findByEmail(dto.email);
+  const user = await this.userRepository.findByEmail(dto.email);
 
-    if (!user) {
-      this.logger.warn(`Login fallido (no existe): [${dto.email}]`);
-      throw new UnauthorizedException('Credenciales incorrectas');
-    }
-
-    this.checkLockStatus(user.lockedUntil, dto.email);
-
-    if (!user.isActive) {
-      this.logger.warn(`Login usuario inactivo: [${dto.email}]`);
-      // Antes: ForbiddenException (403). Se cambia a 401 porque el
-      // AllExceptionsFilter enmascara todo 403 como 404 "Recurso no
-      // encontrado" (anti information-disclosure para recursos), lo cual
-      // pisaba este mensaje especifico y evitaba que el usuario supiera
-      // que su cuenta esta inactiva.
-      throw new UnauthorizedException(
-        'El usuario está inactivo. Contacte al administrador.',
-      );
-    }
-
-    const passwordValid = await bcrypt.compare(dto.password, user.password);
-
-    if (!passwordValid) {
-      await this.registerFailedAttempt(
-        user.id,
-        user.failedLoginAttempts,
-        dto.email,
-      );
-      throw new UnauthorizedException('Credenciales incorrectas');
-    }
-
-    if (user.failedLoginAttempts > 0) {
-      await this.userRepository.resetFailedAttempts(user.id);
-    }
-
-    const payload = this.buildJwtPayload(user);
-    const access_token = await this.jwtService.signAsync(payload);
-
-    const familyId = randomUUID();
-    const expiresAt = this.buildRefreshTokenExpiration(dto.rememberMe ?? false);
-    const refresh_token = await this.issueRefreshToken({
-      userId: user.id,
-      empresaId: payload.empresaId,
-      familyId,
-      expiresAt,
-    });
-
-    this.logger.log(`Login exitoso: [${dto.email}]`);
-
-    return {
-      access_token,
-      refresh_token,
-      user: {
-        id: user.id,
-        email: user.email,
-        rolId: payload.rolId,
-        rolNombre: payload.rolNombre,
-        empresa: user.empresa?.name ?? '',
-        empresaId: payload.empresaId,
-      },
-    };
+  if (!user) {
+    this.logger.warn(`Login fallido (no existe): [${dto.email}]`);
+    throw new UnauthorizedException('Credenciales incorrectas');
   }
+
+  this.checkLockStatus(user.lockedUntil, dto.email);
+
+  if (!user.isActive) {
+    this.logger.warn(`Login usuario inactivo: [${dto.email}]`);
+    throw new UnauthorizedException(
+      'El usuario está inactivo. Contacte al administrador.',
+    );
+  }
+
+  const passwordValid = await bcrypt.compare(dto.password, user.password);
+  if (!passwordValid) {
+    await this.registerFailedAttempt(user.id, user.failedLoginAttempts, dto.email);
+    throw new UnauthorizedException('Credenciales incorrectas');
+  }
+
+  if (user.failedLoginAttempts > 0) {
+    await this.userRepository.resetFailedAttempts(user.id);
+  }
+
+  const payload = this.buildJwtPayload(user);
+
+  // 👇 Log para depurar el usuario y sus permisos
+  this.logger.debug('Usuario autenticado:', {
+    id: user.id,
+    email: user.email,
+    rolNombre: payload.rolNombre,
+    empresaId: payload.empresaId,
+    permisos: payload.permisos,
+  });
+
+  const access_token = await this.jwtService.signAsync(payload);
+
+  const familyId = randomUUID();
+  const expiresAt = this.buildRefreshTokenExpiration(dto.rememberMe ?? false);
+  const refresh_token = await this.issueRefreshToken({
+    userId: user.id,
+    empresaId: payload.empresaId,
+    familyId,
+    expiresAt,
+  });
+
+  this.logger.log(`Login exitoso: [${dto.email}]`);
+
+  return {
+    access_token,
+    refresh_token,
+    user: {
+      id: user.id,
+      email: user.email,
+      rolId: payload.rolId,
+      rolNombre: payload.rolNombre,
+      empresa: user.empresa?.name ?? '',
+      empresaId: payload.empresaId,
+    },
+  };
+}
 
   async refresh(refreshToken: string): Promise<RefreshResponse> {
     const tokenHash = AuthService.hashToken(refreshToken);
