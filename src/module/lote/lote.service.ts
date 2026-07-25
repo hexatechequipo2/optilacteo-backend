@@ -25,6 +25,7 @@ import { LOTE_REPOSITORY } from './repository/lote-repository.interface';
 import { SensorService } from '../sensor/sensor.service';
 import { EstadoSensor } from '../sensor/enums/estado-sensor.enum';
 import { SensorResponseDto } from '../sensor/dto/sensor-response.dto';
+import { EstadoProveedor } from '../proveedores/enums/estado-proveedor.enum';
 
 @Injectable()
 export class LoteService {
@@ -52,6 +53,11 @@ export class LoteService {
     if (!proveedor) {
       throw new NotFoundException(
         `El proveedor ${dto.proveedorId} no existe o no pertenece a la empresa`,
+      );
+    }
+    if (proveedor.estado !== EstadoProveedor.ACTIVA) {
+      throw new BadRequestException(
+        `El proveedor "${proveedor.razonSocial}" no está activo (estado: ${proveedor.estado}) y no puede asociarse a un lote nuevo.`,
       );
     }
 
