@@ -18,6 +18,7 @@ import { UpdateLoteDto } from './dto/update-lote.dto';
 import { LoteFilterQueryDto } from './dto/lote-filter-query.dto';
 import { LoteResponseDto } from './dto/lote-response.dto';
 import { LoteCreateResponseDto } from './dto/lote-create-response.dto';
+import { MetricasCalidadResponseDto } from './dto/metricas-calidad-response.dto';
 import { LoteMapper } from './mappers/lote.mapper';
 import { EstadoLote } from './enums/estado-lote.enum';
 import type { ILoteRepository } from './repository/lote-repository.interface';
@@ -26,6 +27,8 @@ import { SensorService } from '../sensor/sensor.service';
 import { EstadoSensor } from '../sensor/enums/estado-sensor.enum';
 import { SensorResponseDto } from '../sensor/dto/sensor-response.dto';
 import { EstadoProveedor } from '../proveedores/enums/estado-proveedor.enum';
+import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity';
+import { UNIDAD_POR_PARAMETRO } from '../config-parametro/validators/unidades-parametro.constant';
 
 @Injectable()
 export class LoteService {
@@ -36,6 +39,8 @@ export class LoteService {
     private readonly proveedorRepository: Repository<Proveedor>,
     @InjectRepository(ConfiguracionParametro)
     private readonly configParametroRepository: Repository<ConfiguracionParametro>,
+    @InjectRepository(SensorLectura)
+    private readonly sensorLecturaRepository: Repository<SensorLectura>,
     @Inject(forwardRef(() => SensorService))
     private readonly sensorService: SensorService,
   ) {}
@@ -170,6 +175,72 @@ export class LoteService {
     lote.estado = EstadoLote.FINALIZADO;
     const saved = await this.loteRepository.save(lote);
     return LoteMapper.toResponseDto(saved);
+  }
+
+  // HU-18: snapshot de métricas de calidad para la pantalla de monitoreo.
+  // El aislamiento multi-tenant (AC8) sale gratis de reusar el mismo
+  // findById(id, empresaId) que usa findOne(): si el lote es de otra
+  // empresa, findById devuelve null igual que si no existiera.
+  async getMetricasCalidad(
+    id: number,
+    tenant: TenantContext,
+  ): Promise<MetricasCalidadResponseDto> {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    const lote = await this.loteRepository.findById(id, empresaId);
+    if (!lote) {
+      throw new NotFoundException(`Lote ${id} no encontrado`);
+    }
+
+    // AC6: señal explícita, no data vacía ambigua.
+    if (lote.estado !== EstadoLote.EN_PROCESO) {
+      return { enProceso: false };
+    }
+
+    // Última lectura por sensor para este lote (Postgres DISTINCT ON).
+    const ultimasLecturas = await this.sensorLecturaRepository
+      .createQueryBuilder('lectura')
+      .innerJoinAndSelect('lectura.sensor', 'sensor')
+      .distinctOn(['lectura.sensorId'])
+      .where('lectura.loteId = :loteId', { loteId: id })
+      .andWhere('lectura.empresaId = :empresaId', { empresaId })
+      .orderBy('lectura.sensorId', 'ASC')
+      .addOrderBy('lectura.timestampLectura', 'DESC')
+      .getMany();
+
+    const parametros = await Promise.all(
+      ultimasLecturas.map(async (lectura) => {
+        const config = await this.configParametroRepository.findOne({
+          where: {
+            empresaId,
+            parametro: lectura.sensor.parametro,
+            tipoMateriaPrima: lote.materiaPrima,
+          },
+        });
+
+        const umbralMin = config?.umbralMin ?? null;
+        const umbralMax = config?.umbralMax ?? null;
+        // Sin configuración de umbral para este parámetro/materia prima no
+        // se puede afirmar que está fuera de rango: se informa como "sin
+        // umbral configurado" en vez de asumir que está OK o mal.
+        const fueraDeRango =
+          umbralMin !== null &&
+          umbralMax !== null &&
+          (lectura.valor < umbralMin || lectura.valor > umbralMax);
+
+        return {
+          parametro: lectura.sensor.parametro,
+          valor: lectura.valor,
+          unidad: UNIDAD_POR_PARAMETRO[lectura.sensor.parametro],
+          umbralMin,
+          umbralMax,
+          fueraDeRango,
+          timestampLectura: lectura.timestampLectura,
+        };
+      }),
+    );
+
+    return { enProceso: true, loteId: id, parametros };
   }
 
   private resolveEmpresaId(tenant: TenantContext): number {

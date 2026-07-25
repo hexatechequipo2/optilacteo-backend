@@ -12,6 +12,7 @@ import { SensorModule } from '../sensor/sensor.module';
 import { LOTE_UBICACION_HISTORIAL_REPOSITORY } from './repository/lote-ubicacion-historial.repository.interface';
 import { LoteUbicacionHistorialRepository } from './repository/lote-ubicacion-historial.repository';
 import { LoteUbicacionHistorial } from './entities/lote-ubicacion-historial.entity';
+import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { LoteUbicacionHistorial } from './entities/lote-ubicacion-historial.enti
       Proveedor,
       LoteUbicacionHistorial,
       ConfiguracionParametro,
+      SensorLectura
     ]),
     forwardRef(() => SensorModule),
   ],
