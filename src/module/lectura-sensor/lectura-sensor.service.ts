@@ -16,9 +16,11 @@ import { SENSOR_LECTURA_REPOSITORY } from './repository/sensor-lectura.repositor
 import type { ISensorEventoRepository } from './repository/sensor-evento.repository.interface';
 import { SENSOR_EVENTO_REPOSITORY } from './repository/sensor-evento.repository.interface';
 import { IngresarLecturaDto } from './dto/ingresar-lectura.dto';
+import { IngresarLecturaManualDto } from './dto/ingresar-lectura-manual.dto';
 import { LecturaMapper } from './mappers/lectura.mapper';
 import { SensorEvento } from './entities/sensor-evento.entity';
 import { TipoEvento } from './enums/tipo-evento.enum';
+import { OrigenLectura } from './enums/origen-lectura.enum';
 import { RANGOS_FISICOS } from '../config-parametro/validators/rangos-fisicos.constant';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { LecturasGateway } from './gateway/lecturas.gateway';
@@ -170,6 +172,69 @@ export class LecturaSensorService {
         empresaId,
       );
     }
+
+    const responseDto = LecturaMapper.toResponseDto(creada);
+    this.lecturasGateway.emitirLectura(responseDto, empresaId);
+
+    return responseDto;
+  }
+
+  // HU-15: fallback manual mientras el sensor no está ACTIVO (inactivo o en
+  // falla). A propósito NO toca sensor.estado ni sensor.ultimaLectura: el
+  // ingreso manual resuelve la continuidad del proceso de recepción, no la
+  // salud del hardware. El sensor sigue en su estado real hasta que él mismo
+  // vuelva a reportar — mezclar ambos conceptos ocultaría un sensor roto.
+  async ingresarManual(
+    dto: IngresarLecturaManualDto,
+    usuarioId: number,
+    tenant: TenantContext,
+  ) {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    const sensor = await this.sensorRepository.findOne(dto.sensorId, empresaId);
+    if (!sensor) {
+      throw new NotFoundException(`Sensor ${dto.sensorId} no encontrado.`);
+    }
+
+    // Criterio 1: el campo manual solo está habilitado cuando el sensor NO
+    // está activo (inactivo o con falla, ver HU-15 test "también pasa si con
+    // falla habilita").
+    if (sensor.estado === EstadoSensor.ACTIVO) {
+      throw new BadRequestException(
+        `El sensor "${sensor.nombre}" está activo: no se permite carga manual mientras reporta con normalidad.`,
+      );
+    }
+
+    const ultimaAsociacion = await this.historialRepository.findUltimoPorSensor(
+      sensor.id,
+      empresaId,
+    );
+    if (!ultimaAsociacion?.loteIdNuevo) {
+      throw new NotFoundException(
+        `El sensor "${sensor.nombre}" no está asociado a ningún lote.`,
+      );
+    }
+    const loteId = ultimaAsociacion.loteIdNuevo;
+
+    // Criterio 3: mismo rango físico que se exige a una lectura real.
+    const rango = RANGOS_FISICOS[sensor.parametro];
+    if (rango && (dto.valor < rango.min || dto.valor > rango.max)) {
+      throw new UnprocessableEntityException(
+        `El valor ${dto.valor} está fuera del rango físico posible para ${sensor.parametro} (${rango.min}-${rango.max}).`,
+      );
+    }
+
+    const timestamp = new Date();
+    const lectura = LecturaMapper.toEntity(
+      sensor.id,
+      loteId,
+      dto.valor,
+      timestamp,
+      empresaId,
+      OrigenLectura.MANUAL,
+      usuarioId,
+    );
+    const creada = await this.lecturaRepository.create(lectura);
 
     const responseDto = LecturaMapper.toResponseDto(creada);
     this.lecturasGateway.emitirLectura(responseDto, empresaId);
