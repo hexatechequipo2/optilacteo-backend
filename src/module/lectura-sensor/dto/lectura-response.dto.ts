@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { OrigenLectura } from '../enums/origen-lectura.enum';
 
 export class LecturaResponseDto {
   @ApiProperty()
@@ -18,6 +19,12 @@ export class LecturaResponseDto {
 
   @ApiProperty()
   empresaId!: number;
+
+  @ApiProperty({ enum: OrigenLectura })
+  origen!: OrigenLectura;
+
+  @ApiProperty({ nullable: true })
+  usuarioId!: number | null;
 
   @ApiProperty()
   createdAt!: Date;

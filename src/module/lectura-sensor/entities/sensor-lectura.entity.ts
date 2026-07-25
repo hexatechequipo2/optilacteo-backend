@@ -9,6 +9,8 @@ import {
 } from 'typeorm';
 import { Sensor } from '../../sensor/entities/sensor.entity';
 import { Lote } from '../../lote/entities/lote.entity';
+import { User } from '../../user/entities/user.entity';
+import { OrigenLectura } from '../enums/origen-lectura.enum';
 
 @Entity('sensor_lecturas')
 export class SensorLectura {
@@ -32,13 +34,28 @@ export class SensorLectura {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   valor!: number;
 
-  // Timestamp que reporta el PLC/simulador (puede diferir del momento real de recepción).
+  // Timestamp que reporta el PLC/simulador (puede diferir del momento real de
+  // recepción). Para HU-15, en un ingreso manual coincide con el momento de
+  // carga (no hay un "timestamp de dispositivo" distinto que reportar).
   @Column({ type: 'timestamptz' })
   timestampLectura!: Date;
 
   @Index()
   @Column()
   empresaId!: number;
+
+  // HU-15: distingue una lectura real del sensor de un ingreso manual de
+  // fallback. SENSOR es el default para no romper los registros existentes.
+  @Column({ type: 'enum', enum: OrigenLectura, default: OrigenLectura.SENSOR })
+  origen!: OrigenLectura;
+
+  // Usuario que cargó el valor manualmente. Null para lecturas de sensor real.
+  @Column({ type: 'int', nullable: true })
+  usuarioId?: number | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'usuarioId' })
+  usuario?: User | null;
 
   // Momento real de recepción en el servidor.
   @CreateDateColumn({ type: 'timestamptz' })
