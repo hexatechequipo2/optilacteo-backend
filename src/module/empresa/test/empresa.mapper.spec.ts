@@ -51,6 +51,7 @@ describe('EmpresaMapper', () => {
           { modulo: ModuloSistema.DASHBOARD, isActive: true },
           { modulo: ModuloSistema.RECEPCION, isActive: false },
         ],
+        logoUrl: null,
       });
     });
 

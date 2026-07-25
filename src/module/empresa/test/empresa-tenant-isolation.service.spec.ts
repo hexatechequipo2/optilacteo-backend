@@ -5,6 +5,7 @@ import { EMPRESA_REPOSITORY } from '../repository/empresa-repository.interface';
 import { Plan } from '../enums/plan.enum';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
+import { StorageService } from '../../../common/storage/storage.service';
 
 const empresaA = {
   id: 1,
@@ -42,6 +43,7 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
     findModulo: jest.Mock;
     updateModulo: jest.Mock;
   };
+  let mockStorageService: { upload: jest.Mock; delete: jest.Mock };
 
   beforeEach(async () => {
     mockEmpresaRepository = {
@@ -57,10 +59,16 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
       updateModulo: jest.fn(),
     };
 
+    mockStorageService = {         
+      upload: jest.fn(),
+      delete: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmpresaService,
         { provide: EMPRESA_REPOSITORY, useValue: mockEmpresaRepository },
+        { provide: StorageService, useValue: mockStorageService },
       ],
     }).compile();
 
