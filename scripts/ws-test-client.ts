@@ -47,6 +47,10 @@ socket.on('sensor:falla', (data) => {
   console.log('[sensor:falla]', JSON.stringify(data, null, 2));
 });
 
+socket.on('sensor:inactivo', (data) => {
+  console.log('[sensor:inactivo]', JSON.stringify(data, null, 2));
+});
+
 socket.on('sensor:recuperado', (data) => {
   console.log('[sensor:recuperado]', JSON.stringify(data, null, 2));
 });

@@ -71,7 +71,11 @@ export class LecturasGateway
     this.server.to(this.room(empresaId)).emit('lectura:nueva', lectura);
   }
 
-  emitirFallaSensor(payload: Record<string, unknown>, empresaId: number): void {
+  emitirSensorInactivo(payload: Record<string, unknown>, empresaId: number): void {
+    this.server.to(this.room(empresaId)).emit('sensor:inactivo', payload);
+  }
+
+  emitirSensorFalla(payload: Record<string, unknown>, empresaId: number): void {
     this.server.to(this.room(empresaId)).emit('sensor:falla', payload);
   }
 

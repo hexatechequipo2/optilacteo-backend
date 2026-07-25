@@ -116,6 +116,20 @@ export class LecturaSensorService {
         loteIdRecibido: dto.lote_id,
         valorRecibido: dto.valor,
       });
+
+      // HU-14: una lectura fuera del rango físico posible es evidencia de
+      // dato erróneo (sensor descalibrado, ruido eléctrico, etc.), así que
+      // el sensor pasa a FALLA. Distinto de INACTIVO (que setea el cron
+      // cuando el sensor deja de reportar del todo): acá el sensor sigue
+      // "hablando", solo que con datos inválidos. No tocamos ultimaLectura
+      // porque el valor fue rechazado, no persistido.
+      sensor.estado = EstadoSensor.FALLA;
+      await this.sensorRepository.save(sensor);
+      this.lecturasGateway.emitirSensorFalla(
+        { sensorId: sensor.id, nombre: sensor.nombre },
+        empresaId,
+      );
+
       throw new UnprocessableEntityException(
         `El valor ${dto.valor} está fuera del rango físico posible para ${sensor.parametro} (${rango.min}-${rango.max}).`,
       );
@@ -132,19 +146,19 @@ export class LecturaSensorService {
     );
     const creada = await this.lecturaRepository.create(lectura);
 
-    // Recibir una lectura válida es la señal de recuperación, pero solo para
-    // FALLA (estado que pone el propio sistema por inactividad). INACTIVO
-    // representa una decisión manual del operario (aunque hoy no exista un
-    // endpoint para setearlo) y no debe pisarse solo porque llegó un dato.
-    const estabaEnFalla = sensor.estado === EstadoSensor.FALLA;
+    // Recibir una lectura válida es la señal de recuperación automática:
+    // saca al sensor de cualquier estado no-ACTIVO, sea INACTIVO (dejó de
+    // reportar y volvió) o FALLA (mandó un valor fuera de rango y el
+    // siguiente vino bien). Ver HU-14, criterio 6.
+    const noEstabaActivo = sensor.estado !== EstadoSensor.ACTIVO;
 
     sensor.ultimaLectura = timestampLectura;
-    if (estabaEnFalla) {
+    if (noEstabaActivo) {
       sensor.estado = EstadoSensor.ACTIVO;
     }
     await this.sensorRepository.save(sensor);
 
-    if (estabaEnFalla) {
+    if (noEstabaActivo) {
       await this.registrarEvento(TipoEvento.SENSOR_RECUPERADO, empresaId, {
         sensorId: sensor.id,
         sensorIdRecibido: dto.sensor_id,

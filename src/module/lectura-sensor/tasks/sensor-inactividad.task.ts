@@ -42,7 +42,7 @@ export class SensorInactividadTask {
       await this.inactividadRepository.findSensoresInactivos(cutoff);
 
     for (const sensor of sensoresInactivos) {
-      sensor.estado = EstadoSensor.FALLA;
+      sensor.estado = EstadoSensor.INACTIVO;
       await this.sensorRepository.save(sensor);
 
       const evento = new SensorEvento();
@@ -51,10 +51,10 @@ export class SensorInactividadTask {
       evento.sensorId = sensor.id;
       await this.eventoRepository.create(evento);
 
-      this.lecturasGateway.emitirFallaSensor(
-        { sensorId: sensor.id, nombre: sensor.nombre },
-        sensor.empresaId,
-      );
+     this.lecturasGateway.emitirSensorInactivo(
+      { sensorId: sensor.id, nombre: sensor.nombre },
+      sensor.empresaId,
+    );
 
       this.logger.warn(
         `Sensor "${sensor.nombre}" (empresa ${sensor.empresaId}) marcado como falla por inactividad (> ${umbralMinutos} min sin reportar).`,
