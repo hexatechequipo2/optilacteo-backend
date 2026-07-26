@@ -17,13 +17,14 @@ import { SensorModule } from '../sensor/sensor.module';
 import { LoteModule } from '../lote/lote.module';
 import { AuthModule } from '../auth/auth.module';
 import { LecturasGateway } from './gateway/lecturas.gateway';
+import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
 
 @Module({
   imports: [
     // Sensor se registra de nuevo acá (además de en SensorModule) para que
     // SensorInactividadRepository pueda hacer la consulta cross-tenant del
     // cron sin que sensor.module.ts tenga que exportar su Repository crudo.
-    TypeOrmModule.forFeature([SensorLectura, SensorEvento, Sensor]),
+    TypeOrmModule.forFeature([SensorLectura, SensorEvento, Sensor, ConfiguracionParametro]),
     SensorModule,
     LoteModule,
     // Provee JwtService (ya configurado con JWT_SECRET) para que el gateway
