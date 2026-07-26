@@ -25,6 +25,16 @@ import { RANGOS_FISICOS } from '../config-parametro/validators/rangos-fisicos.co
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { LecturasGateway } from './gateway/lecturas.gateway';
 import { EstadoSensor } from '../sensor/enums/estado-sensor.enum';
+import { HistorialLecturaFilterQueryDto } from './dto/historial-lectura-filter-query.dto';
+import { HistorialLecturaResponseDto } from './dto/historial-lectura-response.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
+import { Repository } from 'typeorm';
+import { Parametro } from '../config-parametro/enums/parametro.enum';
+import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-enum';
+import { EstadoMedicion } from './enums/estado-medicion.enum';
+
+const RANGO_DIAS_SLA = 30;
 
 interface DatosEvento {
   sensorId?: number;
@@ -48,6 +58,8 @@ export class LecturaSensorService {
     @Inject(SENSOR_EVENTO_REPOSITORY)
     private readonly eventoRepository: ISensorEventoRepository,
     private readonly lecturasGateway: LecturasGateway,
+    @InjectRepository(ConfiguracionParametro)
+    private readonly configParametroRepository: Repository<ConfiguracionParametro>,
   ) {}
 
   private resolveEmpresaId(tenant: TenantContext): number {
@@ -256,5 +268,172 @@ export class LecturaSensorService {
     evento.loteIdRecibido = datos.loteIdRecibido ?? null;
     evento.valorRecibido = datos.valorRecibido ?? null;
     await this.eventoRepository.create(evento);
+  }
+
+  // HU-19
+  async consultarHistorial(
+    query: HistorialLecturaFilterQueryDto,
+    tenant: TenantContext,
+  ): Promise<HistorialLecturaResponseDto> {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    const fechaInicio = query.fechaInicio ? new Date(query.fechaInicio) : undefined;
+    const fechaFin = this.normalizarFechaFin(query.fechaFin);
+
+    // Criterio de prueba: fecha fin anterior a fecha inicio debe fallar.
+    if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+      throw new BadRequestException(
+        'La fecha de fin no puede ser anterior a la fecha de inicio.',
+      );
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    // Criterio: lote inexistente -> listado vacío, no error ni datos de otro lote.
+    let loteId: number | undefined;
+    if (query.loteCodigo) {
+      const lote = await this.loteRepository.findByCodigo(query.loteCodigo, empresaId);
+      if (!lote) {
+        return { data: [], total: 0, page, limit, rangoAmplio: false };
+      }
+      loteId = lote.id;
+    }
+
+    const [lecturas, total] = await this.lecturaRepository.findHistorial(
+      { loteId, fechaInicio, fechaFin, page, limit },
+      empresaId,
+    );
+
+    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
+    const data = lecturas.map((lectura) =>
+      LecturaMapper.toHistorialItemDto(
+        lectura,
+        this.calcularEstado(
+          lectura.valor,
+          lectura.sensor.parametro,
+          lectura.lote.materiaPrima,
+          mapaUmbrales,
+        ),
+      ),
+    );
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      rangoAmplio: this.esRangoAmplio(fechaInicio, fechaFin),
+    };
+  }
+
+  // HU-19: export sin paginar, mismos filtros y misma validación de fechas.
+  async exportarHistorial(
+    query: HistorialLecturaFilterQueryDto,
+    tenant: TenantContext,
+  ): Promise<string> {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    const fechaInicio = query.fechaInicio ? new Date(query.fechaInicio) : undefined;
+    const fechaFin = this.normalizarFechaFin(query.fechaFin);
+    if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+      throw new BadRequestException(
+        'La fecha de fin no puede ser anterior a la fecha de inicio.',
+      );
+    }
+
+    let loteId: number | undefined;
+    if (query.loteCodigo) {
+      const lote = await this.loteRepository.findByCodigo(query.loteCodigo, empresaId);
+      if (!lote) {
+        return this.aCsv([]);
+      }
+      loteId = lote.id;
+    }
+
+    const lecturas = await this.lecturaRepository.findHistorialCompleto(
+      { loteId, fechaInicio, fechaFin },
+      empresaId,
+    );
+
+    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
+    const data = lecturas.map((lectura) =>
+      LecturaMapper.toHistorialItemDto(
+        lectura,
+        this.calcularEstado(
+          lectura.valor,
+          lectura.sensor.parametro,
+          lectura.lote.materiaPrima,
+          mapaUmbrales,
+        ),
+      ),
+    );
+
+    return this.aCsv(data);
+  }
+
+  private normalizarFechaFin(fechaFin?: string): Date | undefined {
+    if (!fechaFin) return undefined;
+    const fecha = new Date(fechaFin);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaFin)) {
+      fecha.setUTCHours(23, 59, 59, 999);
+    }
+    return fecha;
+  }
+
+  private esRangoAmplio(fechaInicio?: Date, fechaFin?: Date): boolean {
+    if (!fechaInicio || !fechaFin) return false;
+    const dias = (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24);
+    return dias > RANGO_DIAS_SLA;
+  }
+
+  // Trae todos los umbrales de la empresa en una sola query y arma un mapa
+  // en memoria. Evita N+1 al calcular el estado de cada fila del historial
+  // (clave para cumplir el SLA de <3s en rangos de hasta 30 días).
+  private async construirMapaUmbrales(
+    empresaId: number,
+  ): Promise<Map<string, { umbralMin: number; umbralMax: number }>> {
+    const configs = await this.configParametroRepository.find({ where: { empresaId } });
+    const mapa = new Map<string, { umbralMin: number; umbralMax: number }>();
+    for (const c of configs) {
+      mapa.set(`${c.parametro}|${c.tipoMateriaPrima}`, {
+        umbralMin: c.umbralMin,
+        umbralMax: c.umbralMax,
+      });
+    }
+    return mapa;
+  }
+
+  private calcularEstado(
+    valor: number,
+    parametro: Parametro,
+    materiaPrima: TipoMateriaPrima,
+    mapa: Map<string, { umbralMin: number; umbralMax: number }>,
+  ): EstadoMedicion {
+    const umbral = mapa.get(`${parametro}|${materiaPrima}`);
+    if (!umbral) return EstadoMedicion.SIN_UMBRAL_CONFIGURADO;
+    if (valor < umbral.umbralMin || valor > umbral.umbralMax) {
+      return EstadoMedicion.FUERA_DE_RANGO;
+    }
+    return EstadoMedicion.NORMAL;
+  }
+
+  private aCsv(data: { id: number; valor: number; unidad: string; sensorNombre: string; parametro: string; loteCodigo: string; timestampLectura: Date; estado: string }[]): string {
+    const headers = ['id', 'valor', 'unidad', 'sensor', 'parametro', 'lote', 'fechaHora', 'estado'];
+    const filas = data.map((d) =>
+      [
+        d.id,
+        d.valor,
+        d.unidad,
+        d.sensorNombre,
+        d.parametro,
+        d.loteCodigo,
+        d.timestampLectura.toISOString(),
+        d.estado,
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(','),
+    );
+    return [headers.join(','), ...filas].join('\n');
   }
 }

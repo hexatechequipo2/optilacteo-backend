@@ -13,6 +13,13 @@ import { User } from '../../user/entities/user.entity';
 import { OrigenLectura } from '../enums/origen-lectura.enum';
 
 @Entity('sensor_lecturas')
+// HU-19: el historial filtra siempre por empresaId + rango de timestamp, y
+// opcionalmente por loteId. Este índice cubre el patrón de consulta sin
+// necesitar un índice separado por loteId (queda como prefijo cubierto por
+// el índice individual que ya crea la FK, pero se agrega igual por si el
+// planner prefiere combinarlo).
+@Index(['empresaId', 'timestampLectura'])
+@Index(['empresaId', 'loteId', 'timestampLectura'])
 export class SensorLectura {
   @PrimaryGeneratedColumn()
   id!: number;

@@ -1,6 +1,9 @@
 import { SensorLectura } from '../entities/sensor-lectura.entity';
 import { LecturaResponseDto } from '../dto/lectura-response.dto';
 import { OrigenLectura } from '../enums/origen-lectura.enum';
+import { EstadoMedicion } from '../enums/estado-medicion.enum';
+import { LecturaHistorialItemDto } from '../dto/lectura-historial-item.dto';
+import { UNIDAD_POR_PARAMETRO } from '../../config-parametro/validators/unidades-parametro.constant';
 
 export class LecturaMapper {
   static toEntity(
@@ -35,5 +38,21 @@ export class LecturaMapper {
       usuarioId: lectura.usuarioId ?? null,
       createdAt: lectura.createdAt,
     };
+  }
+
+  static toHistorialItemDto(
+    lectura: SensorLectura,
+    estado: EstadoMedicion,
+  ): LecturaHistorialItemDto {
+    const dto = new LecturaHistorialItemDto();
+    dto.id = lectura.id;
+    dto.valor = lectura.valor;
+    dto.unidad = UNIDAD_POR_PARAMETRO[lectura.sensor.parametro];
+    dto.sensorNombre = lectura.sensor.nombre;
+    dto.parametro = lectura.sensor.parametro;
+    dto.loteCodigo = lectura.lote.codigo;
+    dto.timestampLectura = lectura.timestampLectura;
+    dto.estado = estado;
+    return dto;
   }
 }
