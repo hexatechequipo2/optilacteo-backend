@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateSensorTables1753300000000 implements MigrationInterface {
-  name = 'CreateSensorTables1753300000000';
+export class CreateSensorTables1784768108332 implements MigrationInterface {
+  name = 'CreateSensorTables1784768108332';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // ⚠️ Enum tipo_sensor: valores placeholder, pendiente de definición final.

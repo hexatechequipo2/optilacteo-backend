@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner, Table, TableUnique, TableForeignKey } from 'typeorm';
 
-export class CreateConfiguracionParametros1721580000000 implements MigrationInterface {
-  name = 'CreateConfiguracionParametros1721580000000';
+export class CreateConfiguracionParametros1784656950507 implements MigrationInterface {
+  name = 'CreateConfiguracionParametros1784656950507';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(

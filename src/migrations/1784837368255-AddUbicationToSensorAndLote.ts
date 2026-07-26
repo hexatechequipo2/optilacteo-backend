@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddUbicacionToSensorAndLote1753280000000 implements MigrationInterface {
-  name = 'AddUbicacionToSensorAndLote1753280000000';
+export class AddUbicacionToSensorAndLote1784837368255 implements MigrationInterface {
+  name = 'AddUbicacionToSensorAndLote1784837368255';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Enum compartido entre sensores y lote_ubicacion_historial

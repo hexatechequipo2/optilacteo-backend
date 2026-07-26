@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class AddLogoPathToEmpresa1737234567890 implements MigrationInterface {
-  name = 'AddLogoPathToEmpresa1737234567890';
+export class AddLogoPathToEmpresa1784389718207 implements MigrationInterface {
+  name = 'AddLogoPathToEmpresa1784389718207';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.addColumn(

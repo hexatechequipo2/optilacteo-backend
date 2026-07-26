@@ -2,8 +2,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 // Asume: tabla 'empresas' (Empresa entity) y tabla 'proveedores' (Proveedor entity).
 // Si tu Proveedor entity tiene otro nombre de tabla, ajustá las referencias de FK abajo.
-export class CreateLoteTables1753200000000 implements MigrationInterface {
-  name = 'CreateLoteTables1753200000000';
+export class CreateLoteTables1784755307126 implements MigrationInterface {
+  name = 'CreateLoteTables1784755307126';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // --- Enums ---
