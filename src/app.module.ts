@@ -15,6 +15,7 @@ import { ConfigParametroModule } from './module/config-parametro/config-parametr
 import { LoteModule } from './module/lote/lote.module';
 import { SensorModule } from './module/sensor/sensor.module';
 import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.module';
+import { MedicionManualModule } from './module/medicion-manual/medicion-manual.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.modu
     LoteModule,
     SensorModule,
     LecturaSensorModule,
+    MedicionManualModule
   ],
   controllers: [AppController],
   providers: [AppService],
