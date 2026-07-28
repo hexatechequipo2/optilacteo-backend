@@ -19,6 +19,7 @@ import { ClasificacionLoteService } from './clasificacion-lote.service';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 import { LoteClasificacionHistorial } from './entities/lote-clasificacion-historial.entity';
 import { Sensor } from '../sensor/entities/sensor.entity';
+import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
 
 @Module({
   imports: [
@@ -32,7 +33,8 @@ import { Sensor } from '../sensor/entities/sensor.entity';
       Sensor,
       MedicionManualLote,
       User,
-      LoteClasificacionHistorial
+      LoteClasificacionHistorial,
+      LoteRevisionCalidad
     ]),
     forwardRef(() => SensorModule),
     NotificacionesModule

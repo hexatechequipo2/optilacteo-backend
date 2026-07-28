@@ -31,6 +31,9 @@ import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity'
 import { UNIDAD_POR_PARAMETRO } from '../config-parametro/validators/unidades-parametro.constant';
 import { ClasificacionLote } from './enums/clasificacion-lote.enum';
 import { ClasificacionLoteService } from './clasificacion-lote.service';
+import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
+import { RevisarLoteDto } from './dto/revisar-lote.dto';
+import { DecisionRevision } from './enums/decision-revision.enum';
 
 @Injectable()
 export class LoteService {
@@ -46,6 +49,8 @@ export class LoteService {
     @Inject(forwardRef(() => SensorService))
     private readonly sensorService: SensorService,
     private readonly clasificacionLoteService: ClasificacionLoteService,
+    @InjectRepository(LoteRevisionCalidad)
+    private readonly loteRevisionRepository: Repository<LoteRevisionCalidad>,
   ) {}
 
   async create(
@@ -294,5 +299,82 @@ export class LoteService {
     const lote = await this.loteRepository.findById(id, empresaId);
     if (!lote) throw new NotFoundException(`Lote ${id} no encontrado`);
     return this.clasificacionLoteService.historialDeLote(id, empresaId);
+  }
+
+  async findNoAptos(tenant: TenantContext): Promise<LoteResponseDto[]> {
+    const empresaId = this.resolveEmpresaId(tenant);
+    const lotes = await this.loteRepository.findNoAptosSinRevisionVigente(empresaId);
+    return LoteMapper.toResponseDtoList(lotes);
+  }
+
+  async revisarLote(
+    id: number,
+    dto: RevisarLoteDto,
+    tenant: TenantContext,
+    usuarioId: number,
+  ): Promise<LoteResponseDto> {
+    const empresaId = this.resolveEmpresaId(tenant);
+    const lote = await this.loteRepository.findById(id, empresaId);
+    if (!lote) {
+      throw new NotFoundException(`Lote ${id} no encontrado`);
+    }
+
+    if (lote.clasificacion !== ClasificacionLote.NO_APTO) {
+      throw new BadRequestException(
+        `El lote ${id} no está en estado No Apto (clasificación actual: ${lote.clasificacion})`,
+      );
+    }
+
+    // Bloquea re-decidir sin que medie una nueva clasificación: si ya hay
+    // una revisión posterior a la última clasificación NO_APTO, está resuelto.
+    const yaDecidido = await this.tieneRevisionVigente(id, empresaId);
+    if (yaDecidido) {
+      throw new ConflictException(
+        `El lote ${id} ya tiene una revisión de calidad vigente. Se requiere una nueva clasificación para volver a revisarlo.`,
+      );
+    }
+
+    const revision = this.loteRevisionRepository.create({
+      loteId: id,
+      decision: dto.decision,
+      justificacion: dto.justificacion,
+      usuarioId,
+      empresaId,
+    });
+    await this.loteRevisionRepository.save(revision);
+
+    if (dto.decision === DecisionRevision.APROBADO) {
+      lote.clasificacion = ClasificacionLote.APTO;
+    } else {
+      lote.estado = EstadoLote.RECHAZADO;
+    }
+    const saved = await this.loteRepository.save(lote);
+
+    return LoteMapper.toResponseDto(saved);
+  }
+
+  private async tieneRevisionVigente(loteId: number, empresaId: number): Promise<boolean> {
+    const ultimaClasificacion = await this.clasificacionLoteService.historialDeLote(loteId, empresaId);
+    const ultimaClasificacionFecha = ultimaClasificacion[0]?.createdAt;
+
+    const ultimaRevision = await this.loteRevisionRepository.findOne({
+      where: { loteId, empresaId },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!ultimaRevision) return false;
+    if (!ultimaClasificacionFecha) return true;
+
+    return ultimaRevision.createdAt > ultimaClasificacionFecha;
+  }
+
+  async getHistorialRevisiones(id: number, tenant: TenantContext) {
+    const empresaId = this.resolveEmpresaId(tenant);
+    const lote = await this.loteRepository.findById(id, empresaId);
+    if (!lote) throw new NotFoundException(`Lote ${id} no encontrado`);
+    return this.loteRevisionRepository.find({
+      where: { loteId: id, empresaId },
+      order: { createdAt: 'DESC' },
+    });
   }
 }
