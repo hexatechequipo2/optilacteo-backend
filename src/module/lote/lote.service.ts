@@ -29,6 +29,8 @@ import { SensorResponseDto } from '../sensor/dto/sensor-response.dto';
 import { EstadoProveedor } from '../proveedores/enums/estado-proveedor.enum';
 import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity';
 import { UNIDAD_POR_PARAMETRO } from '../config-parametro/validators/unidades-parametro.constant';
+import { ClasificacionLote } from './enums/clasificacion-lote.enum';
+import { ClasificacionLoteService } from './clasificacion-lote.service';
 
 @Injectable()
 export class LoteService {
@@ -43,15 +45,16 @@ export class LoteService {
     private readonly sensorLecturaRepository: Repository<SensorLectura>,
     @Inject(forwardRef(() => SensorService))
     private readonly sensorService: SensorService,
+    private readonly clasificacionLoteService: ClasificacionLoteService,
   ) {}
 
   async create(
     dto: CreateLoteDto,
     tenant: TenantContext,
-  ): Promise<LoteCreateResponseDto> {
+  ): Promise<LoteCreateResponseDto & { warnings?: string[] }> {
     const empresaId = this.resolveEmpresaId(tenant);
 
-    // Criterio 3: proveedor debe existir y pertenecer a la empresa.
+    // Proveedor debe existir y pertenecer a la empresa
     const proveedor = await this.proveedorRepository.findOne({
       where: { id: dto.proveedorId, empresaId },
     });
@@ -66,15 +69,12 @@ export class LoteService {
       );
     }
 
-    // Criterio: parámetros de calidad dentro de los rangos permitidos.
-    await this.validarParametros(dto, empresaId);
+    // Validar parámetros pero sin bloquear
+    const { warnings } = await this.validarParametros(dto, empresaId);
 
-    // Criterio 1: identificador único.
+    // Identificador único
     const codigo = dto.codigo ?? (await this.generarCodigo(empresaId));
-    const existente = await this.loteRepository.findByCodigo(
-      codigo,
-      empresaId,
-    );
+    const existente = await this.loteRepository.findByCodigo(codigo, empresaId);
     if (existente) {
       throw new ConflictException(
         `Ya existe un lote con el identificador '${codigo}' para esta empresa`,
@@ -94,7 +94,7 @@ export class LoteService {
       proveedorId: dto.proveedorId,
       materiaPrima: dto.materiaPrima,
       fechaIngreso: new Date(dto.fechaIngreso),
-      clasificacion: dto.clasificacion ?? null,
+      clasificacion: null,
       destinoInicial: dto.destinoInicial ?? null,
       ubicacionInicial: dto.ubicacionInicial ?? null,
       estado: EstadoLote.REGISTRADO,
@@ -103,19 +103,25 @@ export class LoteService {
 
     const saved = await this.loteRepository.save(lote);
 
-    // Trae los sensores activos de la ubicación inicial del lote,
-    // para que el frontend pueda ofrecerlos como candidatos a asociar.
+    // Clasificación automática
+    await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
+
+    // Refrescar el lote ya clasificado
+    const actualizado = await this.loteRepository.findById(saved.id, empresaId);
+
+    // Sensores disponibles
     let sensoresDisponibles: SensorResponseDto[] = [];
-    if (saved.ubicacionInicial) {
+    if (actualizado!.ubicacionInicial) {
       sensoresDisponibles = await this.sensorService.findAll(
-        { ubicacion: saved.ubicacionInicial, estado: EstadoSensor.ACTIVO },
+        { ubicacion: actualizado!.ubicacionInicial, estado: EstadoSensor.ACTIVO },
         tenant,
       );
     }
 
     return {
-      lote: LoteMapper.toResponseDto(saved),
+      lote: LoteMapper.toResponseDto(actualizado!),
       sensoresDisponibles,
+      warnings,
     };
   }
 
@@ -255,33 +261,38 @@ export class LoteService {
   private async validarParametros(
     dto: CreateLoteDto,
     empresaId: number,
-  ): Promise<void> {
+  ): Promise<{ warnings: string[] }> {
+    const warnings: string[] = [];
     for (const p of dto.parametros) {
       const config = await this.configParametroRepository.findOne({
-        where: {
-          empresaId,
-          parametro: p.parametro,
-          tipoMateriaPrima: dto.materiaPrima,
-        },
+        where: { empresaId, parametro: p.parametro, tipoMateriaPrima: dto.materiaPrima },
       });
       if (!config) {
-        throw new BadRequestException(
-          `No existe configuración de rango para el parámetro '${p.parametro}' ` +
-            `con materia prima '${dto.materiaPrima}'`,
+        warnings.push(
+          `No existe configuración de rango para el parámetro '${p.parametro}' con materia prima '${dto.materiaPrima}'`,
         );
+        continue;
       }
       if (p.valor < config.umbralMin || p.valor > config.umbralMax) {
-        throw new BadRequestException(
-          `El valor de '${p.parametro}' (${p.valor}) está fuera del rango permitido ` +
-            `[${config.umbralMin} - ${config.umbralMax}]`,
+        warnings.push(
+          `El valor de '${p.parametro}' (${p.valor}) está fuera del rango permitido [${config.umbralMin} - ${config.umbralMax}]`,
         );
       }
     }
+    return { warnings };
   }
+
 
   private async generarCodigo(empresaId: number): Promise<string> {
     const total = await this.loteRepository.countByEmpresa(empresaId);
     const secuencia = (total + 1).toString().padStart(5, '0');
     return `LOTE-${empresaId}-${secuencia}`;
+  }
+
+  async getHistorialClasificaciones(id: number, tenant: TenantContext) {
+    const empresaId = this.resolveEmpresaId(tenant);
+    const lote = await this.loteRepository.findById(id, empresaId);
+    if (!lote) throw new NotFoundException(`Lote ${id} no encontrado`);
+    return this.clasificacionLoteService.historialDeLote(id, empresaId);
   }
 }

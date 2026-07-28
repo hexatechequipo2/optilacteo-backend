@@ -33,6 +33,7 @@ interface SensorInfo {
   rangoMinFavor: string | number;
   rangoMaxFavor: string | number;
   loteActualId: number | null;
+  empresaId?: number; // agregado para poder filtrar
 }
 
 interface SensorSimulable extends SensorInfo {
@@ -78,12 +79,7 @@ async function login(
   url: string,
   email: string,
   password: string,
-): Promise<string> {
-  if (!email || !password) {
-    throw new Error(
-      'Faltan credenciales: pasá --email/--password o seteá SIMULATOR_EMAIL/SIMULATOR_PASSWORD.',
-    );
-  }
+): Promise<{ token: string; empresaId: number }> {
   const res = await fetch(`${url}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -92,13 +88,15 @@ async function login(
   if (!res.ok) {
     throw new Error(`Login falló (HTTP ${res.status}): ${await res.text()}`);
   }
-  const body = (await res.json()) as { access_token: string };
-  return body.access_token;
+  const body = await res.json();
+  return { token: body.access_token, empresaId: body.user.empresaId };
 }
+
 
 async function obtenerSensoresAsociados(
   url: string,
   token: string,
+  empresaId: number,
 ): Promise<SensorSimulable[]> {
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -107,7 +105,11 @@ async function obtenerSensoresAsociados(
     throw new Error(`No se pudo listar sensores (HTTP ${sensoresRes.status})`);
   }
   const sensores = (await sensoresRes.json()) as SensorInfo[];
-  const asociados = sensores.filter((s) => s.loteActualId != null);
+
+  // 🔑 Filtrar por empresa
+  const asociados = sensores.filter(
+    (s) => s.loteActualId != null && s.empresaId === empresaId,
+  );
   if (asociados.length === 0) return [];
 
   const lotesRes = await fetch(`${url}/lotes?limit=500`, { headers });
@@ -115,9 +117,12 @@ async function obtenerSensoresAsociados(
     throw new Error(`No se pudo listar lotes (HTTP ${lotesRes.status})`);
   }
   const { data: lotes } = (await lotesRes.json()) as {
-    data: { id: number; codigo: string }[];
+    data: { id: number; codigo: string; empresaId: number }[];
   };
-  const codigoPorLoteId = new Map(lotes.map((l) => [l.id, l.codigo]));
+
+  const codigoPorLoteId = new Map(
+    lotes.filter((l) => l.empresaId === empresaId).map((l) => [l.id, l.codigo]),
+  );
 
   return asociados
     .map((s) => ({
@@ -127,14 +132,10 @@ async function obtenerSensoresAsociados(
     .filter((s): s is SensorSimulable => !!s.loteCodigo);
 }
 
-// En modo "noise" fuerza ocasionalmente un valor fuera de cualquier rango
-// físico posible (todos los RANGOS_FISICOS del backend están dentro de
-// [-20, 100]), para ejercitar el rechazo 422 sin duplicar esa tabla acá.
 function generarValor(sensor: SensorSimulable, modo: Args['modo']): number {
   if (modo === 'noise' && Math.random() < 0.3) {
     return Math.random() < 0.5 ? -99999 : 99999;
   }
-
   const min = Number(sensor.rangoMinFavor);
   const max = Number(sensor.rangoMaxFavor);
   const valor = min + Math.random() * (max - min);
@@ -181,12 +182,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  const token = await login(args.url, args.email, args.password);
-  const sensores = await obtenerSensoresAsociados(args.url, token);
+  const { token, empresaId } = await login(args.url, args.email, args.password);
+  const sensores = await obtenerSensoresAsociados(args.url, token, empresaId);
 
   if (sensores.length === 0) {
     console.error(
-      'No hay sensores asociados a un lote. Asociá al menos uno (PATCH /sensores/lote/:loteId/asociar) antes de simular.',
+      `No hay sensores asociados a un lote de la empresa ${empresaId}. Asociá al menos uno (PATCH /sensores/lote/:loteId/asociar) antes de simular.`,
     );
     process.exitCode = 1;
     return;

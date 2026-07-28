@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
@@ -7,7 +7,6 @@ import { LOTE_REPOSITORY } from '../lote/repository/lote-repository.interface';
 import type { ISensorLoteHistorialRepository } from '../sensor/repository/sensor-lote-historial.repository.interface';
 import { SENSOR_LOTE_HISTORIAL_REPOSITORY } from '../sensor/repository/sensor-lote-historial.repository.interface';
 import type { TenantContext } from '../../common/types/tenant-context.type';
-import { EstadoMedicion } from '../lectura-sensor/enums/estado-medicion.enum';
 import { CreateMedicionManualLoteDto } from './dto/create-medicion-manual-lote.dto';
 import { HistorialMedicionManualFilterQueryDto } from './dto/historial-medicion-manual-filter-query.dto';
 import {
@@ -17,9 +16,13 @@ import {
 import type { IMedicionManualLoteRepository } from './repository/medicion-manual-lote.repository.interface';
 import { MEDICION_MANUAL_LOTE_REPOSITORY } from './repository/medicion-manual-lote.repository.interface';
 import { MedicionManualMapper } from './mappers/medicion-manual.mapper';
+// --- nuevo: HU-21 ---
+import { ClasificacionLoteService } from '../lote/clasificacion-lote.service';
 
 @Injectable()
 export class MedicionManualService {
+  private readonly logger = new Logger(MedicionManualService.name);
+
   constructor(
     @Inject(LOTE_REPOSITORY)
     private readonly loteRepository: ILoteRepository,
@@ -29,6 +32,8 @@ export class MedicionManualService {
     private readonly medicionRepository: IMedicionManualLoteRepository,
     @Inject(SENSOR_LOTE_HISTORIAL_REPOSITORY)
     private readonly sensorLoteHistorialRepository: ISensorLoteHistorialRepository,
+    // --- nuevo: HU-21 ---
+    private readonly clasificacionLoteService: ClasificacionLoteService,
   ) {}
 
   async registrar(
@@ -79,6 +84,14 @@ export class MedicionManualService {
       configs.map((c) => [`${c.parametro}|${c.tipoMateriaPrima}`, c]),
     );
     const mediciones = MedicionManualMapper.toResponseItemList(creadas, mapaConfig);
+
+    // HU-21: dispara la clasificación automática si ya están todos los
+    // parámetros obligatorios. Best-effort: no debe romper el registro.
+    this.clasificacionLoteService
+      .evaluarYClasificar(lote.id, empresaId)
+      .catch((err) =>
+        this.logger.error(`Error al clasificar lote ${lote.id}: ${err}`),
+      );
 
     return {
       loteId: lote.id,

@@ -96,4 +96,15 @@ export class LoteController {
   ) {
     return this.loteService.finalizar(+id, tenant);
   }
+
+  // HU-21 (AC7): historial de clasificaciones automáticas del lote.
+  @Get(':id/clasificaciones')
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Permissions([ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD], 'canRead')
+  getHistorialClasificaciones(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteService.getHistorialClasificaciones(+id, tenant);
+  }
 }

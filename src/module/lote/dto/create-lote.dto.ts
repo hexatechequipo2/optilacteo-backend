@@ -11,7 +11,6 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
-import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 import { CreateLoteParametroDto } from './create-lote-parametro.dto';
@@ -36,11 +35,6 @@ export class CreateLoteDto {
   @ApiProperty({ example: '2026-07-22T08:30:00.000Z' })
   @IsDateString()
   fechaIngreso!: string;
-
-  @ApiPropertyOptional({ enum: ClasificacionLote })
-  @IsOptional()
-  @IsEnum(ClasificacionLote)
-  clasificacion?: ClasificacionLote;
 
   @ApiPropertyOptional({ enum: DestinoLote })
   @IsOptional()
