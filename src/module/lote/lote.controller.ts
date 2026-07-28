@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
@@ -22,6 +23,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { Permissions } from '../../common/decorators/permissions.decorator';
+import { RevisarLoteDto } from './dto/revisar-lote.dto';
 
 @ApiTags('lote')
 @ApiBearerAuth()
@@ -50,6 +52,16 @@ export class LoteController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.loteService.findAll(query, tenant);
+  }
+
+  // HU-22: listado de lotes pendientes de revisión manual.
+  // Tiene que ir ANTES de @Get(':id'): si no, Nest interpreta "no-aptos"
+  // como el parámetro :id y nunca llega acá.
+  @Get('no-aptos')
+  @Roles(ROLES.RESPONSABLE_CALIDAD)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  findNoAptos(@CurrentEmpresa() tenant: TenantContext) {
+    return this.loteService.findNoAptos(tenant);
   }
 
   @Get(':id')
@@ -106,5 +118,30 @@ export class LoteController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.loteService.getHistorialClasificaciones(+id, tenant);
+  }
+
+  // HU-22: aprobación o rechazo manual de un lote No Apto.
+  @Post(':id/revision')
+  @Roles(ROLES.RESPONSABLE_CALIDAD)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @AuditLog('LOTE_REVISAR', 'Lote')
+  revisar(
+    @Param('id') id: string,
+    @Body() dto: RevisarLoteDto,
+    @CurrentEmpresa() tenant: TenantContext,
+    @Req() req: any, // TODO: reemplazar por tu @CurrentUser() real
+  ) {
+    const usuarioId = req.user.sub;
+    return this.loteService.revisarLote(+id, dto, tenant, usuarioId);
+  }
+
+  @Get(':id/revisiones')
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  getHistorialRevisiones(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteService.getHistorialRevisiones(+id, tenant);
   }
 }

@@ -13,4 +13,5 @@ export interface ILoteRepository {
     empresaId: number,
   ): Promise<[Lote[], number]>;
   countByEmpresa(empresaId: number): Promise<number>;
+  findNoAptosSinRevisionVigente(empresaId: number): Promise<Lote[]>;
 }
