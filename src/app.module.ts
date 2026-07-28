@@ -16,6 +16,7 @@ import { LoteModule } from './module/lote/lote.module';
 import { SensorModule } from './module/sensor/sensor.module';
 import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.module';
 import { MedicionManualModule } from './module/medicion-manual/medicion-manual.module';
+import { NotificacionesModule } from './module/notificaciones/notificaciones.module';
 
 @Module({
   imports: [
@@ -48,7 +49,8 @@ import { MedicionManualModule } from './module/medicion-manual/medicion-manual.m
     LoteModule,
     SensorModule,
     LecturaSensorModule,
-    MedicionManualModule
+    MedicionManualModule,
+    NotificacionesModule
   ],
   controllers: [AppController],
   providers: [AppService],

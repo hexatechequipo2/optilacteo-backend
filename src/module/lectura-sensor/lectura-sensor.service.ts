@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -33,6 +34,8 @@ import { Repository } from 'typeorm';
 import { Parametro } from '../config-parametro/enums/parametro.enum';
 import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-enum';
 import { EstadoMedicion } from './enums/estado-medicion.enum';
+// --- nuevo: HU-21 ---
+import { ClasificacionLoteService } from '../lote/clasificacion-lote.service';
 
 const RANGO_DIAS_SLA = 30;
 
@@ -46,6 +49,8 @@ interface DatosEvento {
 
 @Injectable()
 export class LecturaSensorService {
+  private readonly logger = new Logger(LecturaSensorService.name);
+
   constructor(
     @Inject(SENSOR_REPOSITORY)
     private readonly sensorRepository: ISensorRepository,
@@ -60,6 +65,8 @@ export class LecturaSensorService {
     private readonly lecturasGateway: LecturasGateway,
     @InjectRepository(ConfiguracionParametro)
     private readonly configParametroRepository: Repository<ConfiguracionParametro>,
+    // --- nuevo: HU-21 ---
+    private readonly clasificacionLoteService: ClasificacionLoteService,
   ) {}
 
   private resolveEmpresaId(tenant: TenantContext): number {
@@ -188,6 +195,14 @@ export class LecturaSensorService {
     const responseDto = LecturaMapper.toResponseDto(creada);
     this.lecturasGateway.emitirLectura(responseDto, empresaId);
 
+    // HU-21: dispara la clasificación automática si ya están todos los
+    // parámetros obligatorios. Best-effort: no debe romper la ingesta.
+    this.clasificacionLoteService
+      .evaluarYClasificar(lote.id, empresaId)
+      .catch((err) =>
+        this.logger.error(`Error al clasificar lote ${lote.id}: ${err}`),
+      );
+
     return responseDto;
   }
 
@@ -251,6 +266,13 @@ export class LecturaSensorService {
     const responseDto = LecturaMapper.toResponseDto(creada);
     this.lecturasGateway.emitirLectura(responseDto, empresaId);
 
+    // HU-21: mismo trigger que en ingresar().
+    this.clasificacionLoteService
+      .evaluarYClasificar(loteId, empresaId)
+      .catch((err) =>
+        this.logger.error(`Error al clasificar lote ${loteId}: ${err}`),
+      );
+
     return responseDto;
   }
 
@@ -280,7 +302,6 @@ export class LecturaSensorService {
     const fechaInicio = query.fechaInicio ? new Date(query.fechaInicio) : undefined;
     const fechaFin = this.normalizarFechaFin(query.fechaFin);
 
-    // Criterio de prueba: fecha fin anterior a fecha inicio debe fallar.
     if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
       throw new BadRequestException(
         'La fecha de fin no puede ser anterior a la fecha de inicio.',
@@ -290,7 +311,6 @@ export class LecturaSensorService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    // Criterio: lote inexistente -> listado vacío, no error ni datos de otro lote.
     let loteId: number | undefined;
     if (query.loteCodigo) {
       const lote = await this.loteRepository.findByCodigo(query.loteCodigo, empresaId);
@@ -387,9 +407,6 @@ export class LecturaSensorService {
     return dias > RANGO_DIAS_SLA;
   }
 
-  // Trae todos los umbrales de la empresa en una sola query y arma un mapa
-  // en memoria. Evita N+1 al calcular el estado de cada fila del historial
-  // (clave para cumplir el SLA de <3s en rangos de hasta 30 días).
   private async construirMapaUmbrales(
     empresaId: number,
   ): Promise<Map<string, { umbralMin: number; umbralMax: number }>> {

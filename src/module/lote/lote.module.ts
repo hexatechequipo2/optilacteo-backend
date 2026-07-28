@@ -13,6 +13,12 @@ import { LOTE_UBICACION_HISTORIAL_REPOSITORY } from './repository/lote-ubicacion
 import { LoteUbicacionHistorialRepository } from './repository/lote-ubicacion-historial.repository';
 import { LoteUbicacionHistorial } from './entities/lote-ubicacion-historial.entity';
 import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity';
+import { MedicionManualLote } from '../medicion-manual/entities/medicion-manual-lote.entity';
+import { User } from '../user/entities/user.entity';
+import { ClasificacionLoteService } from './clasificacion-lote.service';
+import { NotificacionesModule } from '../notificaciones/notificaciones.module';
+import { LoteClasificacionHistorial } from './entities/lote-clasificacion-historial.entity';
+import { Sensor } from '../sensor/entities/sensor.entity';
 
 @Module({
   imports: [
@@ -22,13 +28,19 @@ import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity'
       Proveedor,
       LoteUbicacionHistorial,
       ConfiguracionParametro,
-      SensorLectura
+      SensorLectura,
+      Sensor,
+      MedicionManualLote,
+      User,
+      LoteClasificacionHistorial
     ]),
     forwardRef(() => SensorModule),
+    NotificacionesModule
   ],
   controllers: [LoteController],
   providers: [
     LoteService,
+    ClasificacionLoteService,
     {
       provide: LOTE_REPOSITORY,
       useClass: LoteRepository,
@@ -37,6 +49,6 @@ import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity'
       useClass: LoteUbicacionHistorialRepository },
 
   ],
-  exports: [LoteService, LOTE_REPOSITORY, LOTE_UBICACION_HISTORIAL_REPOSITORY],
+  exports: [LoteService, LOTE_REPOSITORY, LOTE_UBICACION_HISTORIAL_REPOSITORY, ClasificacionLoteService],
 })
 export class LoteModule {}
