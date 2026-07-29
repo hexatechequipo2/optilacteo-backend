@@ -9,6 +9,7 @@ import { ConfigParametroRepository } from './repository/config-parametro.reposit
 import { ConfiguracionComparacionHistoricaRepository } from './repository/configuracion-comparacion-historica.repository';
 import { CONFIG_PARAMETRO_REPOSITORY } from './repository/config-parametro.repository.interface';
 import { CONFIGURACION_COMPARACION_HISTORICA_REPOSITORY } from './repository/configuracion-comparacion-historica.repository.interface';
+import { ConfiguracionComparacionHistoricaController } from './configuracion-comparacion-historica.controller';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { CONFIGURACION_COMPARACION_HISTORICA_REPOSITORY } from './repository/con
       ConfiguracionComparacionHistorica,
     ]),
   ],
-  controllers: [ConfigParametroController],
+  controllers: [ConfigParametroController, ConfiguracionComparacionHistoricaController],
   providers: [
     ConfigParametroService,
     ConfiguracionComparacionHistoricaService,

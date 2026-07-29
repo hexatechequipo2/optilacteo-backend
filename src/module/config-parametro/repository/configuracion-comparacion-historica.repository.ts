@@ -16,4 +16,12 @@ export class ConfiguracionComparacionHistoricaRepository
   findByEmpresa(empresaId: number): Promise<ConfiguracionComparacionHistorica | null> {
     return this.repository.findOne({ where: { empresaId } });
   }
+
+  save(entity: ConfiguracionComparacionHistorica): Promise<ConfiguracionComparacionHistorica> {
+    return this.repository.save(entity);
+  }
+
+  create(data: Partial<ConfiguracionComparacionHistorica>): ConfiguracionComparacionHistorica {
+    return this.repository.create(data);
+  }
 }
