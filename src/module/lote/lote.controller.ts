@@ -144,4 +144,15 @@ export class LoteController {
   ) {
     return this.loteService.getHistorialRevisiones(+id, tenant);
   }
+
+  // HU-24: comparación del lote contra el promedio histórico de la empresa.
+  @Get(':id/comparacion-historica')
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  compararConHistorico(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteService.compararConHistorico(+id, tenant);
+  }
 }

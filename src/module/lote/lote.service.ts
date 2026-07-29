@@ -34,6 +34,9 @@ import { ClasificacionLoteService } from './clasificacion-lote.service';
 import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
 import { RevisarLoteDto } from './dto/revisar-lote.dto';
 import { DecisionRevision } from './enums/decision-revision.enum';
+import { ConfiguracionComparacionHistoricaService } from '../config-parametro/configuracion-comparacion-historica.service';
+import { ComparacionHistoricaResponseDto } from './dto/comparacion-historica-response.dto';
+import { ComparacionHistoricaMapper } from './mappers/comparacion-historica.mapper';
 
 @Injectable()
 export class LoteService {
@@ -51,6 +54,8 @@ export class LoteService {
     private readonly clasificacionLoteService: ClasificacionLoteService,
     @InjectRepository(LoteRevisionCalidad)
     private readonly loteRevisionRepository: Repository<LoteRevisionCalidad>,
+    private readonly configuracionComparacionHistoricaService: ConfiguracionComparacionHistoricaService,
+
   ) {}
 
   async create(
@@ -376,5 +381,32 @@ export class LoteService {
       where: { loteId: id, empresaId },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  // método nuevo, agregar después de getHistorialRevisiones:
+  // HU-24: compara los parámetros de un lote contra el promedio histórico
+  // de los últimos N lotes Aptos de la misma empresa y tipo de materia
+  // prima. El lote actual se excluye del propio promedio.
+  async compararConHistorico(
+    id: number,
+    tenant: TenantContext,
+  ): Promise<ComparacionHistoricaResponseDto> {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    const lote = await this.loteRepository.findById(id, empresaId);
+    if (!lote) {
+      throw new NotFoundException(`Lote ${id} no encontrado`);
+    }
+
+    const config = await this.configuracionComparacionHistoricaService.getConfig(empresaId);
+
+    const historicos = await this.loteRepository.findUltimosAptos(
+      empresaId,
+      lote.materiaPrima,
+      config.cantidadRegistrosHistoricos,
+      lote.id,
+    );
+
+    return ComparacionHistoricaMapper.build(lote, historicos, config);
   }
 }

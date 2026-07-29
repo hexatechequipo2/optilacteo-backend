@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, Not } from 'typeorm';
 import { Lote } from '../entities/lote.entity';
 import { LoteFilterQueryDto } from '../dto/lote-filter-query.dto';
 import type { ILoteRepository } from './lote-repository.interface';
+import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
+import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 
 @Injectable()
 export class LoteRepository implements ILoteRepository {
@@ -80,6 +82,25 @@ export class LoteRepository implements ILoteRepository {
       )`)
       .orderBy('lote.createdAt', 'DESC')
       .getMany();
+  }
+
+  async findUltimosAptos(
+    empresaId: number,
+    materiaPrima: TipoMateriaPrima,
+    cantidad: number,
+    excluirLoteId: number,
+  ): Promise<Lote[]> {
+    return this.repository.find({
+      where: {
+        empresaId,
+        materiaPrima,
+        clasificacion: ClasificacionLote.APTO,
+        id: Not(excluirLoteId),
+      },
+      relations: { parametros: true },
+      order: { createdAt: 'DESC' },
+      take: cantidad,
+    });
   }
 
 } 
