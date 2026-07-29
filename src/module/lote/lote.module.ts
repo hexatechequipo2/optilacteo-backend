@@ -20,6 +20,7 @@ import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 import { LoteClasificacionHistorial } from './entities/lote-clasificacion-historial.entity';
 import { Sensor } from '../sensor/entities/sensor.entity';
 import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
+import { ConfigParametroModule } from '../config-parametro/config-parametro.module';
 
 @Module({
   imports: [
@@ -34,10 +35,11 @@ import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
       MedicionManualLote,
       User,
       LoteClasificacionHistorial,
-      LoteRevisionCalidad
+      LoteRevisionCalidad,
     ]),
     forwardRef(() => SensorModule),
-    NotificacionesModule
+    NotificacionesModule,
+    ConfigParametroModule
   ],
   controllers: [LoteController],
   providers: [
