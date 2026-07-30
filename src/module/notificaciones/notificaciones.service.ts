@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../user/entities/user.entity';
@@ -6,6 +6,8 @@ import { ROLES } from '../rol/constants/roles.constants';
 import { NotificacionesGateway } from './gateway/notificaciones.gateway';
 import { TipoNotificacion } from './enums/tipo-notificacion.enum';
 import { NotificacionResponseDto } from './dto/notificacion-response.dto';
+import { NotificacionFilterQueryDto } from './dto/notificacion-filter-query.dto';
+import { NotificacionPaginadaResponseDto } from './dto/notificacion-paginada-response.dto';
 import { NotificacionMapper } from './mappers/notificacion.mapper';
 import type { INotificacionRepository } from './repository/notificacion.repository.interface';
 import { NOTIFICACION_REPOSITORY } from './repository/notificacion.repository.interface';
@@ -54,18 +56,30 @@ export class NotificacionesService {
     }
   }
 
+  // Paginado (page/limit vía NotificacionFilterQueryDto), más reciente
+  // primero. Antes devolvía el listado completo sin paginar.
   async listarPorUsuario(
     usuarioId: number,
     empresaId: number,
-  ): Promise<NotificacionResponseDto[]> {
-    const notificaciones = await this.notificacionRepository.findByUsuario(
+    query: NotificacionFilterQueryDto,
+  ): Promise<NotificacionPaginadaResponseDto> {
+    const [notificaciones, total] = await this.notificacionRepository.findByUsuario(
       usuarioId,
       empresaId,
+      query,
     );
-    return NotificacionMapper.toResponseList(notificaciones);
+    return NotificacionMapper.toPaginatedResponse(notificaciones, total, query);
   }
 
-  async marcarLeida(id: number, usuarioId: number, empresaId: number): Promise<void> {
-    await this.notificacionRepository.markAsLeida(id, usuarioId, empresaId);
+  async marcarLeida(
+    id: number,
+    usuarioId: number,
+    empresaId: number,
+  ): Promise<NotificacionResponseDto> {
+    const actualizada = await this.notificacionRepository.markAsLeida(id, usuarioId, empresaId);
+    if (!actualizada) {
+      throw new NotFoundException(`Notificación ${id} no encontrada`);
+    }
+    return NotificacionMapper.toResponse(actualizada);
   }
 }

@@ -1,10 +1,11 @@
-import { Controller, Get, Patch, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { NotificacionesService } from './notificaciones.service';
+import { NotificacionFilterQueryDto } from './dto/notificacion-filter-query.dto';
 
 @ApiTags('notificaciones')
 @ApiBearerAuth()
@@ -16,8 +17,12 @@ export class NotificacionesController {
   // Sin @Roles(): cada usuario ve solo SUS notificaciones (filtradas por
   // usuarioId), no hace falta restringir por rol acá.
   @Get()
-  findMine(@CurrentEmpresa() tenant: TenantContext, @Req() req: any) {
-    return this.notificacionesService.listarPorUsuario(req.user.sub, tenant.empresaId!);
+  findMine(
+    @Query() query: NotificacionFilterQueryDto,
+    @CurrentEmpresa() tenant: TenantContext,
+    @Req() req: any,
+  ) {
+    return this.notificacionesService.listarPorUsuario(req.user.sub, tenant.empresaId!, query);
   }
 
   @Patch(':id/leida')
