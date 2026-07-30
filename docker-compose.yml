@@ -5,6 +5,7 @@ services:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+      TZ: America/Argentina/Buenos_Aires
     ports:
       - "5432:5432"
     volumes:
@@ -18,6 +19,7 @@ services:
       - .env
     environment:
       DB_HOST: postgres
+      TZ: America/Argentina/Buenos_Aires
     depends_on:
       - postgres
 
