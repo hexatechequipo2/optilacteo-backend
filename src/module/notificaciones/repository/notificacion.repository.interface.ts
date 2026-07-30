@@ -1,4 +1,5 @@
 import { Notificacion } from '../entities/notificacion.entity';
+import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto';
 
 export const NOTIFICACION_REPOSITORY = 'NOTIFICACION_REPOSITORY';
 
@@ -8,7 +9,8 @@ export interface INotificacionRepository {
   findByUsuario(
     usuarioId: number,
     empresaId: number,
-  ): Promise<Notificacion[]>;
+    query: NotificacionFilterQueryDto,
+  ): Promise<[Notificacion[], number]>;
 
   findById(
     id: number,
@@ -19,5 +21,5 @@ export interface INotificacionRepository {
     id: number,
     usuarioId: number,
     empresaId: number,
-  ): Promise<void>;
+  ): Promise<Notificacion | null>;
 }

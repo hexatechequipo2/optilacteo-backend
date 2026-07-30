@@ -1,6 +1,8 @@
 import { Notificacion } from '../entities/notificacion.entity';
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
 import { NotificacionResponseDto } from '../dto/notificacion-response.dto';
+import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto';
+import { NotificacionPaginadaResponseDto } from '../dto/notificacion-paginada-response.dto';
 
 export interface CrearNotificacionParams {
   tipo: TipoNotificacion;
@@ -19,6 +21,19 @@ export class NotificacionMapper {
       usuarioId: params.usuarioId,
       empresaId: params.empresaId,
       leida: false,
+    };
+  }
+  
+  static toPaginatedResponse(
+    entities: Notificacion[],
+    total: number,
+    query: NotificacionFilterQueryDto,
+  ): NotificacionPaginadaResponseDto {
+    return {
+      data: this.toResponseList(entities),
+      total,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
     };
   }
 

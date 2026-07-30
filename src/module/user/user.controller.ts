@@ -24,7 +24,7 @@ export class UserController {
     return this.userService.create(dto, tenant);
   }
 
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.RESPONSABLE_CALIDAD)
   @Get()
   findAll(
     @CurrentEmpresa() tenant: TenantContext,
