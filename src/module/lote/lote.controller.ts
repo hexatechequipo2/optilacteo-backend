@@ -65,7 +65,7 @@ export class LoteController {
   // en roles.constants. Mientras tanto se habilita para los roles que ya
   // pueden leer lotes; ajustar cuando se confirme.
   @Get(':id/metricas-calidad')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.OPERARIO_LINEA)
   @Permissions([ModuloSistema.MONITOREO_ALERTAS], 'canRead')
   getMetricasCalidad(
     @Param('id') id: string,
