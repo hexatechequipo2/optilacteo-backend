@@ -58,7 +58,7 @@ export class LoteController {
   // Tiene que ir ANTES de @Get(':id'): si no, Nest interpreta "no-aptos"
   // como el parámetro :id y nunca llega acá.
   @Get('no-aptos')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION)
+  @Roles(ROLES.RESPONSABLE_CALIDAD)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
   findNoAptos(@CurrentEmpresa() tenant: TenantContext) {
     return this.loteService.findNoAptos(tenant);
