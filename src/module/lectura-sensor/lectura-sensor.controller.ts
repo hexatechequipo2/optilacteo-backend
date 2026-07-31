@@ -38,6 +38,7 @@ export class LecturaSensorController {
   // endpoint de arriba, acá sí hay un usuario humano de la empresa detrás,
   // por eso exige permiso explícito de escritura.
   @Post('lecturas/manual')
+  @Roles(ROLES.OPERARIO_LINEA)
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS], 'canWrite')
   @AuditLog('LECTURA_MANUAL_INGRESAR', 'SensorLectura')
   ingresarManual(

@@ -45,7 +45,7 @@ export class LoteController {
   }
 
   @Get()
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_PRODUCCION)
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
   findAll(
     @Query() query: LoteFilterQueryDto,
@@ -58,7 +58,7 @@ export class LoteController {
   // Tiene que ir ANTES de @Get(':id'): si no, Nest interpreta "no-aptos"
   // como el parámetro :id y nunca llega acá.
   @Get('no-aptos')
-  @Roles(ROLES.RESPONSABLE_CALIDAD)
+  @Roles(ROLES.RESPONSABLE_PRODUCCION)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
   findNoAptos(@CurrentEmpresa() tenant: TenantContext) {
     return this.loteService.findNoAptos(tenant);
