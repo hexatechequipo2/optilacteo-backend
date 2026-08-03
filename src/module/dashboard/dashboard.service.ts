@@ -14,8 +14,14 @@ import {
   LineaCalidadDto,
   Tendencia,
 } from './dto/dashboard-response.dto';
-import { DashboardHistoricoDto, PuntoHistoricoDto } from './dto/dashboard-historico.dto';
+import {
+  DashboardHistoricoDto,
+  PuntoHistoricoDto,
+  GranularidadHistorico,
+} from './dto/dashboard-historico.dto';
 import { EstadoLote } from '../lote/enums/estado-lote.enum';
+
+const TIMEZONE_EMPRESA = 'America/Argentina/Cordoba';
 
 @Injectable()
 export class DashboardService {
@@ -32,32 +38,37 @@ export class DashboardService {
     private readonly medicionManualRepo: Repository<MedicionManualLote>,
   ) {}
 
-  async getDashboard(tenant: TenantContext): Promise<DashboardResponseDto> {
-    const { hoyDesde, hoyHasta, ayerDesde, ayerHasta } = this.buildRangos();
+  async getDashboard(
+    tenant: TenantContext,
+    granularidad: GranularidadHistorico = GranularidadHistorico.DIA,
+  ): Promise<DashboardResponseDto> {
+    const { actualDesde, actualHasta, anteriorDesde, anteriorHasta } =
+      this.buildRangosPorGranularidad(granularidad);
     const empresaId = tenant.empresaId!;
 
     const [
-      lotesHoy,
-      lotesAyer,
-      alertasHoy,
-      alertasAyer,
-      criticosHoy,
-      criticosAyer,
+      lotesActual,
+      lotesAnterior,
+      alertasActual,
+      alertasAnterior,
+      criticosActual,
+      criticosAnterior,
       lineaCalidad,
     ] = await Promise.all([
-      this.contarLotesProcesados(empresaId, hoyDesde, hoyHasta),
-      this.contarLotesProcesados(empresaId, ayerDesde, ayerHasta),
-      this.contarAlertasActivas(empresaId, hoyDesde, hoyHasta),
-      this.contarAlertasActivas(empresaId, ayerDesde, ayerHasta),
-      this.contarParametrosCriticos(empresaId, hoyDesde, hoyHasta),
-      this.contarParametrosCriticos(empresaId, ayerDesde, ayerHasta),
-      this.getLineaCalidad(empresaId, hoyDesde, hoyHasta),
+      this.contarLotesProcesados(empresaId, actualDesde, actualHasta),
+      this.contarLotesProcesados(empresaId, anteriorDesde, anteriorHasta),
+      this.contarAlertasActivas(empresaId, actualDesde, actualHasta),
+      this.contarAlertasActivas(empresaId, anteriorDesde, anteriorHasta),
+      this.contarParametrosCriticos(empresaId, actualDesde, actualHasta),
+      this.contarParametrosCriticos(empresaId, anteriorDesde, anteriorHasta),
+      this.getLineaCalidad(empresaId, actualDesde, actualHasta),
     ]);
 
     return {
-      lotesProcesados: this.buildMetrica(lotesHoy, lotesAyer),
-      alertasActivas: this.buildMetrica(alertasHoy, alertasAyer),
-      parametrosCriticos: this.buildMetrica(criticosHoy, criticosAyer),
+      granularidad,
+      lotesProcesados: this.buildMetrica(lotesActual, lotesAnterior),
+      alertasActivas: this.buildMetrica(alertasActual, alertasAnterior),
+      parametrosCriticos: this.buildMetrica(criticosActual, criticosAnterior),
       lineaCalidad,
       actualizadoEn: new Date(),
     };
@@ -65,31 +76,55 @@ export class DashboardService {
 
   async getHistoricoLotesProcesados(
     tenant: TenantContext,
-    dias: number,
+    granularidad: GranularidadHistorico,
+    cantidad: number,
   ): Promise<DashboardHistoricoDto> {
     const empresaId = tenant.empresaId!;
-    const puntos: PuntoHistoricoDto[] = [];
+    const { desde, hasta } = this.rangoPorGranularidad(granularidad, cantidad);
+    const unidadPostgres = this.mapearUnidadPostgres(granularidad);
 
-    // Un query por día es suficiente para 7-31 días; si el rango crece
-    // conviene reemplazar por un GROUP BY DATE(fechaIngreso) en una sola query.
-    for (let i = dias - 1; i >= 0; i--) {
-      const { desde, hasta } = this.rangoDelDia(i);
-      const valor = await this.contarLotesProcesados(empresaId, desde, hasta);
-      puntos.push({ fecha: desde.toISOString().slice(0, 10), lotesProcesados: valor });
-    }
+    // GROUP BY con date_trunc en lugar de un query por período: evita N queries
+    // individuales cuando cantidad crece (ej. 24 meses = 24 queries antes, 1 ahora).
+    const raw = await this.loteRepo
+      .createQueryBuilder('lote')
+      .select(
+        `date_trunc('${unidadPostgres}', lote."fechaIngreso" AT TIME ZONE '${TIMEZONE_EMPRESA}')`,
+        'periodo',
+      )
+      .addSelect('COUNT(*)', 'cantidad')
+      .where('lote.empresaId = :empresaId', { empresaId })
+      .andWhere('lote.fechaIngreso BETWEEN :desde AND :hasta', { desde, hasta })
+      .andWhere('lote.estado IN (:...estados)', {
+        estados: [EstadoLote.FINALIZADO, EstadoLote.RECHAZADO],
+      })
+      .groupBy('periodo')
+      .orderBy('periodo', 'ASC')
+      .getRawMany<{ periodo: Date; cantidad: string }>();
 
-    return { dias, puntos };
+    const mapaResultados = new Map(
+      raw.map((r) => [this.formatearPeriodo(r.periodo, granularidad), Number(r.cantidad)]),
+    );
+
+    // Rellenamos los períodos sin lotes con 0 para no dejar huecos en el gráfico
+    const puntos: PuntoHistoricoDto[] = this.generarPeriodos(granularidad, cantidad).map(
+      (fecha) => ({
+        fecha,
+        lotesProcesados: mapaResultados.get(fecha) ?? 0,
+      }),
+    );
+
+    return { granularidad, cantidad, puntos };
   }
 
   // --- Cálculo de cada métrica ---
 
   private async contarLotesProcesados(empresaId: number, desde: Date, hasta: Date) {
     return this.loteRepo.count({
-        where: {
+      where: {
         empresaId,
         fechaIngreso: Between(desde, hasta),
         estado: In([EstadoLote.FINALIZADO, EstadoLote.RECHAZADO]),
-        },
+      },
     });
   }
 
@@ -105,7 +140,6 @@ export class DashboardService {
 
     const idsCriticos = new Set<number>();
 
-    // Lecturas de sensor del día, con el tipo de materia prima del lote asociado
     const lecturas = await this.sensorLecturaRepo
       .createQueryBuilder('lectura')
       .innerJoin('lectura.sensor', 'sensor')
@@ -119,7 +153,6 @@ export class DashboardService {
       .andWhere('lectura.timestampLectura BETWEEN :desde AND :hasta', { desde, hasta })
       .getRawMany<{ valor: string; parametro: string; materiaprima: string }>();
 
-    // Mediciones manuales del día (ya traen parametro + tipoMateriaPrima directo)
     const manuales = await this.medicionManualRepo
       .createQueryBuilder('m')
       .select(['m.valor AS valor', 'm.parametro AS parametro', 'm.tipoMateriaPrima AS tipomateriaprima'])
@@ -168,7 +201,7 @@ export class DashboardService {
     return { recepcion, clasificacion, aptos, noAptos, totalLotesSistema };
   }
 
-  // --- Helpers ---
+  // --- Helpers de métricas (dashboard principal) ---
 
   private buildMetrica(valor: number, valorAnterior: number): MetricaDto {
     const variacion = valor - valorAnterior;
@@ -176,23 +209,113 @@ export class DashboardService {
     return { valor, valorAnterior, tendencia, variacion };
   }
 
-  private rangoDelDia(diasAtras: number): { desde: Date; hasta: Date } {
-    const desde = new Date();
-    desde.setDate(desde.getDate() - diasAtras);
-    desde.setHours(0, 0, 0, 0);
-    const hasta = new Date(desde);
+  private buildRangosPorGranularidad(granularidad: GranularidadHistorico) {
+    const actual = this.rangoPeriodoActual(granularidad);
+    const anterior = this.rangoPeriodoAnterior(granularidad);
+    return {
+      actualDesde: actual.desde,
+      actualHasta: actual.hasta,
+      anteriorDesde: anterior.desde,
+      anteriorHasta: anterior.hasta,
+    };
+  }
+
+  private rangoPeriodoActual(granularidad: GranularidadHistorico): { desde: Date; hasta: Date } {
+    const hasta = new Date();
     hasta.setHours(23, 59, 59, 999);
+    const desde = new Date();
+
+    switch (granularidad) {
+      case GranularidadHistorico.DIA:
+        // hoy: sin cambios
+        break;
+      case GranularidadHistorico.SEMANA:
+        // lunes de esta semana (ISO: lunes=1 ... domingo=0)
+        desde.setDate(desde.getDate() - ((desde.getDay() + 6) % 7));
+        break;
+      case GranularidadHistorico.MES:
+        desde.setDate(1);
+        break;
+    }
+    desde.setHours(0, 0, 0, 0);
     return { desde, hasta };
   }
 
-  private buildRangos() {
-    const hoy = this.rangoDelDia(0);
-    const ayer = this.rangoDelDia(1);
-    return {
-      hoyDesde: hoy.desde,
-      hoyHasta: hoy.hasta,
-      ayerDesde: ayer.desde,
-      ayerHasta: ayer.hasta,
+  private rangoPeriodoAnterior(granularidad: GranularidadHistorico): { desde: Date; hasta: Date } {
+    const { desde: desdeActual } = this.rangoPeriodoActual(granularidad);
+    const hasta = new Date(desdeActual);
+    hasta.setMilliseconds(-1); // último instante del período anterior
+
+    const desde = new Date(desdeActual);
+    switch (granularidad) {
+      case GranularidadHistorico.DIA:
+        desde.setDate(desde.getDate() - 1);
+        break;
+      case GranularidadHistorico.SEMANA:
+        desde.setDate(desde.getDate() - 7);
+        break;
+      case GranularidadHistorico.MES:
+        desde.setMonth(desde.getMonth() - 1);
+        break;
+    }
+    desde.setHours(0, 0, 0, 0);
+    return { desde, hasta };
+  }
+
+  // --- Helpers de granularidad (histórico) ---
+
+  private rangoPorGranularidad(
+    granularidad: GranularidadHistorico,
+    cantidad: number,
+  ): { desde: Date; hasta: Date } {
+    const hasta = new Date();
+    hasta.setHours(23, 59, 59, 999);
+
+    const desde = new Date();
+    switch (granularidad) {
+      case GranularidadHistorico.DIA:
+        desde.setDate(desde.getDate() - (cantidad - 1));
+        break;
+      case GranularidadHistorico.SEMANA:
+        desde.setDate(desde.getDate() - (cantidad - 1) * 7);
+        break;
+      case GranularidadHistorico.MES:
+        desde.setMonth(desde.getMonth() - (cantidad - 1));
+        break;
+    }
+    desde.setHours(0, 0, 0, 0);
+    return { desde, hasta };
+  }
+
+  private generarPeriodos(granularidad: GranularidadHistorico, cantidad: number): string[] {
+    const periodos: string[] = [];
+    for (let i = cantidad - 1; i >= 0; i--) {
+      const fecha = new Date();
+      if (granularidad === GranularidadHistorico.DIA) fecha.setDate(fecha.getDate() - i);
+      if (granularidad === GranularidadHistorico.SEMANA) fecha.setDate(fecha.getDate() - i * 7);
+      if (granularidad === GranularidadHistorico.MES) fecha.setMonth(fecha.getMonth() - i);
+      periodos.push(this.formatearPeriodo(fecha, granularidad));
+    }
+    return periodos;
+  }
+
+  private formatearPeriodo(fecha: Date, granularidad: GranularidadHistorico): string {
+    const d = new Date(fecha);
+    if (granularidad === GranularidadHistorico.MES) {
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Postgres date_trunc solo acepta unidades en inglés (day/week/month).
+  // El enum de la API se mantiene en español por consistencia con el resto
+  // del proyecto; este mapeo aísla esa traducción en un único lugar.
+  private mapearUnidadPostgres(granularidad: GranularidadHistorico): string {
+    const mapa: Record<GranularidadHistorico, string> = {
+      [GranularidadHistorico.DIA]: 'day',
+      [GranularidadHistorico.SEMANA]: 'week',
+      [GranularidadHistorico.MES]: 'month',
     };
+    return mapa[granularidad];
   }
 }
