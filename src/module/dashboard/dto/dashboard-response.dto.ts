@@ -1,3 +1,5 @@
+import { GranularidadHistorico } from './dashboard-historico.dto';
+
 export type Tendencia = 'sube' | 'baja' | 'igual';
 
 export class MetricaDto {
@@ -16,6 +18,7 @@ export class LineaCalidadDto {
 }
 
 export class DashboardResponseDto {
+  granularidad!: GranularidadHistorico;
   lotesProcesados!: MetricaDto;
   alertasActivas!: MetricaDto;
   parametrosCriticos!: MetricaDto;
