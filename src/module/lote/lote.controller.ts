@@ -24,6 +24,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { RevisarLoteDto } from './dto/revisar-lote.dto';
+import { FinalizarLoteDto } from './dto/finalizar-lote.dto';
 
 @ApiTags('lote')
 @ApiBearerAuth()
@@ -99,14 +100,15 @@ export class LoteController {
   }
 
   @Patch(':id/finalizar')
-  @Roles(ROLES.RESPONSABLE_CALIDAD)
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canWrite')
   @AuditLog('LOTE_FINALIZAR', 'Lote')
   finalizar(
     @Param('id') id: string,
+    @Body() dto: FinalizarLoteDto,
     @CurrentEmpresa() tenant: TenantContext,
   ) {
-    return this.loteService.finalizar(+id, tenant);
+    return this.loteService.finalizar(+id, dto, tenant);
   }
 
   // HU-21 (AC7): historial de clasificaciones automáticas del lote.
