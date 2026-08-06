@@ -16,6 +16,7 @@ import { LoteParametro } from './entities/lote-parametro.entity';
 import { CreateLoteDto } from './dto/create-lote.dto';
 import { UpdateLoteDto } from './dto/update-lote.dto';
 import { LoteFilterQueryDto } from './dto/lote-filter-query.dto';
+import { FinalizarLoteDto } from './dto/finalizar-lote.dto';
 import { LoteResponseDto } from './dto/lote-response.dto';
 import { LoteCreateResponseDto } from './dto/lote-create-response.dto';
 import { MetricasCalidadResponseDto } from './dto/metricas-calidad-response.dto';
@@ -179,8 +180,11 @@ export class LoteService {
     return LoteMapper.toResponseDto(saved);
   }
 
+  //HU-62 Registro de Rendimiento del lote.
+
   async finalizar(
     id: number,
+    dto: FinalizarLoteDto,
     tenant: TenantContext,
   ): Promise<LoteResponseDto> {
     const empresaId = this.resolveEmpresaId(tenant);
@@ -189,6 +193,9 @@ export class LoteService {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
     lote.estado = EstadoLote.FINALIZADO;
+    if (dto.rendimiento !== undefined) {
+      lote.rendimiento = dto.rendimiento;
+    }
     const saved = await this.loteRepository.save(lote);
     return LoteMapper.toResponseDto(saved);
   }

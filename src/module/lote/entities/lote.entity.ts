@@ -64,6 +64,11 @@ export class Lote {
   @Column({ type: 'enum', enum: Ubicacion, nullable: true })
   ubicacionInicial?: Ubicacion | null;
 
+// HU-62: rendimiento obtenido al finalizar el lote. Opcional (AC2) —
+  // se completa recién al cierre, por eso nullable y no se toca en create().
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  rendimiento?: number | null;
+  
   @CreateDateColumn()
   createdAt!: Date;
 
