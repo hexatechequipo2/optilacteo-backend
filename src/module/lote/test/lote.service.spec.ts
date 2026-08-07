@@ -346,7 +346,7 @@ describe('LoteService', () => {
     it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
       loteRepository.findById.mockResolvedValue(null);
 
-      await expect(service.finalizar(999, mockTenant)).rejects.toThrow(NotFoundException);
+      await expect(service.finalizar(999, {}, mockTenant)).rejects.toThrow(NotFoundException);
     });
 
     it('debe cambiar el estado del lote a FINALIZADO y guardarlo', async () => {
@@ -360,9 +360,26 @@ describe('LoteService', () => {
       loteRepository.findById.mockResolvedValue(loteExistente);
       loteRepository.save.mockImplementation((entidad) => Promise.resolve(entidad));
 
-      const resultado = await service.finalizar(10, mockTenant);
+      const resultado = await service.finalizar(10, {}, mockTenant);
 
       expect(loteExistente.estado).toBe(EstadoLote.FINALIZADO);
+      expect(resultado).toBeDefined();
+    });
+
+    it('cuando se pasa rendimiento, debe guardarlo en el lote', async () => {
+      const loteExistente = {
+        id: 11,
+        estado: EstadoLote.EN_PROCESO,
+        fechaIngreso: new Date(),
+        parametros: [],
+      };
+
+      loteRepository.findById.mockResolvedValue(loteExistente);
+      loteRepository.save.mockImplementation((entidad) => Promise.resolve(entidad));
+
+      const resultado = await service.finalizar(11, { rendimiento: 87.5 }, mockTenant);
+
+      expect(loteExistente.rendimiento).toBe(87.5);
       expect(resultado).toBeDefined();
     });
   });
