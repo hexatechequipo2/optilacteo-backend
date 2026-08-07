@@ -133,13 +133,14 @@ describe('LoteController', () => {
   describe('finalizar', () => {
     it('debe finalizar un lote', async () => {
       const tenant = { empresaId: 1 } as any;
+      const dto = { rendimiento: 87.5 };
       const response = { ok: true };
 
       loteServiceMock.finalizar.mockResolvedValue(response);
 
-      const result = await controller.finalizar('8', tenant);
+      const result = await controller.finalizar('8', dto, tenant);
 
-      expect(loteServiceMock.finalizar).toHaveBeenCalledWith(8, tenant);
+      expect(loteServiceMock.finalizar).toHaveBeenCalledWith(8, dto, tenant);
       expect(result).toBe(response);
     });
   });
