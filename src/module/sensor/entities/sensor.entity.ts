@@ -24,6 +24,9 @@ export class Sensor {
   @Column({ type: 'enum', enum: TipoSensor })
   tipo!: TipoSensor;
 
+  @Column()
+  marca!: string;
+
   @Column({ type: 'enum', enum: Parametro })
   parametro!: Parametro;
 
