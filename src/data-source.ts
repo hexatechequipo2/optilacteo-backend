@@ -20,6 +20,10 @@ import { SensorLectura } from './module/lectura-sensor/entities/sensor-lectura.e
 import { SensorEvento } from './module/lectura-sensor/entities/sensor-evento.entity';
 import { Notificacion } from './module/notificaciones/entities/notificacion.entity';
 import { LoteClasificacionHistorial } from './module/lote/entities/lote-clasificacion-historial.entity';
+import { ConfiguracionComparacionHistorica } from './module/config-parametro/entities/configuracion-comparacion-historica.entity';
+import { LoteRevisionCalidad } from './module/lote/entities/lote-revision-calidad.entity';
+import { LoteUbicacionHistorial } from './module/lote/entities/lote-ubicacion-historial.entity';
+import { MedicionManualLote } from './module/medicion-manual/entities/medicion-manual-lote.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -48,7 +52,11 @@ export default new DataSource({
     SensorLectura,
     SensorEvento,
     Notificacion,
-    LoteClasificacionHistorial
+    LoteClasificacionHistorial,
+    ConfiguracionComparacionHistorica,
+    LoteRevisionCalidad,
+    LoteUbicacionHistorial,
+    MedicionManualLote,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,
