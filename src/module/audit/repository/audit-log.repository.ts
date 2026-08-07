@@ -18,7 +18,6 @@ export class AuditLogRepository implements IAuditLogRepository {
   ) {}
 
   async create(data: CreateAuditLogData): Promise<AuditLog> {
-    // Transformamos los valores nulos a undefined para cumplir con el contrato de DeepPartial
     const entry = this.repo.create({
       ...data,
       userId: data.userId ?? undefined,
@@ -26,7 +25,7 @@ export class AuditLogRepository implements IAuditLogRepository {
       entidadId: data.entidadId ?? undefined,
       detalle: data.detalle ?? undefined,
     });
-    
+
     return this.repo.save(entry);
   }
 
@@ -43,5 +42,28 @@ export class AuditLogRepository implements IAuditLogRepository {
       skip,
       take,
     });
+  }
+
+  // HU-63
+  async findPrimerosYUltimos(
+    entidad: string,
+    entidadIds: number[],
+    empresaId: number | null,
+  ): Promise<AuditLog[]> {
+    if (entidadIds.length === 0) return [];
+
+    const qb = this.repo
+      .createQueryBuilder('log')
+      .where('log.entidad = :entidad', { entidad })
+      .andWhere('log.entidadId IN (:...entidadIds)', { entidadIds })
+      .andWhere("log.accion LIKE '%\\_SUCCESS' ESCAPE '\\'")
+      .orderBy('log.entidadId', 'ASC')
+      .addOrderBy('log.createdAt', 'ASC');
+
+    if (empresaId !== null) {
+      qb.andWhere('log.empresaId = :empresaId', { empresaId });
+    }
+
+    return qb.getMany();
   }
 }

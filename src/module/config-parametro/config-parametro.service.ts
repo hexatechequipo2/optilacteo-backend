@@ -7,12 +7,16 @@ import { CreateConfigParametroDto } from './dto/create-config-parametro.dto';
 import { UpdateConfigParametroDto } from './dto/update-config-parametro.dto';
 import { ConfigParametroMapper } from './mappers/config-parametro.mapper';
 import { ConfigParametroResponseDto } from './dto/config-parametro-response.dto';
+import { AuditLogService } from '../audit/audit-log.service';
+import { TenantContext } from '../../common/types/tenant-context.type';
+import { ROLES } from '../rol/constants/roles.constants';
 
 @Injectable()
 export class ConfigParametroService {
   constructor(
     @Inject(CONFIG_PARAMETRO_REPOSITORY)
     private readonly repository: IConfigParametroRepository,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async crear(
@@ -80,11 +84,25 @@ export class ConfigParametroService {
 
   async listarPorEmpresa(
     empresaId: number,
+    tenant: TenantContext,
   ): Promise<ConfigParametroResponseDto[]> {
-    const configs =
-      await this.repository.findByEmpresa(empresaId);
+    const configs = await this.repository.findByEmpresa(empresaId);
+    const dtos = configs.map(ConfigParametroMapper.toResponse);
 
-    return configs.map(ConfigParametroMapper.toResponse);
+    if (this.puedeVerAuditoria(tenant)) {
+      const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch(
+        'ConfiguracionParametro',
+        configs.map((c) => c.id),
+        empresaId,
+      );
+      return dtos.map((dto) => ({ ...dto, auditoria: trazabilidadMap.get(dto.id) }));
+    }
+
+    return dtos;
+  }
+
+  private puedeVerAuditoria(tenant: TenantContext): boolean {
+    return tenant.rolNombre === ROLES.GERENTE;
   }
 
   async eliminar(

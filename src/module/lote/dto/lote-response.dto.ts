@@ -5,8 +5,7 @@ import { DestinoLote } from '../enums/destino-lote.enum';
 import { EstadoLote } from '../enums/estado-lote.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
-import { IsNumber, IsOptional, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { TrazabilidadEntidadDto } from '../../audit/dto/trazabilidad.dto';
 
 export class LoteParametroResponseDto {
   @ApiProperty({ enum: Parametro })
@@ -57,4 +56,7 @@ export class LoteResponseDto {
 
   @ApiProperty()
   createdAt!: Date;
+
+  @ApiPropertyOptional({ type: TrazabilidadEntidadDto })
+  auditoria?: TrazabilidadEntidadDto;
 }

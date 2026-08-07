@@ -9,11 +9,13 @@ import { SENSOR_REPOSITORY } from './repository/sensor.repository.interface';
 import { SensorLoteHistorialRepository } from './repository/sensor-lote-historial.repository';
 import { SENSOR_LOTE_HISTORIAL_REPOSITORY } from './repository/sensor-lote-historial.repository.interface';
 import { LoteModule } from '../lote/lote.module';
+import { AuditLogModule } from '../audit/audit-log.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Sensor, SensorLoteHistorial]),
     forwardRef(() => LoteModule),
+    AuditLogModule
   ],
   controllers: [SensorController],
   providers: [

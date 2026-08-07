@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
@@ -20,10 +21,14 @@ import { CreateSensorDto } from './dto/create-sensor.dto';
 import { UpdateSensorDto } from './dto/update-sensor.dto';
 import { SensorFilterQueryDto } from './dto/sensor-filter-query.dto';
 import { AsociarLoteDto } from './dto/asociar-lote.dto';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 @ApiTags('sensor')
 @ApiBearerAuth()
 @Controller('sensores')
+@UseGuards(RolesGuard, PermissionsGuard)
+
 export class SensorController {
   constructor(private readonly sensorService: SensorService) {}
 

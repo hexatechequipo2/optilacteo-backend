@@ -21,6 +21,7 @@ import { LoteClasificacionHistorial } from './entities/lote-clasificacion-histor
 import { Sensor } from '../sensor/entities/sensor.entity';
 import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
 import { ConfigParametroModule } from '../config-parametro/config-parametro.module';
+import { AuditLogModule } from '../audit/audit-log.module';
 
 @Module({
   imports: [
@@ -39,7 +40,8 @@ import { ConfigParametroModule } from '../config-parametro/config-parametro.modu
     ]),
     forwardRef(() => SensorModule),
     NotificacionesModule,
-    ConfigParametroModule
+    ConfigParametroModule,
+    AuditLogModule,
   ],
   controllers: [LoteController],
   providers: [
@@ -49,9 +51,10 @@ import { ConfigParametroModule } from '../config-parametro/config-parametro.modu
       provide: LOTE_REPOSITORY,
       useClass: LoteRepository,
     },
-    { provide: LOTE_UBICACION_HISTORIAL_REPOSITORY, 
-      useClass: LoteUbicacionHistorialRepository },
-
+    {
+      provide: LOTE_UBICACION_HISTORIAL_REPOSITORY,
+      useClass: LoteUbicacionHistorialRepository,
+    },
   ],
   exports: [LoteService, LOTE_REPOSITORY, LOTE_UBICACION_HISTORIAL_REPOSITORY, ClasificacionLoteService],
 })

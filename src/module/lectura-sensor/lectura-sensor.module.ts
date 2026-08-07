@@ -18,6 +18,7 @@ import { LoteModule } from '../lote/lote.module';
 import { AuthModule } from '../auth/auth.module';
 import { LecturasGateway } from './gateway/lecturas.gateway';
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
+import { AuditLogModule } from '../audit/audit-log.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ConfiguracionParametro } from '../config-parametro/entities/config-para
     // valide el token del handshake sin duplicar esa configuración.
     AuthModule,
     ScheduleModule.forRoot(),
+    AuditLogModule
   ],
   controllers: [LecturaSensorController],
   providers: [

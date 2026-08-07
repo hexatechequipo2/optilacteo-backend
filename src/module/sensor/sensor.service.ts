@@ -25,6 +25,8 @@ import { SensorResponseDto } from './dto/sensor-response.dto';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import type { Sensor } from './entities/sensor.entity';
 import type { Lote } from '../lote/entities/lote.entity';
+import { ROLES } from '../rol/constants/roles.constants';
+import { AuditLogService } from '../audit/audit-log.service';
 
 @Injectable()
 export class SensorService {
@@ -37,6 +39,7 @@ export class SensorService {
     private readonly loteUbicacionRepository: ILoteUbicacionHistorialRepository,
     @Inject(forwardRef(() => LOTE_REPOSITORY))
     private readonly loteRepository: ILoteRepository,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   private resolveEmpresaId(tenant: TenantContext): number {
@@ -77,9 +80,16 @@ export class SensorService {
     const ultimos = await this.historialRepository.findUltimosPorSensores(ids, empresaId);
     const loteActualPorSensor = new Map(ultimos.map((h) => [h.sensorId, h.loteIdNuevo]));
 
-    return sensores.map((s) =>
+    let dtos = sensores.map((s) =>
       SensorMapper.toResponseDto(s, loteActualPorSensor.get(s.id) ?? null),
     );
+
+    if (this.puedeVerAuditoria(tenant)) {
+      const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch('Sensor', ids, empresaId);
+      dtos = dtos.map((dto) => ({ ...dto, auditoria: trazabilidadMap.get(dto.id) }));
+    }
+
+    return dtos;
   }
 
   async findOne(id: number, tenant: TenantContext) {
@@ -89,7 +99,17 @@ export class SensorService {
       throw new NotFoundException('Sensor no encontrado.');
     }
     const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
-    return SensorMapper.toResponseDto(sensor, ultimo?.loteIdNuevo ?? null);
+    const dto = SensorMapper.toResponseDto(sensor, ultimo?.loteIdNuevo ?? null);
+
+    if (this.puedeVerAuditoria(tenant)) {
+      dto.auditoria = await this.auditLogService.getTrazabilidad('Sensor', id, empresaId);
+    }
+
+    return dto;
+  }
+
+  private puedeVerAuditoria(tenant: TenantContext): boolean {
+    return tenant.rolNombre === ROLES.GERENTE;
   }
 
   async update(id: number, dto: UpdateSensorDto, tenant: TenantContext) {

@@ -38,6 +38,8 @@ import { DecisionRevision } from './enums/decision-revision.enum';
 import { ConfiguracionComparacionHistoricaService } from '../config-parametro/configuracion-comparacion-historica.service';
 import { ComparacionHistoricaResponseDto } from './dto/comparacion-historica-response.dto';
 import { ComparacionHistoricaMapper } from './mappers/comparacion-historica.mapper';
+import { AuditLogService } from '../audit/audit-log.service';
+import { ROLES } from '../rol/constants/roles.constants';
 
 @Injectable()
 export class LoteService {
@@ -56,8 +58,13 @@ export class LoteService {
     @InjectRepository(LoteRevisionCalidad)
     private readonly loteRevisionRepository: Repository<LoteRevisionCalidad>,
     private readonly configuracionComparacionHistoricaService: ConfiguracionComparacionHistoricaService,
-
+    private readonly auditLogService: AuditLogService,
   ) {}
+
+  // HU-63
+  private puedeVerAuditoria(tenant: TenantContext): boolean {
+    return tenant.rolNombre === ROLES.GERENTE;
+  }
 
   async create(
     dto: CreateLoteDto,
@@ -65,7 +72,6 @@ export class LoteService {
   ): Promise<LoteCreateResponseDto & { warnings?: string[] }> {
     const empresaId = this.resolveEmpresaId(tenant);
 
-    // Proveedor debe existir y pertenecer a la empresa
     const proveedor = await this.proveedorRepository.findOne({
       where: { id: dto.proveedorId, empresaId },
     });
@@ -80,10 +86,8 @@ export class LoteService {
       );
     }
 
-    // Validar parámetros pero sin bloquear
     const { warnings } = await this.validarParametros(dto, empresaId);
 
-    // Identificador único
     const codigo = dto.codigo ?? (await this.generarCodigo(empresaId));
     const existente = await this.loteRepository.findByCodigo(codigo, empresaId);
     if (existente) {
@@ -114,13 +118,10 @@ export class LoteService {
 
     const saved = await this.loteRepository.save(lote);
 
-    // Clasificación automática
     await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
 
-    // Refrescar el lote ya clasificado
     const actualizado = await this.loteRepository.findById(saved.id, empresaId);
 
-    // Sensores disponibles
     let sensoresDisponibles: SensorResponseDto[] = [];
     if (actualizado!.ubicacionInicial) {
       sensoresDisponibles = await this.sensorService.findAll(
@@ -142,8 +143,20 @@ export class LoteService {
       query,
       empresaId,
     );
+
+    let data = LoteMapper.toResponseDtoList(lotes);
+
+    if (this.puedeVerAuditoria(tenant)) {
+      const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch(
+        'Lote',
+        lotes.map((l) => l.id),
+        empresaId,
+      );
+      data = data.map((dto) => ({ ...dto, auditoria: trazabilidadMap.get(dto.id) }));
+    }
+
     return {
-      data: LoteMapper.toResponseDtoList(lotes),
+      data,
       total,
       page: query.page ?? 1,
       limit: query.limit ?? 20,
@@ -156,7 +169,14 @@ export class LoteService {
     if (!lote) {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
-    return LoteMapper.toResponseDto(lote);
+
+    const dto = LoteMapper.toResponseDto(lote);
+
+    if (this.puedeVerAuditoria(tenant)) {
+      dto.auditoria = await this.auditLogService.getTrazabilidad('Lote', id, empresaId);
+    }
+
+    return dto;
   }
 
   async update(
@@ -180,8 +200,7 @@ export class LoteService {
     return LoteMapper.toResponseDto(saved);
   }
 
-  //HU-62 Registro de Rendimiento del lote.
-
+  // HU-62
   async finalizar(
     id: number,
     dto: FinalizarLoteDto,
@@ -200,10 +219,6 @@ export class LoteService {
     return LoteMapper.toResponseDto(saved);
   }
 
-  // HU-18: snapshot de métricas de calidad para la pantalla de monitoreo.
-  // El aislamiento multi-tenant (AC8) sale gratis de reusar el mismo
-  // findById(id, empresaId) que usa findOne(): si el lote es de otra
-  // empresa, findById devuelve null igual que si no existiera.
   async getMetricasCalidad(
     id: number,
     tenant: TenantContext,
@@ -215,12 +230,10 @@ export class LoteService {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
 
-    // AC6: señal explícita, no data vacía ambigua.
     if (lote.estado !== EstadoLote.EN_PROCESO) {
       return { enProceso: false };
     }
 
-    // Última lectura por sensor para este lote (Postgres DISTINCT ON).
     const ultimasLecturas = await this.sensorLecturaRepository
       .createQueryBuilder('lectura')
       .innerJoinAndSelect('lectura.sensor', 'sensor')
@@ -243,9 +256,6 @@ export class LoteService {
 
         const umbralMin = config?.umbralMin ?? null;
         const umbralMax = config?.umbralMax ?? null;
-        // Sin configuración de umbral para este parámetro/materia prima no
-        // se puede afirmar que está fuera de rango: se informa como "sin
-        // umbral configurado" en vez de asumir que está OK o mal.
         const fueraDeRango =
           umbralMin !== null &&
           umbralMax !== null &&
@@ -299,7 +309,6 @@ export class LoteService {
     return { warnings };
   }
 
-
   private async generarCodigo(empresaId: number): Promise<string> {
     const total = await this.loteRepository.countByEmpresa(empresaId);
     const secuencia = (total + 1).toString().padStart(5, '0');
@@ -337,8 +346,6 @@ export class LoteService {
       );
     }
 
-    // Bloquea re-decidir sin que medie una nueva clasificación: si ya hay
-    // una revisión posterior a la última clasificación NO_APTO, está resuelto.
     const yaDecidido = await this.tieneRevisionVigente(id, empresaId);
     if (yaDecidido) {
       throw new ConflictException(
@@ -390,10 +397,6 @@ export class LoteService {
     });
   }
 
-  // método nuevo, agregar después de getHistorialRevisiones:
-  // HU-24: compara los parámetros de un lote contra el promedio histórico
-  // de los últimos N lotes Aptos de la misma empresa y tipo de materia
-  // prima. El lote actual se excluye del propio promedio.
   async compararConHistorico(
     id: number,
     tenant: TenantContext,

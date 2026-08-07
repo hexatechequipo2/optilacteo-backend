@@ -7,6 +7,7 @@ import type {
 } from './repository/audit-log-interface.repository';
 import { AUDIT_LOG_REPOSITORY } from './repository/audit-log-interface.repository';
 import type { TenantContext } from '../../common/types/tenant-context.type';
+import { TrazabilidadEntidadDto } from './dto/trazabilidad.dto';
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -20,8 +21,6 @@ export class AuditLogService {
   ) {}
 
   async record(data: CreateAuditLogData): Promise<void> {
-    // La auditoría es "best effort": si falla, se loguea pero nunca debe
-    // romper la operación de negocio que la disparó.
     try {
       await this.auditLogRepository.create(data);
     } catch (error) {
@@ -43,5 +42,58 @@ export class AuditLogService {
     const skip = (safePage - 1) * safeLimit;
 
     return this.auditLogRepository.findAllScoped(tenant, skip, safeLimit);
+  }
+
+  // HU-63: trazabilidad de una sola entidad (vistas de detalle).
+  async getTrazabilidad(
+    entidad: string,
+    entidadId: number,
+    empresaId: number | null,
+  ): Promise<TrazabilidadEntidadDto> {
+    const mapa = await this.getTrazabilidadBatch(entidad, [entidadId], empresaId);
+    return mapa.get(entidadId) ?? {};
+  }
+
+  // HU-63: trazabilidad de N entidades en una sola consulta (listados).
+  async getTrazabilidadBatch(
+    entidad: string,
+    entidadIds: number[],
+    empresaId: number | null,
+  ): Promise<Map<number, TrazabilidadEntidadDto>> {
+    const resultado = new Map<number, TrazabilidadEntidadDto>();
+    if (entidadIds.length === 0) return resultado;
+
+    const registros = await this.auditLogRepository.findPrimerosYUltimos(
+      entidad,
+      entidadIds,
+      empresaId,
+    );
+
+    const porEntidad = new Map<number, AuditLog[]>();
+    for (const log of registros) {
+      if (log.entidadId == null) continue;
+      const lista = porEntidad.get(log.entidadId) ?? [];
+      lista.push(log);
+      porEntidad.set(log.entidadId, lista);
+    }
+
+    for (const [entidadId, logs] of porEntidad) {
+      const primero = logs[0];
+      const ultimo = logs[logs.length - 1];
+
+      resultado.set(entidadId, {
+        creadoPor: {
+          userId: primero.userId,
+          userEmail: primero.userEmail,
+          fecha: primero.createdAt,
+        },
+        ultimaModificacion:
+          ultimo.id !== primero.id
+            ? { userId: ultimo.userId, userEmail: ultimo.userEmail, fecha: ultimo.createdAt }
+            : undefined,
+      });
+    }
+
+    return resultado;
   }
 }

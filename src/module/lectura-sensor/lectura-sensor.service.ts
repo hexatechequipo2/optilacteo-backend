@@ -36,6 +36,8 @@ import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-e
 import { EstadoMedicion } from './enums/estado-medicion.enum';
 // --- nuevo: HU-21 ---
 import { ClasificacionLoteService } from '../lote/clasificacion-lote.service';
+import { ROLES } from '../rol/constants/roles.constants';
+import { AuditLogService } from '../audit/audit-log.service';
 
 const RANGO_DIAS_SLA = 30;
 
@@ -67,6 +69,7 @@ export class LecturaSensorService {
     private readonly configParametroRepository: Repository<ConfiguracionParametro>,
     // --- nuevo: HU-21 ---
     private readonly clasificacionLoteService: ClasificacionLoteService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   private resolveEmpresaId(tenant: TenantContext): number {
@@ -338,6 +341,19 @@ export class LecturaSensorService {
       ),
     );
 
+    // HU-63: solo lecturas manuales van a traer creadoPor (las automáticas,
+    // sin @AuditLog en el endpoint de ingesta, no generan registro).
+    if (this.puedeVerAuditoria(tenant)) {
+      const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch(
+        'SensorLectura',
+        lecturas.map((l) => l.id),
+        empresaId,
+      );
+      data.forEach((item) => {
+        item.auditoria = trazabilidadMap.get(item.id);
+      });
+    }
+
     return {
       data,
       total,
@@ -345,6 +361,10 @@ export class LecturaSensorService {
       limit,
       rangoAmplio: this.esRangoAmplio(fechaInicio, fechaFin),
     };
+  }
+
+  private puedeVerAuditoria(tenant: TenantContext): boolean {
+    return tenant.rolNombre === ROLES.GERENTE;
   }
 
   // HU-19: export sin paginar, mismos filtros y misma validación de fechas.
