@@ -11,6 +11,9 @@ export class SensorResponseDto {
   @ApiProperty()
   nombre!: string;
 
+  @ApiProperty()
+  marca!: string;
+
   @ApiProperty({ enum: TipoSensor })
   tipo!: TipoSensor;
 

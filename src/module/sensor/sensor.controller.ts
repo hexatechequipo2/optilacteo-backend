@@ -27,9 +27,11 @@ import { AsociarLoteDto } from './dto/asociar-lote.dto';
 export class SensorController {
   constructor(private readonly sensorService: SensorService) {}
 
-  // HU-17: registro de sensores — solo Jefe de Producción.
+  // HU-17: registro de sensores (Jefe de Producción / Responsable de
+  // calidad). HU-65: se suma Gerente — el inventario de sensores
+  // (área/marca/tipo) es responsabilidad de ese rol.
   @Post()
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE)
   @AuditLog('SENSOR_REGISTRAR', 'Sensor')
   create(
     @Body() createSensorDto: CreateSensorDto,
@@ -60,7 +62,7 @@ export class SensorController {
   }
 
   @Patch(':id')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE)
   @AuditLog('SENSOR_ACTUALIZAR', 'Sensor')
   update(
     @Param('id') id: string,
@@ -84,10 +86,19 @@ export class SensorController {
     return this.sensorService.asociarALote(+loteId, dto.sensorIds, usuarioId, tenant);
   }
 
+  // HU-65: baja lógica — pone el sensor en estado INACTIVO en vez de
+  // borrarlo, así conserva su historial de lecturas y asociaciones.
   @Delete(':id')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
-  @AuditLog('SENSOR_ELIMINAR', 'Sensor')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE)
+  @AuditLog('SENSOR_DESACTIVAR', 'Sensor')
   remove(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.sensorService.remove(+id, tenant);
+  }
+
+  @Patch(':id/activar')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE)
+  @AuditLog('SENSOR_ACTIVAR', 'Sensor')
+  activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
+    return this.sensorService.activate(+id, tenant);
   }
 }

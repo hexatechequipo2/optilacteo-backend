@@ -8,6 +8,7 @@ export class SensorMapper {
   static toEntity(dto: CreateSensorDto, empresaId: number): Sensor {
     const sensor = new Sensor();
     sensor.nombre = dto.nombre;
+    sensor.marca = dto.marca;
     sensor.tipo = dto.tipo;
     sensor.parametro = dto.parametro;
     sensor.ubicacion = dto.ubicacion;
@@ -22,6 +23,7 @@ export class SensorMapper {
     return {
       id: sensor.id,
       nombre: sensor.nombre,
+      marca: sensor.marca,
       tipo: sensor.tipo,
       parametro: sensor.parametro,
       ubicacion: sensor.ubicacion,

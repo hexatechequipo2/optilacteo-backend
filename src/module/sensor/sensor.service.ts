@@ -118,6 +118,10 @@ export class SensorService {
     return SensorMapper.toResponseDto(actualizado, ultimo?.loteIdNuevo ?? null);
   }
 
+  // Baja lógica (HU-65): desactiva el sensor en vez de borrarlo físicamente.
+  // Un sensor INACTIVO ya queda excluido de nuevas asociaciones a lote por
+  // la validación de estado en asociarALote (no requiere tocar esa lógica),
+  // y conserva su historial de lecturas/asociaciones.
   async remove(id: number, tenant: TenantContext) {
     const empresaId = this.resolveEmpresaId(tenant);
     const sensor = await this.sensorRepository.findOne(id, empresaId);
@@ -125,14 +129,23 @@ export class SensorService {
       throw new NotFoundException('Sensor no encontrado.');
     }
 
+    await this.sensorRepository.setEstado(id, EstadoSensor.INACTIVO, empresaId);
+    const actualizado = await this.sensorRepository.findOne(id, empresaId);
     const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
-    if (ultimo && ultimo.loteIdNuevo) {
-      throw new ConflictException(
-        'No se puede eliminar el sensor: está asociado a un lote.',
-      );
+    return SensorMapper.toResponseDto(actualizado!, ultimo?.loteIdNuevo ?? null);
+  }
+
+  async activate(id: number, tenant: TenantContext) {
+    const empresaId = this.resolveEmpresaId(tenant);
+    const sensor = await this.sensorRepository.findOne(id, empresaId);
+    if (!sensor) {
+      throw new NotFoundException('Sensor no encontrado.');
     }
 
-    await this.sensorRepository.remove(sensor);
+    await this.sensorRepository.setEstado(id, EstadoSensor.ACTIVO, empresaId);
+    const actualizado = await this.sensorRepository.findOne(id, empresaId);
+    const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
+    return SensorMapper.toResponseDto(actualizado!, ultimo?.loteIdNuevo ?? null);
   }
 
 // HU-33

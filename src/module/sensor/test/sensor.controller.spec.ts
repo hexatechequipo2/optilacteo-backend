@@ -32,6 +32,7 @@ describe('SensorController', () => {
       update: jest.fn(),
       asociarALote: jest.fn(),
       remove: jest.fn(),
+      activate: jest.fn(),
     } as unknown as jest.Mocked<SensorService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -76,6 +77,7 @@ describe('SensorController', () => {
       expect(roles).toEqual([
         ROLES.RESPONSABLE_PRODUCCION,
         ROLES.RESPONSABLE_CALIDAD,
+        ROLES.GERENTE,
       ]);
     });
   });
@@ -174,6 +176,7 @@ describe('SensorController', () => {
       expect(roles).toEqual([
         ROLES.RESPONSABLE_PRODUCCION,
         ROLES.RESPONSABLE_CALIDAD,
+        ROLES.GERENTE,
       ]);
     });
   });
@@ -229,6 +232,30 @@ describe('SensorController', () => {
       expect(roles).toEqual([
         ROLES.RESPONSABLE_PRODUCCION,
         ROLES.RESPONSABLE_CALIDAD,
+        ROLES.GERENTE,
+      ]);
+    });
+  });
+
+  describe('activate', () => {
+    it('debe castear id a número y llamar a sensorService.activate', async () => {
+      const idStr = '12';
+      const expectedResult = { id: 12, estado: 'activo' };
+
+      sensorServiceMock.activate.mockResolvedValue(expectedResult as any);
+
+      const result = await controller.activate(idStr, mockTenant);
+
+      expect(sensorServiceMock.activate).toHaveBeenCalledWith(12, mockTenant);
+      expect(result).toBe(expectedResult);
+    });
+
+    it('debe tener configurados los roles adecuados', () => {
+      const roles = Reflect.getMetadata(ROLES_KEY, controller.activate);
+      expect(roles).toEqual([
+        ROLES.RESPONSABLE_PRODUCCION,
+        ROLES.RESPONSABLE_CALIDAD,
+        ROLES.GERENTE,
       ]);
     });
   });

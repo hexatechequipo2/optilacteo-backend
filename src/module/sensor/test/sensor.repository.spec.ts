@@ -80,6 +80,7 @@ describe('SensorRepository', () => {
     it('debe aplicar todos los filtros opcionales en el QueryBuilder si están presentes', async () => {
       const filter: SensorFilterQueryDto = {
         nombre: 'Temp',
+        marca: 'Siemens',
         tipo: 'ANALOGICO' as any,
         parametro: 'TEMPERATURA' as any,
         estado: 'ACTIVO' as any,
@@ -97,6 +98,10 @@ describe('SensorRepository', () => {
       expect(queryBuilderMock.andWhere).toHaveBeenCalledWith(
         'sensor.nombre ILIKE :nombre',
         { nombre: '%Temp%' },
+      );
+      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith(
+        'sensor.marca ILIKE :marca',
+        { marca: '%Siemens%' },
       );
       expect(queryBuilderMock.andWhere).toHaveBeenCalledWith(
         'sensor.tipo = :tipo',
@@ -179,6 +184,28 @@ describe('SensorRepository', () => {
       await repository.remove(sensorMock);
 
       expect(typeormRepoMock.remove).toHaveBeenCalledWith(sensorMock);
+    });
+  });
+
+  describe('setEstado', () => {
+    it('debe actualizar el estado del sensor scopeado por empresaId y devolver true si afectó una fila', async () => {
+      (typeormRepoMock as any).update = jest.fn().mockResolvedValue({ affected: 1 });
+
+      const result = await repository.setEstado(1, 'inactivo' as any, 10);
+
+      expect((typeormRepoMock as any).update).toHaveBeenCalledWith(
+        { id: 1, empresaId: 10 },
+        { estado: 'inactivo' },
+      );
+      expect(result).toBe(true);
+    });
+
+    it('debe devolver false si no encontró el sensor para actualizar', async () => {
+      (typeormRepoMock as any).update = jest.fn().mockResolvedValue({ affected: 0 });
+
+      const result = await repository.setEstado(99, 'activo' as any, 10);
+
+      expect(result).toBe(false);
     });
   });
 });
