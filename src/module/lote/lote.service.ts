@@ -211,10 +211,17 @@ export class LoteService {
     if (!lote) {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
+
+    if (lote.estado === EstadoLote.FINALIZADO) {
+      throw new BadRequestException(`El lote ${id} ya está finalizado y no puede modificarse`);
+    }
+
     lote.estado = EstadoLote.FINALIZADO;
     if (dto.rendimiento !== undefined) {
       lote.rendimiento = dto.rendimiento;
+      lote.unidadRendimiento = dto.unidadRendimiento ?? null;
     }
+
     const saved = await this.loteRepository.save(lote);
     return LoteMapper.toResponseDto(saved);
   }
