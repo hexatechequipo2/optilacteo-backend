@@ -24,6 +24,9 @@ export class SensorRepository implements ISensorRepository {
     if (filter.nombre) {
       qb.andWhere('sensor.nombre ILIKE :nombre', { nombre: `%${filter.nombre}%` });
     }
+    if (filter.marca) {
+      qb.andWhere('sensor.marca ILIKE :marca', { marca: `%${filter.marca}%` });
+    }
     if (filter.tipo) {
       qb.andWhere('sensor.tipo = :tipo', { tipo: filter.tipo });
     }

@@ -43,6 +43,7 @@ export class SensorController {
     return this.sensorService.create(createSensorDto, tenant);
   }
 
+  //HU-65 El Gerente quiere mantener un listado de todos los sensores con su ubicación, marca y tipo, es por eso que el @Roles está en el GET.
   @Get()
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
   findAll(

@@ -9,6 +9,7 @@ export class SensorMapper {
     const sensor = new Sensor();
     sensor.nombre = dto.nombre;
     sensor.tipo = dto.tipo;
+    sensor.marca = dto.marca;
     sensor.parametro = dto.parametro;
     sensor.ubicacion = dto.ubicacion;
     sensor.rangoMinFavor = dto.rangoMinFavor;
@@ -23,6 +24,7 @@ export class SensorMapper {
       id: sensor.id,
       nombre: sensor.nombre,
       tipo: sensor.tipo,
+      marca: sensor.marca,
       parametro: sensor.parametro,
       ubicacion: sensor.ubicacion,
       rangoMinFavor: sensor.rangoMinFavor,

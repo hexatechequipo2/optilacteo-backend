@@ -20,6 +20,9 @@ export class SensorResponseDto {
 
   @ApiProperty({ enum: Ubicacion })
   ubicacion!: Ubicacion;
+  
+  @ApiProperty()
+  marca!: string;
 
   @ApiProperty()
   rangoMinFavor!: number;
