@@ -16,6 +16,7 @@ import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
 import { EstadoLote } from '../enums/estado-lote.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
+import { UnidadRendimiento } from '../enums/unidad-rendimiento.enum';
 
 @Entity('lotes')
 export class Lote {
@@ -64,10 +65,14 @@ export class Lote {
   @Column({ type: 'enum', enum: Ubicacion, nullable: true })
   ubicacionInicial?: Ubicacion | null;
 
-// HU-62: rendimiento obtenido al finalizar el lote. Opcional (AC2) —
+  // HU-62: rendimiento obtenido al finalizar el lote. Opcional (AC2) —
   // se completa recién al cierre, por eso nullable y no se toca en create().
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   rendimiento?: number | null;
+  
+  // HU-62 (extensión): unidad del valor de rendimiento cargado.
+  @Column({ type: 'enum', enum: UnidadRendimiento, nullable: true })
+  unidadRendimiento?: UnidadRendimiento | null;
   
   @CreateDateColumn()
   createdAt!: Date;

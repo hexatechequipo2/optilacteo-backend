@@ -15,6 +15,7 @@ export class LoteMapper {
       ubicacionInicial: lote.ubicacionInicial ?? null,
       estado: lote.estado,
       rendimiento: lote.rendimiento != null ? Number(lote.rendimiento) : null,
+      unidadRendimiento: lote.unidadRendimiento ?? null,
       parametros: (lote.parametros ?? []).map((p) => ({
         parametro: p.parametro,
         valor: Number(p.valor),

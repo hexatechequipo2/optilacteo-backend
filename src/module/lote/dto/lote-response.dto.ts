@@ -6,6 +6,7 @@ import { EstadoLote } from '../enums/estado-lote.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 import { TrazabilidadEntidadDto } from '../../audit/dto/trazabilidad.dto';
+import { UnidadRendimiento } from '../enums/unidad-rendimiento.enum';
 
 export class LoteParametroResponseDto {
   @ApiProperty({ enum: Parametro })
@@ -53,6 +54,9 @@ export class LoteResponseDto {
 
   @ApiProperty({ type: [LoteParametroResponseDto] })
   parametros!: LoteParametroResponseDto[];
+
+  @ApiPropertyOptional({ enum: UnidadRendimiento })
+  unidadRendimiento?: UnidadRendimiento | null;
 
   @ApiProperty()
   createdAt!: Date;
