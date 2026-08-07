@@ -11,6 +11,11 @@ export class SensorFilterQueryDto {
   @IsString()
   nombre?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  marca?: string;
+
   @ApiPropertyOptional({ enum: TipoSensor })
   @IsOptional()
   @IsEnum(TipoSensor)

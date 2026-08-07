@@ -21,6 +21,9 @@ export class Sensor {
   @Column()
   nombre!: string;
 
+  @Column()
+  marca!: string;
+
   @Column({ type: 'enum', enum: TipoSensor })
   tipo!: TipoSensor;
 

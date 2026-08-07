@@ -10,6 +10,11 @@ export class CreateSensorDto {
   @IsNotEmpty()
   nombre!: string;
 
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  marca!: string;
+
   @ApiProperty({ enum: TipoSensor })
   @IsEnum(TipoSensor)
   tipo!: TipoSensor;
