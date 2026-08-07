@@ -9,6 +9,7 @@ describe('SensorMapper', () => {
     it('debe mapear un CreateSensorDto a una instancia de la entidad Sensor', () => {
       const dto: CreateSensorDto = {
         nombre: 'Sensor de Humedad 1',
+        marca: 'Siemens',
         tipo: 'DIGITAL' as any,
         parametro: 'HUMEDAD' as any,
         ubicacion: 'Cámara A' as any,
@@ -21,6 +22,7 @@ describe('SensorMapper', () => {
 
       expect(entity).toBeInstanceOf(Sensor);
       expect(entity.nombre).toBe(dto.nombre);
+      expect(entity.marca).toBe(dto.marca);
       expect(entity.tipo).toBe(dto.tipo);
       expect(entity.parametro).toBe(dto.parametro);
       expect(entity.ubicacion).toBe(dto.ubicacion);
@@ -35,6 +37,7 @@ describe('SensorMapper', () => {
     const sensorEntity: Sensor = {
       id: 1,
       nombre: 'Sensor de Temperatura',
+      marca: 'Endress+Hauser',
       tipo: 'ANALOGICO' as any,
       parametro: 'TEMPERATURA' as any,
       ubicacion: 'Siló 3',
@@ -55,6 +58,7 @@ describe('SensorMapper', () => {
       expect(responseDto).toEqual({
         id: sensorEntity.id,
         nombre: sensorEntity.nombre,
+        marca: sensorEntity.marca,
         tipo: sensorEntity.tipo,
         parametro: sensorEntity.parametro,
         ubicacion: sensorEntity.ubicacion,

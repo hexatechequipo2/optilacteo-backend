@@ -36,6 +36,7 @@ describe('SensorService', () => {
       findByNombre: jest.fn(),
       save: jest.fn(),
       remove: jest.fn(),
+      setEstado: jest.fn(),
     };
 
     historialRepoMock = {
@@ -222,24 +223,66 @@ describe('SensorService', () => {
     });
   });
 
-  describe('remove', () => {
-    it('debe eliminar el sensor si no tiene un lote activo asignado', async () => {
-      const sensorMock = { id: 1 } as Sensor;
-      sensorRepoMock.findOne.mockResolvedValue(sensorMock);
+  describe('remove (baja lógica)', () => {
+    it('debe poner el sensor en estado INACTIVO en vez de borrarlo físicamente', async () => {
+      const sensorMock = { id: 1, estado: EstadoSensor.ACTIVO } as Sensor;
+      const desactivadoMock = { id: 1, estado: EstadoSensor.INACTIVO } as Sensor;
+      sensorRepoMock.findOne
+        .mockResolvedValueOnce(sensorMock)
+        .mockResolvedValueOnce(desactivadoMock);
       historialRepoMock.findUltimoPorSensor.mockResolvedValue(null);
 
-      await service.remove(1, validTenant);
+      jest.spyOn(SensorMapper, 'toResponseDto').mockReturnValue({ id: 1, estado: EstadoSensor.INACTIVO } as any);
 
-      expect(sensorRepoMock.remove).toHaveBeenCalledWith(sensorMock);
+      const result = await service.remove(1, validTenant);
+
+      expect(sensorRepoMock.setEstado).toHaveBeenCalledWith(1, EstadoSensor.INACTIVO, 10);
+      expect(sensorRepoMock.remove).not.toHaveBeenCalled();
+      expect(result).toHaveProperty('estado', EstadoSensor.INACTIVO);
     });
 
-    it('debe lanzar ConflictException si el sensor está asociado a un lote', async () => {
-      const sensorMock = { id: 1 } as Sensor;
+    it('debe desactivar aunque el sensor esté asociado a un lote (no destruye el historial)', async () => {
+      const sensorMock = { id: 1, estado: EstadoSensor.ACTIVO } as Sensor;
       sensorRepoMock.findOne.mockResolvedValue(sensorMock);
       historialRepoMock.findUltimoPorSensor.mockResolvedValue({ loteIdNuevo: 100 });
 
-      await expect(service.remove(1, validTenant)).rejects.toThrow(
-        ConflictException,
+      jest.spyOn(SensorMapper, 'toResponseDto').mockReturnValue({ id: 1 } as any);
+
+      await expect(service.remove(1, validTenant)).resolves.not.toThrow();
+      expect(sensorRepoMock.setEstado).toHaveBeenCalledWith(1, EstadoSensor.INACTIVO, 10);
+    });
+
+    it('debe lanzar NotFoundException si el sensor a desactivar no existe', async () => {
+      sensorRepoMock.findOne.mockResolvedValue(null);
+
+      await expect(service.remove(99, validTenant)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('activate', () => {
+    it('debe reactivar un sensor poniéndolo en estado ACTIVO', async () => {
+      const sensorMock = { id: 1, estado: EstadoSensor.INACTIVO } as Sensor;
+      const activadoMock = { id: 1, estado: EstadoSensor.ACTIVO } as Sensor;
+      sensorRepoMock.findOne
+        .mockResolvedValueOnce(sensorMock)
+        .mockResolvedValueOnce(activadoMock);
+      historialRepoMock.findUltimoPorSensor.mockResolvedValue(null);
+
+      jest.spyOn(SensorMapper, 'toResponseDto').mockReturnValue({ id: 1, estado: EstadoSensor.ACTIVO } as any);
+
+      const result = await service.activate(1, validTenant);
+
+      expect(sensorRepoMock.setEstado).toHaveBeenCalledWith(1, EstadoSensor.ACTIVO, 10);
+      expect(result).toHaveProperty('estado', EstadoSensor.ACTIVO);
+    });
+
+    it('debe lanzar NotFoundException si el sensor a activar no existe', async () => {
+      sensorRepoMock.findOne.mockResolvedValue(null);
+
+      await expect(service.activate(99, validTenant)).rejects.toThrow(
+        NotFoundException,
       );
     });
   });
