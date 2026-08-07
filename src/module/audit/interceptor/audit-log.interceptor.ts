@@ -75,14 +75,35 @@ export class AuditInterceptor implements NestInterceptor {
     });
   }
 
-  private resolveEntidadId(request: AuthenticatedRequest, responseBody: unknown): number | null {
+  private resolveEntidadId(
+    request: AuthenticatedRequest,
+    responseBody: unknown,
+  ): number | null {
     const paramId = request.params?.id;
-    if (paramId && !Number.isNaN(Number(paramId))) return Number(paramId);
-
-    if (responseBody && typeof responseBody === 'object' && 'id' in (responseBody as Record<string, unknown>)) {
-      const id = (responseBody as Record<string, unknown>).id;
-      return typeof id === 'number' ? id : null;
+    if (paramId && !Number.isNaN(Number(paramId))) {
+      return Number(paramId);
     }
+
+    if (!responseBody || typeof responseBody !== 'object') {
+      return null;
+    }
+
+    const body = responseBody as Record<string, unknown>;
+
+    // Respuesta con id en la raíz
+    if (typeof body.id === 'number') {
+      return body.id;
+    }
+
+    // Respuesta tipo { lote: { id } }
+    if (
+      body.lote &&
+      typeof body.lote === 'object' &&
+      typeof (body.lote as Record<string, unknown>).id === 'number'
+    ) {
+      return (body.lote as Record<string, unknown>).id as number;
+    }
+
     return null;
   }
 }

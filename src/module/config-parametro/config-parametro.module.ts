@@ -10,6 +10,7 @@ import { ConfiguracionComparacionHistoricaRepository } from './repository/config
 import { CONFIG_PARAMETRO_REPOSITORY } from './repository/config-parametro.repository.interface';
 import { CONFIGURACION_COMPARACION_HISTORICA_REPOSITORY } from './repository/configuracion-comparacion-historica.repository.interface';
 import { ConfiguracionComparacionHistoricaController } from './configuracion-comparacion-historica.controller';
+import { AuditLogModule } from '../audit/audit-log.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ConfiguracionComparacionHistoricaController } from './configuracion-com
       ConfiguracionParametro,
       ConfiguracionComparacionHistorica,
     ]),
+    AuditLogModule
   ],
   controllers: [ConfigParametroController, ConfiguracionComparacionHistoricaController],
   providers: [

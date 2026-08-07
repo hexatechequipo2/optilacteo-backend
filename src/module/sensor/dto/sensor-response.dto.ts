@@ -3,6 +3,7 @@ import { TipoSensor } from '../enums/tipo-sensor.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { EstadoSensor } from '../enums/estado-sensor.enum';
 import { Ubicacion } from '../enums/ubicacion.enum';
+import { TrazabilidadEntidadDto } from '../../audit/dto/trazabilidad.dto';
 
 export class SensorResponseDto {
   @ApiProperty()
@@ -44,4 +45,7 @@ export class SensorResponseDto {
 
   @ApiProperty()
   updatedAt!: Date;
+
+  @ApiProperty({ required: false })
+  auditoria?: TrazabilidadEntidadDto;
 }

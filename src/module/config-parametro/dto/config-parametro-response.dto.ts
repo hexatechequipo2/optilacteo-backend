@@ -1,5 +1,6 @@
 import { Parametro } from '../enums/parametro.enum';
 import { TipoMateriaPrima } from '../enums/tipo-materia-prima-enum';
+import { TrazabilidadEntidadDto } from '../../audit/dto/trazabilidad.dto';
 
 export class ConfigParametroResponseDto {
   id!: number;
@@ -10,4 +11,5 @@ export class ConfigParametroResponseDto {
   umbralMax!: number;
   createdAt!: Date;
   updatedAt!: Date;
+  auditoria?: TrazabilidadEntidadDto;
 }
