@@ -138,6 +138,7 @@ export class SensorService {
     return SensorMapper.toResponseDto(actualizado, ultimo?.loteIdNuevo ?? null);
   }
 
+  // Soft-delete: el sensor pasa a estado INACTIVO en vez de borrarse físicamente.
   async remove(id: number, tenant: TenantContext) {
     const empresaId = this.resolveEmpresaId(tenant);
     const sensor = await this.sensorRepository.findOne(id, empresaId);
@@ -145,14 +146,38 @@ export class SensorService {
       throw new NotFoundException('Sensor no encontrado.');
     }
 
+    if (sensor.estado === EstadoSensor.INACTIVO) {
+      throw new BadRequestException('El sensor ya está inactivo.');
+    }
+
     const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
     if (ultimo && ultimo.loteIdNuevo) {
       throw new ConflictException(
-        'No se puede eliminar el sensor: está asociado a un lote.',
+        'No se puede desactivar el sensor: está asociado a un lote.',
       );
     }
 
-    await this.sensorRepository.remove(sensor);
+    sensor.estado = EstadoSensor.INACTIVO;
+    await this.sensorRepository.save(sensor);
+  }
+
+  // Reactiva un sensor previamente desactivado (estado INACTIVO -> ACTIVO).
+  async activar(id: number, tenant: TenantContext) {
+    const empresaId = this.resolveEmpresaId(tenant);
+    const sensor = await this.sensorRepository.findOne(id, empresaId);
+    if (!sensor) {
+      throw new NotFoundException('Sensor no encontrado.');
+    }
+
+    if (sensor.estado === EstadoSensor.ACTIVO) {
+      throw new BadRequestException('El sensor ya está activo.');
+    }
+
+    sensor.estado = EstadoSensor.ACTIVO;
+    const actualizado = await this.sensorRepository.save(sensor);
+
+    const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
+    return SensorMapper.toResponseDto(actualizado, ultimo?.loteIdNuevo ?? null);
   }
 
 // HU-33

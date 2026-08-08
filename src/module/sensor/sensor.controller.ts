@@ -90,10 +90,19 @@ export class SensorController {
     return this.sensorService.asociarALote(+loteId, dto.sensorIds, usuarioId, tenant);
   }
 
+  // Soft-delete: pasa el sensor a estado INACTIVO en vez de borrarlo físicamente.
   @Delete(':id')
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
   @AuditLog('SENSOR_ELIMINAR', 'Sensor')
   remove(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.sensorService.remove(+id, tenant);
+  }
+
+  // Reactiva un sensor previamente desactivado (estado INACTIVO -> ACTIVO).
+  @Patch(':id/activar')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
+  @AuditLog('SENSOR_ACTIVAR', 'Sensor')
+  activar(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
+    return this.sensorService.activar(+id, tenant);
   }
 }
