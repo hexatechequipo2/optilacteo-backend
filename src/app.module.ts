@@ -18,6 +18,7 @@ import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.modu
 import { MedicionManualModule } from './module/medicion-manual/medicion-manual.module';
 import { NotificacionesModule } from './module/notificaciones/notificaciones.module';
 import { DashboardModule } from './module/dashboard/dashboard.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -52,7 +53,8 @@ import { DashboardModule } from './module/dashboard/dashboard.module';
     LecturaSensorModule,
     MedicionManualModule,
     NotificacionesModule,
-    DashboardModule
+    DashboardModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

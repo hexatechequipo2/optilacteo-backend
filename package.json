@@ -12,8 +12,9 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "simulate:iot:prod": "node dist/simulators/iot-simulator.js --modo=normal --email=iot@optilacteo.com --password=Iot2026!",
-    "deploy": "npm run build && npm run migration:run:prod && npm run start:prod & npm run simulate:iot:prod",
+    "simulate:iot:prod": "node dist/simulators/iot-simulator.js --modo=normal --email=iot@optilacteo.com --password=Iot2026! --url=http://localhost:${PORT:-3000}",
+    "deploy": "npm run build && npm run migration:run:prod && (npm run start:prod &) && wait-on -t 60000 http://localhost:${PORT:-3000}/health && npm run simulate:iot:prod",
+    "deploy:docker": "sh scripts/docker-start.sh",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -55,7 +56,8 @@
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^1.0.0",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.1",
+    "wait-on": "^9.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
