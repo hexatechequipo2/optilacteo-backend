@@ -158,7 +158,9 @@ export class SensorService {
     }
 
     sensor.estado = EstadoSensor.INACTIVO;
-    await this.sensorRepository.save(sensor);
+    const actualizado = await this.sensorRepository.save(sensor);
+
+    return SensorMapper.toResponseDto(actualizado, ultimo?.loteIdNuevo ?? null);
   }
 
   // Reactiva un sensor previamente desactivado (estado INACTIVO -> ACTIVO).
