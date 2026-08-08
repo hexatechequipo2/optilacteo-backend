@@ -3,6 +3,9 @@ import { ConflictException, ForbiddenException, NotFoundException } from '@nestj
 import { ConfigParametroService } from '../config-parametro.service';
 import { CONFIG_PARAMETRO_REPOSITORY } from '../repository/config-parametro.repository.interface';
 import { ConfigParametroMapper } from '../mappers/config-parametro.mapper';
+import { AuditLogService } from '../../audit/audit-log.service';
+import { ROLES } from '../../rol/constants/roles.constants';
+import type { TenantContext } from '../../../common/types/tenant-context.type';
 
 // El mapper se mockea porque solo interesa validar que el Service lo invoque
 // correctamente, no su lógica interna de conversión (eso se testea aparte).
@@ -21,6 +24,10 @@ const mockRepository = {
   delete: jest.fn(),
 };
 
+const mockAuditLogService = {
+  getTrazabilidadBatch: jest.fn(),
+};
+
 describe('ConfigParametroService', () => {
   let service: ConfigParametroService;
 
@@ -29,6 +36,7 @@ describe('ConfigParametroService', () => {
       providers: [
         ConfigParametroService,
         { provide: CONFIG_PARAMETRO_REPOSITORY, useValue: mockRepository },
+        { provide: AuditLogService, useValue: mockAuditLogService },
       ],
     }).compile();
 
@@ -101,14 +109,38 @@ describe('ConfigParametroService', () => {
   });
 
   describe('listarPorEmpresa', () => {
-    it('debe devolver la lista de configuraciones de la empresa, mapeadas', async () => {
+    it('para un rol distinto de GERENTE, debe devolver la lista mapeada sin consultar auditoria', async () => {
+      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.OPERARIO_LINEA };
       mockRepository.findByEmpresa.mockResolvedValue([{ id: 1 }, { id: 2 }]);
-      (ConfigParametroMapper.toResponse as jest.Mock).mockImplementation((c: any) => ({ mapped: c.id }));
+      (ConfigParametroMapper.toResponse as jest.Mock).mockImplementation((c: any) => ({ id: c.id }));
 
-      const resultado = await service.listarPorEmpresa(1);
+      const resultado = await service.listarPorEmpresa(1, tenant);
 
       expect(mockRepository.findByEmpresa).toHaveBeenCalledWith(1);
-      expect(resultado).toEqual([{ mapped: 1 }, { mapped: 2 }]);
+      expect(mockAuditLogService.getTrazabilidadBatch).not.toHaveBeenCalled();
+      expect(resultado).toEqual([{ id: 1 }, { id: 2 }]);
+    });
+
+    it('para el rol GERENTE, debe enriquecer cada item con su trazabilidad', async () => {
+      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
+      mockRepository.findByEmpresa.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+      (ConfigParametroMapper.toResponse as jest.Mock).mockImplementation((c: any) => ({ id: c.id }));
+      const trazabilidadMap = new Map([
+        [1, { creadoPor: { userId: 7, userEmail: 'user@lacteo.com', fecha: new Date() } }],
+      ]);
+      mockAuditLogService.getTrazabilidadBatch.mockResolvedValue(trazabilidadMap);
+
+      const resultado = await service.listarPorEmpresa(1, tenant);
+
+      expect(mockAuditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
+        'ConfiguracionParametro',
+        [1, 2],
+        1,
+      );
+      expect(resultado).toEqual([
+        { id: 1, auditoria: trazabilidadMap.get(1) },
+        { id: 2, auditoria: undefined },
+      ]);
     });
   });
 

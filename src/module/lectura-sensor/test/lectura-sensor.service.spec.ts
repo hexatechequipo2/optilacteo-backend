@@ -13,6 +13,7 @@ import { SENSOR_LECTURA_REPOSITORY } from '../repository/sensor-lectura.reposito
 import { SENSOR_EVENTO_REPOSITORY } from '../repository/sensor-evento.repository.interface';
 import { LecturasGateway } from '../gateway/lecturas.gateway';
 import { ClasificacionLoteService } from '../../lote/clasificacion-lote.service';
+import { AuditLogService } from '../../audit/audit-log.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfiguracionParametro } from '../../config-parametro/entities/config-parametro.entity';
 import { LecturaMapper } from '../mappers/lectura.mapper';
@@ -20,6 +21,7 @@ import { TipoEvento } from '../enums/tipo-evento.enum';
 import { OrigenLectura } from '../enums/origen-lectura.enum';
 import { EstadoSensor } from '../../sensor/enums/estado-sensor.enum';
 import { EstadoMedicion } from '../enums/estado-medicion.enum';
+import { ROLES } from '../../rol/constants/roles.constants';
 
 // El mapper se mockea: al Service solo le interesa que lo invoque bien,
 // no la lógica interna de conversión (eso se testea en lectura.mapper.spec.ts).
@@ -59,6 +61,7 @@ const mockLecturasGateway = {
 };
 const mockConfigParametroRepository = { find: jest.fn() };
 const mockClasificacionLoteService = { evaluarYClasificar: jest.fn() };
+const mockAuditLogService = { getTrazabilidadBatch: jest.fn() };
 
 function buildSensor(overrides: Partial<any> = {}) {
   return {
@@ -90,6 +93,7 @@ describe('LecturaSensorService', () => {
         { provide: LecturasGateway, useValue: mockLecturasGateway },
         { provide: getRepositoryToken(ConfiguracionParametro), useValue: mockConfigParametroRepository },
         { provide: ClasificacionLoteService, useValue: mockClasificacionLoteService },
+        { provide: AuditLogService, useValue: mockAuditLogService },
       ],
     }).compile();
 
@@ -99,6 +103,7 @@ describe('LecturaSensorService', () => {
     // resuelva por defecto evita ruido de promesas no manejadas en los tests
     // que no la testean explícitamente.
     mockClasificacionLoteService.evaluarYClasificar.mockResolvedValue(undefined);
+    mockAuditLogService.getTrazabilidadBatch.mockResolvedValue(new Map());
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -436,6 +441,64 @@ describe('LecturaSensorService', () => {
       const resultado = await service.consultarHistorial(query, tenant);
 
       expect(resultado.rangoAmplio).toBe(false);
+    });
+
+    it('cuando el usuario es GERENTE, debe consultar la trazabilidad de auditoría de las lecturas', async () => {
+      const lectura = {
+        id: 123,
+        valor: 7,
+        sensor: { parametro: 'PH' },
+        lote: { materiaPrima: 'LECHE_CRUDA' },
+      };
+
+      mockLecturaRepository.findHistorial.mockResolvedValue([[lectura], 1]);
+      mockConfigParametroRepository.find.mockResolvedValue([]);
+      mockAuditLogService.getTrazabilidadBatch.mockResolvedValue(
+        new Map([[123, { creadoPor: 'usuario-test' }]]),
+      );
+
+      (LecturaMapper.toHistorialItemDto as jest.Mock).mockReturnValue({
+        id: 123,
+        valor: 7,
+      });
+
+      const resultado = await service.consultarHistorial(
+        {} as any,
+        { empresaId: 99, rolNombre: ROLES.GERENTE } as any,
+      );
+
+      expect(mockAuditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
+        'SensorLectura',
+        [123],
+        99,
+      );
+
+      expect(resultado.data[0].auditoria).toEqual({
+        creadoPor: 'usuario-test',
+      });
+    });
+
+    it('cuando el usuario no es GERENTE, no debe consultar la trazabilidad de auditoría', async () => {
+      const lectura = {
+        id: 123,
+        valor: 7,
+        sensor: { parametro: 'PH' },
+        lote: { materiaPrima: 'LECHE_CRUDA' },
+      };
+
+      mockLecturaRepository.findHistorial.mockResolvedValue([[lectura], 1]);
+      mockConfigParametroRepository.find.mockResolvedValue([]);
+      (LecturaMapper.toHistorialItemDto as jest.Mock).mockReturnValue({
+        id: 123,
+        valor: 7,
+      });
+
+      await service.consultarHistorial(
+        {} as any,
+        { empresaId: 99, rolNombre: 'RESPONSABLE_DE_CALIDAD' } as any,
+      );
+
+      expect(mockAuditLogService.getTrazabilidadBatch).not.toHaveBeenCalled();
     });
   });
 

@@ -118,55 +118,125 @@ describe('AuditInterceptor', () => {
     );
   });
 
-  it('deberia resolver entidadId desde params.id cuando es un numero valido', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue({
-      accion: 'ACCION',
-      entidad: 'Entidad',
+  describe('resolveEntidadId', () => {
+    it('deberia resolver entidadId desde params.id cuando es un numero valido', async () => {
+      mockReflector.getAllAndOverride.mockReturnValue({
+        accion: 'ACCION',
+        entidad: 'Entidad',
+      });
+      const request = { params: { id: '42' }, body: {} };
+      const context = buildExecutionContext(request);
+      const next: CallHandler = { handle: () => of({}) };
+
+      await lastValueFrom(interceptor.intercept(context, next));
+      await flushPromises();
+
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ entidadId: 42 }),
+      );
     });
-    const request = { params: { id: '42' }, body: {} };
-    const context = buildExecutionContext(request);
-    const next: CallHandler = { handle: () => of({}) };
 
-    await lastValueFrom(interceptor.intercept(context, next));
-    await flushPromises();
+    it('deberia resolver entidadId desde el id del response body cuando no hay params.id', async () => {
+      mockReflector.getAllAndOverride.mockReturnValue({
+        accion: 'ACCION',
+        entidad: 'Entidad',
+      });
+      const request = { params: {}, body: {} };
+      const context = buildExecutionContext(request);
+      const next: CallHandler = { handle: () => of({ id: 99 }) };
 
-    expect(mockAuditLogService.record).toHaveBeenCalledWith(
-      expect.objectContaining({ entidadId: 42 }),
-    );
-  });
+      await lastValueFrom(interceptor.intercept(context, next));
+      await flushPromises();
 
-  it('deberia resolver entidadId desde el id del response body cuando no hay params.id', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue({
-      accion: 'ACCION',
-      entidad: 'Entidad',
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ entidadId: 99 }),
+      );
     });
-    const request = { params: {}, body: {} };
-    const context = buildExecutionContext(request);
-    const next: CallHandler = { handle: () => of({ id: 99 }) };
 
-    await lastValueFrom(interceptor.intercept(context, next));
-    await flushPromises();
+    it('deberia resolver entidadId desde body.lote.id cuando no hay params.id ni id en la raiz del response', async () => {
+      mockReflector.getAllAndOverride.mockReturnValue({
+        accion: 'SENSOR_ASOCIAR_LOTE',
+        entidad: 'Sensor',
+      });
+      const request = { params: {}, body: {} };
+      const context = buildExecutionContext(request);
+      const next: CallHandler = { handle: () => of({ lote: { id: 15, nombre: 'Lote A' } }) };
 
-    expect(mockAuditLogService.record).toHaveBeenCalledWith(
-      expect.objectContaining({ entidadId: 99 }),
-    );
-  });
+      await lastValueFrom(interceptor.intercept(context, next));
+      await flushPromises();
 
-  it('deberia devolver entidadId null cuando no hay params.id ni id en el response body', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue({
-      accion: 'ACCION',
-      entidad: 'Entidad',
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ entidadId: 15 }),
+      );
     });
-    const request = { params: {}, body: {} };
-    const context = buildExecutionContext(request);
-    const next: CallHandler = { handle: () => of('respuesta-sin-id') };
 
-    await lastValueFrom(interceptor.intercept(context, next));
-    await flushPromises();
+    it('deberia priorizar params.id por sobre body.lote.id cuando ambos estan presentes', async () => {
+      mockReflector.getAllAndOverride.mockReturnValue({
+        accion: 'ACCION',
+        entidad: 'Entidad',
+      });
+      const request = { params: { id: '7' }, body: {} };
+      const context = buildExecutionContext(request);
+      const next: CallHandler = { handle: () => of({ lote: { id: 999 } }) };
 
-    expect(mockAuditLogService.record).toHaveBeenCalledWith(
-      expect.objectContaining({ entidadId: null }),
-    );
+      await lastValueFrom(interceptor.intercept(context, next));
+      await flushPromises();
+
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ entidadId: 7 }),
+      );
+    });
+
+    it('deberia devolver entidadId null cuando body.lote existe pero su id no es un numero', async () => {
+      mockReflector.getAllAndOverride.mockReturnValue({
+        accion: 'ACCION',
+        entidad: 'Entidad',
+      });
+      const request = { params: {}, body: {} };
+      const context = buildExecutionContext(request);
+      const next: CallHandler = { handle: () => of({ lote: { id: 'no-numerico' } }) };
+
+      await lastValueFrom(interceptor.intercept(context, next));
+      await flushPromises();
+
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ entidadId: null }),
+      );
+    });
+
+    it('deberia caer al response body cuando params.id no es numerico', async () => {
+      mockReflector.getAllAndOverride.mockReturnValue({
+        accion: 'ACCION',
+        entidad: 'Entidad',
+      });
+      const request = { params: { id: 'abc' }, body: {} };
+      const context = buildExecutionContext(request);
+      const next: CallHandler = { handle: () => of({ id: 55 }) };
+
+      await lastValueFrom(interceptor.intercept(context, next));
+      await flushPromises();
+
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ entidadId: 55 }),
+      );
+    });
+
+    it('deberia devolver entidadId null cuando no hay params.id, ni id en la raiz, ni body.lote.id', async () => {
+      mockReflector.getAllAndOverride.mockReturnValue({
+        accion: 'ACCION',
+        entidad: 'Entidad',
+      });
+      const request = { params: {}, body: {} };
+      const context = buildExecutionContext(request);
+      const next: CallHandler = { handle: () => of('respuesta-sin-id') };
+
+      await lastValueFrom(interceptor.intercept(context, next));
+      await flushPromises();
+
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ entidadId: null }),
+      );
+    });
   });
 
   it('cuando el handler falla, deberia registrar la auditoria con status FAILURE y repropagar el error', async () => {

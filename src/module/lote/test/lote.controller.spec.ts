@@ -132,14 +132,22 @@ describe('LoteController', () => {
 
   describe('finalizar', () => {
     it('debe finalizar un lote', async () => {
+      const dto = {
+        // Agregar acá los campos requeridos por FinalizarLoteDto
+      } as any;
+
       const tenant = { empresaId: 1 } as any;
       const response = { ok: true };
 
       loteServiceMock.finalizar.mockResolvedValue(response);
 
-      const result = await controller.finalizar('8', tenant);
+      const result = await controller.finalizar('8', dto, tenant);
 
-      expect(loteServiceMock.finalizar).toHaveBeenCalledWith(8, tenant);
+      expect(loteServiceMock.finalizar).toHaveBeenCalledWith(
+        8,
+        dto,
+        tenant,
+      );
       expect(result).toBe(response);
     });
   });

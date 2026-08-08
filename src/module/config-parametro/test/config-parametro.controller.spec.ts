@@ -69,11 +69,12 @@ describe('ConfigParametroController', () => {
     });
 
     it('cuando el usuario tiene empresa asociada, debe delegar en el service', () => {
+      const tenant = { empresaId: 5 } as any;
       mockService.listarPorEmpresa.mockReturnValue([{ id: 1 }]);
 
-      const resultado = controller.listar({ empresaId: 5 } as any);
+      const resultado = controller.listar(tenant);
 
-      expect(mockService.listarPorEmpresa).toHaveBeenCalledWith(5);
+      expect(mockService.listarPorEmpresa).toHaveBeenCalledWith(5, tenant);
       expect(resultado).toEqual([{ id: 1 }]);
     });
   });
