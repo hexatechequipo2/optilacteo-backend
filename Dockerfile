@@ -14,5 +14,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
+COPY scripts/docker-start.sh ./scripts/docker-start.sh
 EXPOSE 3000
-CMD ["node", "dist/main"]
+CMD ["sh", "scripts/docker-start.sh"]

@@ -52,3 +52,4 @@ pids
 *.pid
 *.seed
 *.pid.lock
+*.tsbuildinfo
