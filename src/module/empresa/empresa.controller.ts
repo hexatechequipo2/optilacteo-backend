@@ -1,15 +1,37 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import 'multer'; 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipeBuilder,
+  HttpStatus,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { EmpresaService } from './empresa.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
+import { UpdateIdentidadEmpresaDto } from './dto/update-identidad-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { ROLES } from '../rol/constants/roles.constants';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { EmpresaFilterQueryDto } from './dto/empresa-filter-query.dto';
+import { multerLogoOptions } from './config/multer-logo.config';
 
 @ApiTags('empresa')
 @ApiBearerAuth()
@@ -30,21 +52,60 @@ export class EmpresaController {
     return this.empresaService.findAll(query);
   }
 
-  // Sin @Roles(): cualquier rol autenticado puede ver los datos de su
-  // propia empresa (ver comentario en EmpresaService.findMine). Antes
-  // estaba bloqueado por el @Roles(ADMINISTRADOR) a nivel de clase que
-  // tenía todo el controller.
   @Get('me')
   findMine(@CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.findMine(tenant);
   }
 
-  @Get(':id')
-  @Roles(ROLES.ADMINISTRADOR)
-  findOne(
-    @Param('id') id: string,
+  @Patch('me/identidad')
+  @Roles(ROLES.GERENTE)
+  @AuditLog('EMPRESA_IDENTIDAD_ACTUALIZAR', 'Empresa')
+  updateIdentidad(
+    @Body() dto: UpdateIdentidadEmpresaDto,
     @CurrentEmpresa() tenant: TenantContext,
   ) {
+    return this.empresaService.updateIdentidad(dto, tenant);
+  }
+
+  @Post('me/logo')
+  @Roles(ROLES.GERENTE)
+  @AuditLog('EMPRESA_LOGO_SUBIR', 'Empresa')
+  @UseInterceptors(FileInterceptor('logo', multerLogoOptions))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        logo: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  uploadLogo(
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /(png|jpe?g)$/ })
+        .build({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }),
+    )
+    file: Express.Multer.File,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.empresaService.uploadLogo(file, tenant);
+  }
+
+  // HU-12: eliminar logo — solo Gerente.
+  @Delete('me/logo')
+  @Roles(ROLES.GERENTE)
+  @AuditLog('EMPRESA_LOGO_ELIMINAR', 'Empresa')
+  deleteLogo(@CurrentEmpresa() tenant: TenantContext) {
+    return this.empresaService.deleteLogo(tenant);
+  }
+
+  @Get(':id')
+  @Roles(ROLES.ADMINISTRADOR)
+  findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.findOne(+id, tenant);
   }
 

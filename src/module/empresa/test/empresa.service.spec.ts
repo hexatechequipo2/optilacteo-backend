@@ -12,6 +12,7 @@ import { ModuloSistema } from '../enums/modulo-sistema.enum';
 import { DETALLE_POR_PLAN } from '../config/plan-detalles.config';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
+import { StorageService } from '../../../common/storage/storage.service';
 
 // HU-10 (aislamiento multi-tenant vía assertOwnEmpresa/404) ya está cubierta
 // en empresa-tenant-isolation.service.spec.ts. Este archivo se enfoca en las
@@ -66,10 +67,17 @@ describe('EmpresaService', () => {
       syncModulos: jest.fn(),
     };
 
+    const mockStorageService = {
+      upload: jest.fn(),
+      delete: jest.fn().mockResolvedValue(undefined),
+      getPublicUrl: jest.fn().mockReturnValue('https://storage.example.com/logo.png'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmpresaService,
         { provide: EMPRESA_REPOSITORY, useValue: mockEmpresaRepository },
+        { provide: StorageService, useValue: mockStorageService },
       ],
     }).compile();
 

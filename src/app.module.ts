@@ -11,6 +11,13 @@ import { SystemConfigModule } from './module/system-config/system-config.module'
 import { RolModule } from './module/rol/rol.module';
 import { PermisoModule } from './module/permiso/permiso.module';
 import { AuditLogModule } from './module/audit/audit-log.module';
+import { ConfigParametroModule } from './module/config-parametro/config-parametro.module';
+import { LoteModule } from './module/lote/lote.module';
+import { SensorModule } from './module/sensor/sensor.module';
+import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.module';
+import { MedicionManualModule } from './module/medicion-manual/medicion-manual.module';
+import { NotificacionesModule } from './module/notificaciones/notificaciones.module';
+import { DashboardModule } from './module/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -38,11 +45,16 @@ import { AuditLogModule } from './module/audit/audit-log.module';
     SystemConfigModule,
     RolModule,
     PermisoModule,
-    AuditLogModule
+    AuditLogModule,
+    ConfigParametroModule,
+    LoteModule,
+    SensorModule,
+    LecturaSensorModule,
+    MedicionManualModule,
+    NotificacionesModule,
+    DashboardModule
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-  ],
+  providers: [AppService],
 })
 export class AppModule {}

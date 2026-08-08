@@ -10,6 +10,7 @@ import type { IEmpresaRepository } from './repository/empresa-repository.interfa
 import { EMPRESA_REPOSITORY } from './repository/empresa-repository.interface';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
+import { UpdateIdentidadEmpresaDto } from './dto/update-identidad-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { EmpresaMapper } from './mappers/empresa.mapper';
 import { DETALLE_POR_PLAN } from './config/plan-detalles.config';
@@ -22,6 +23,7 @@ import {
   type PaginatedResponse,
 } from '../../common/dto/paginated-response.dto';
 import { EmpresaFilterQueryDto } from './dto/empresa-filter-query.dto';
+import { StorageService } from '../../common/storage/storage.service';
 
 const PLAN_NOMBRES: Record<Plan, string> = {
   [Plan.STARTER]: 'Starter',
@@ -45,6 +47,7 @@ export class EmpresaService {
   constructor(
     @Inject(EMPRESA_REPOSITORY)
     private readonly empresaRepository: IEmpresaRepository,
+    private readonly storageService: StorageService,
   ) {}
 
   async create(dto: CreateEmpresaDto) {
@@ -66,7 +69,7 @@ export class EmpresaService {
     );
 
     const empresaConModulos = await this.empresaRepository.findById(created.id);
-    return EmpresaMapper.toResponse(empresaConModulos!);
+    return EmpresaMapper.toResponse(empresaConModulos!, this.storageService);
   }
 
   async findAll(
@@ -76,7 +79,7 @@ export class EmpresaService {
     const skip = (page - 1) * limit;
     const [empresas, total] = await this.empresaRepository.findAllPaginated(skip, limit, filters);
     return buildPaginatedResponse(
-      EmpresaMapper.toResponseList(empresas),
+      EmpresaMapper.toResponseList(empresas, this.storageService),
       page,
       limit,
       total,
@@ -89,12 +92,9 @@ export class EmpresaService {
     if (!empresa) {
       throw new NotFoundException(`Empresa con id ${id} no encontrada`);
     }
-    return EmpresaMapper.toResponse(empresa);
+    return EmpresaMapper.toResponse(empresa, this.storageService);
   }
 
-  // Cualquier usuario autenticado puede ver los datos de su propia empresa,
-  // sin necesitar el rol admin que exige GET /empresa. Un admin no tiene
-  // empresa propia, por eso no aplica acá.
   async findMine(tenant: TenantContext) {
     if (tenant.empresaId === null) {
       throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
@@ -102,42 +102,101 @@ export class EmpresaService {
     return this.findOne(tenant.empresaId, tenant);
   }
 
-async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
-  this.assertOwnEmpresa(id, tenant);
-  const empresaActual = await this.empresaRepository.findById(id);
-  if (!empresaActual) {
-    throw new NotFoundException(`Empresa con id ${id} no encontrada`);
-  }
-
-  if (dto.cuit !== undefined && dto.cuit !== empresaActual.cuit) {
-    const cuitEnUso = await this.empresaRepository.findByCuit(dto.cuit);
-    if (cuitEnUso) {
-      throw new ConflictException(`El CUIT ${dto.cuit} ya está en uso por otra empresa`);
+  async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
+    this.assertOwnEmpresa(id, tenant);
+    const empresaActual = await this.empresaRepository.findById(id);
+    if (!empresaActual) {
+      throw new NotFoundException(`Empresa con id ${id} no encontrada`);
     }
+
+    if (dto.cuit !== undefined && dto.cuit !== empresaActual.cuit) {
+      const cuitEnUso = await this.empresaRepository.findByCuit(dto.cuit);
+      if (cuitEnUso) {
+        throw new ConflictException(`El CUIT ${dto.cuit} ya está en uso por otra empresa`);
+      }
+    }
+
+    const empresaToUpdate = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.cuit !== undefined && { cuit: dto.cuit }),
+      ...(dto.email !== undefined && { email: dto.email }),
+      ...(dto.telefono !== undefined && { telefono: dto.telefono }),
+      ...(dto.direccion !== undefined && { direccion: dto.direccion }),
+      ...(dto.plan !== undefined && { plan: dto.plan }),
+    };
+
+    const updated = await this.empresaRepository.updateEmpresa(id, empresaToUpdate);
+
+    if (dto.plan !== undefined && dto.plan !== empresaActual.plan) {
+      const modulosNuevoPlan = DETALLE_POR_PLAN[dto.plan].modulos;
+      await this.empresaRepository.syncModulos(id, modulosNuevoPlan);
+    }
+
+    const empresaConModulos = await this.empresaRepository.findById(id);
+    return EmpresaMapper.toResponse(empresaConModulos!, this.storageService);
   }
 
-  const empresaToUpdate = {
-    ...(dto.name !== undefined && { name: dto.name }),
-    ...(dto.cuit !== undefined && { cuit: dto.cuit }),
-    ...(dto.email !== undefined && { email: dto.email }),
-    ...(dto.telefono !== undefined && { telefono: dto.telefono }),
-    ...(dto.direccion !== undefined && { direccion: dto.direccion }),
-    ...(dto.plan !== undefined && { plan: dto.plan }),
-  };
+  // HU-12: el Gerente edita el nombre de su propia empresa, sin poder
+  // tocar cuit/plan/email (eso sigue siendo de Administrador vía update()).
+  async updateIdentidad(dto: UpdateIdentidadEmpresaDto, tenant: TenantContext) {
+    if (tenant.empresaId === null) {
+      throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
+    }
+    const empresaActual = await this.empresaRepository.findById(tenant.empresaId);
+    if (!empresaActual) {
+      throw new NotFoundException(`Empresa con id ${tenant.empresaId} no encontrada`);
+    }
 
-  const updated = await this.empresaRepository.updateEmpresa(id, empresaToUpdate);
-
-  // Si cambió el plan, sincronizar módulos según el nuevo plan
-  if (dto.plan !== undefined && dto.plan !== empresaActual.plan) {
-    const modulosNuevoPlan = DETALLE_POR_PLAN[dto.plan].modulos;
-    await this.empresaRepository.syncModulos(id, modulosNuevoPlan);
-    // (método a crear: activa los módulos del nuevo plan, y decide
-    // qué hacer con los que ya no están permitidos: ¿desactivar o eliminar?)
+    const updated = await this.empresaRepository.updateEmpresa(tenant.empresaId, {
+      name: dto.name,
+    });
+    return EmpresaMapper.toResponse(updated, this.storageService);
   }
 
-  const empresaConModulos = await this.empresaRepository.findById(id);
-  return EmpresaMapper.toResponse(empresaConModulos!);
-}
+  // HU-12: sube el logo a R2 y guarda solo el key en logoPath.
+  async uploadLogo(file: Express.Multer.File, tenant: TenantContext) {
+    if (tenant.empresaId === null) {
+      throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
+    }
+    const empresa = await this.empresaRepository.findById(tenant.empresaId);
+    if (!empresa) {
+      throw new NotFoundException(`Empresa con id ${tenant.empresaId} no encontrada`);
+    }
+
+    // Reemplazo: borrar el logo anterior del bucket antes de subir el nuevo.
+    if (empresa.logoPath) {
+      await this.storageService.delete(empresa.logoPath).catch(() => undefined);
+    }
+
+    const ext = file.originalname.split('.').pop();
+    const key = `logos/empresa-${tenant.empresaId}-${Date.now()}.${ext}`;
+    await this.storageService.upload(key, file.buffer, file.mimetype);
+
+    const updated = await this.empresaRepository.updateEmpresa(tenant.empresaId, {
+      logoPath: key,
+    });
+    return EmpresaMapper.toResponse(updated, this.storageService);
+  }
+
+  // HU-12: borra el logo de R2 y limpia logoPath.
+  async deleteLogo(tenant: TenantContext) {
+    if (tenant.empresaId === null) {
+      throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
+    }
+    const empresa = await this.empresaRepository.findById(tenant.empresaId);
+    if (!empresa) {
+      throw new NotFoundException(`Empresa con id ${tenant.empresaId} no encontrada`);
+    }
+
+    if (empresa.logoPath) {
+      await this.storageService.delete(empresa.logoPath).catch(() => undefined);
+    }
+
+    const updated = await this.empresaRepository.updateEmpresa(tenant.empresaId, {
+      logoPath: null,
+    });
+    return EmpresaMapper.toResponse(updated, this.storageService);
+  }
 
   async deactivate(id: number, tenant: TenantContext) {
     this.assertOwnEmpresa(id, tenant);
@@ -151,14 +210,14 @@ async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
     }
 
     const updated = await this.empresaRepository.updateEmpresa(id, { isActive: false });
-    return EmpresaMapper.toResponse(updated);
+    return EmpresaMapper.toResponse(updated, this.storageService);
   }
 
   async activate(id: number, tenant: TenantContext) {
     this.assertOwnEmpresa(id, tenant);
     await this.findOne(id, tenant);
     const updated = await this.empresaRepository.updateEmpresa(id, { isActive: true });
-    return EmpresaMapper.toResponse(updated);
+    return EmpresaMapper.toResponse(updated, this.storageService);
   }
 
   async remove(id: number, tenant: TenantContext) {
@@ -175,10 +234,6 @@ async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
     return this.toggleModulo(empresaId, dto.modulo, false);
   }
 
-  // A diferencia de Proveedor (que tiene su propia columna empresaId), acá
-  // el id de la propia Empresa ES el identificador del tenant: se compara
-  // directo contra tenant.empresaId. Devuelve 404 (no 403), igual que
-  // Proveedor, para no revelar a un no-admin que un id de otra empresa existe.
   private assertOwnEmpresa(id: number, tenant: TenantContext): void {
     if (tenant.rolNombre === ROLES.ADMINISTRADOR) {
       return;
@@ -188,10 +243,6 @@ async update(id: number, dto: UpdateEmpresaDto, tenant: TenantContext) {
     }
   }
 
-  /**
-   * NUEVO: usado por UserService para validar el límite de usuarios
-   * permitido según el plan de la empresa, antes de crear un usuario nuevo.
-   */
   async getLimiteUsuarios(empresaId: number): Promise<number> {
     const empresa = await this.empresaRepository.findById(empresaId);
     if (!empresa) {

@@ -19,6 +19,7 @@ import {
 } from '../../common/dto/paginated-response.dto';
 import { EstadoProveedor } from './enums/estado-proveedor.enum';
 import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
+import { AuditLogService } from '../audit/audit-log.service';
 
 @Injectable()
 export class ProveedoresService {
@@ -26,6 +27,7 @@ export class ProveedoresService {
     @Inject(PROVEEDOR_REPOSITORY)
     private readonly proveedorRepository: IProveedorRepository,
     private readonly mapper: ProveedorMapper,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   // Guardia de seguridad para aislamiento multi-tenant
@@ -36,6 +38,11 @@ export class ProveedoresService {
     if (tenant.rolNombre !== ROLES.ADMINISTRADOR && proveedor.empresa.id !== tenant.empresaId) {
       throw new NotFoundException('Proveedor no encontrado');
     }
+  }
+
+  // HU-63: solo Gerente ve quién creó/modificó el proveedor.
+  private puedeVerAuditoria(tenant: TenantContext): boolean {
+    return tenant.rolNombre === ROLES.GERENTE;
   }
 
   async findAll(
@@ -50,12 +57,19 @@ export class ProveedoresService {
       limit,
       filters,
     );
-    return buildPaginatedResponse(
-      this.mapper.toResponseDtoList(proveedores),
-      page,
-      limit,
-      total,
-    );
+
+    let data = this.mapper.toResponseDtoList(proveedores);
+
+    if (this.puedeVerAuditoria(tenant)) {
+      const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch(
+        'Proveedor',
+        proveedores.map((p) => p.id),
+        tenant.empresaId,
+      );
+      data = data.map((dto) => ({ ...dto, auditoria: trazabilidadMap.get(dto.id) }));
+    }
+
+    return buildPaginatedResponse(data, page, limit, total);
   }
 
   async findOne(id: number, tenant: TenantContext): Promise<ProveedorResponseDto> {
@@ -64,7 +78,18 @@ export class ProveedoresService {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
     this.assertOwnEmpresa(proveedor, tenant);
-    return this.mapper.toResponseDto(proveedor);
+
+    const dto = this.mapper.toResponseDto(proveedor);
+
+    if (this.puedeVerAuditoria(tenant)) {
+      dto.auditoria = await this.auditLogService.getTrazabilidad(
+        'Proveedor',
+        id,
+        tenant.empresaId,
+      );
+    }
+
+    return dto;
   }
 
   async create(dto: CreateProveedorDto, tenant: TenantContext): Promise<ProveedorResponseDto> {
@@ -126,11 +151,11 @@ export class ProveedoresService {
         });
       }
     }
-    
+
     const empresaId = dto.empresaId !== undefined ? this.resolveEmpresaId(dto.empresaId, tenant) : undefined;
     const updated = this.mapper.applyUpdate(proveedor, dto, empresaId);
     const saved = await this.proveedorRepository.update(updated, tenant);
-    
+
     if (!saved) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
@@ -143,7 +168,7 @@ export class ProveedoresService {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
     this.assertOwnEmpresa(proveedor, tenant);
-    
+
     const deleted = await this.proveedorRepository.softDelete(id, tenant);
     if (!deleted) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);

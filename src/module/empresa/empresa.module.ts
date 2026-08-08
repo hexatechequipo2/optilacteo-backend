@@ -7,9 +7,13 @@ import { Empresa } from './entities/empresa.entity';
 import { EmpresaModulo } from './entities/empresa-modulo.entity';
 import { EmpresaRepository } from './repository/empresa.repository';
 import { EMPRESA_REPOSITORY } from './repository/empresa-repository.interface';
+import { StorageModule } from '../../common/storage/storage.module'; // NUEVO
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Empresa, EmpresaModulo])],
+  imports: [
+    TypeOrmModule.forFeature([Empresa, EmpresaModulo]),
+    StorageModule, // NUEVO
+  ],
   controllers: [EmpresaController, PlanesController],
   providers: [
     EmpresaService,

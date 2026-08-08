@@ -1,0 +1,55 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  ArrayMinSize,
+  ValidateNested,
+} from 'class-validator';
+import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
+import { DestinoLote } from '../enums/destino-lote.enum';
+import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
+import { CreateLoteParametroDto } from './create-lote-parametro.dto';
+
+export class CreateLoteDto {
+  @ApiPropertyOptional({
+    description:
+      'Identificador único del lote. Si no se envía, se genera automáticamente.',
+  })
+  @IsOptional()
+  @IsString()
+  codigo?: string;
+
+  @ApiProperty()
+  @IsInt()
+  proveedorId!: number;
+
+  @ApiProperty({ enum: TipoMateriaPrima })
+  @IsEnum(TipoMateriaPrima)
+  materiaPrima!: TipoMateriaPrima;
+
+  @ApiProperty({ example: '2026-07-22T08:30:00.000Z' })
+  @IsDateString()
+  fechaIngreso!: string;
+
+  @ApiPropertyOptional({ enum: DestinoLote })
+  @IsOptional()
+  @IsEnum(DestinoLote)
+  destinoInicial?: DestinoLote;
+
+  @ApiPropertyOptional({ enum: Ubicacion })
+  @IsOptional()
+  @IsEnum(Ubicacion)
+  ubicacionInicial?: Ubicacion;
+
+  @ApiProperty({ type: [CreateLoteParametroDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateLoteParametroDto)
+  parametros!: CreateLoteParametroDto[];
+}

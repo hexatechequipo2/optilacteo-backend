@@ -6,11 +6,13 @@ import { ProveedoresService } from './proveedor.service';
 import { ProveedorRepository } from './repository/proveedor.repository';
 import { PROVEEDOR_REPOSITORY } from './repository/proveedor-interface.repository';
 import { ProveedorMapper } from './mappers/proveedor.mapper';
+import { AuditLogModule } from '../audit/audit-log.module';
 
 @Module({
   imports: [
     // Registra la entidad en TypeORM para este módulo
     TypeOrmModule.forFeature([Proveedor]),
+    AuditLogModule
   ],
   controllers: [ProveedoresController],
   providers: [
