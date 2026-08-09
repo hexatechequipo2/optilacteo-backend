@@ -44,7 +44,9 @@ export class MedicionManualController {
     @CurrentEmpresa() tenant: TenantContext,
     @Req() req: any, // TODO: reemplazar por @CurrentUser() real, mismo TODO que lectura-sensor
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const usuarioId = req.user.sub;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return this.medicionManualService.registrar(+id, dto, usuarioId, tenant);
   }
 

@@ -51,7 +51,7 @@ describe('UserController', () => {
       };
       mockUserService.create.mockResolvedValue({ id: 1, ...dto });
 
-      await controller.create(dto as never, tenantGerente);
+      await controller.create(dto, tenantGerente);
 
       expect(mockUserService.create).toHaveBeenCalledWith(dto, tenantGerente);
     });
@@ -66,7 +66,7 @@ describe('UserController', () => {
 
       mockUserService.findAll.mockResolvedValue([]);
 
-      await controller.findAll(tenantGerente, query as never);
+      await controller.findAll(tenantGerente, query);
 
       expect(mockUserService.findAll).toHaveBeenCalledWith(
         tenantGerente,
@@ -90,7 +90,7 @@ describe('UserController', () => {
       const dto = { name: 'Nuevo nombre' };
       mockUserService.update.mockResolvedValue({ id: 3, ...dto });
 
-      await controller.update('3', dto as never, tenantGerente);
+      await controller.update('3', dto, tenantGerente);
 
       expect(mockUserService.update).toHaveBeenCalledWith(
         3,

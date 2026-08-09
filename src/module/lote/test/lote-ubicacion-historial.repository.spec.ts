@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LoteUbicacionHistorialRepository } from '../repository/lote-ubicacion-historial.repository';
 import { LoteUbicacionHistorial } from '../entities/lote-ubicacion-historial.entity';
+/* eslint-disable @typescript-eslint/unbound-method */
 
 describe('LoteUbicacionHistorialRepository', () => {
   let repository: LoteUbicacionHistorialRepository;

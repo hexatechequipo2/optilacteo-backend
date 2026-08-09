@@ -87,6 +87,7 @@ describe('AuditLogController', () => {
 
       await controller.findAll(tenant, 'abc', 'xyz');
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const [, pageArg, limitArg] = mockAuditLogService.findAll.mock.calls[0];
       expect(Number.isNaN(pageArg)).toBe(true);
       expect(Number.isNaN(limitArg)).toBe(true);
@@ -112,6 +113,7 @@ describe('AuditLogController', () => {
 
   describe('Roles metadata', () => {
     it('deberia exponer los roles ADMINISTRADOR y GERENTE en findAll', () => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       const roles = reflector.get<string[]>('roles', controller.findAll);
       expect(roles).toEqual(
         expect.arrayContaining([ROLES.ADMINISTRADOR, ROLES.GERENTE]),

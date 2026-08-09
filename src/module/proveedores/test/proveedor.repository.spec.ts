@@ -5,6 +5,9 @@ import { TipoProveedor } from '../enums/tipo-proveedor.enum';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 const tenantEmpresaA: TenantContext = {
   empresaId: 1,
@@ -70,7 +73,7 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       update: jest.fn(),
       countBy: jest.fn(),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
-    } as any;
+    };
 
     repository = new ProveedorRepository(
       mockTypeormRepo as unknown as Repository<Proveedor>,

@@ -13,6 +13,7 @@ import {
 } from '../repository/notificacion.repository.interface';
 import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto';
 import { Notificacion } from '../entities/notificacion.entity';
+/* eslint-disable @typescript-eslint/unbound-method */
 
 describe('NotificacionesService', () => {
   let service: NotificacionesService;
@@ -27,11 +28,9 @@ describe('NotificacionesService', () => {
       findById: jest.fn(),
       markAsLeida: jest.fn(),
     };
-    tipo: ('INFO' as TipoNotificacion,
-      (userRepositoryMock = {
-        find: jest.fn(),
-      } as unknown as jest.Mocked<Repository<User>>));
-
+    userRepositoryMock = {
+      find: jest.fn(),
+    } as unknown as jest.Mocked<Repository<User>>;
     gatewayMock = {
       emitirNotificacion: jest.fn(),
     } as unknown as jest.Mocked<NotificacionesGateway>;
@@ -80,13 +79,13 @@ describe('NotificacionesService', () => {
       userRepositoryMock.find.mockResolvedValue(mockResponsables);
 
       notificacionRepositoryMock.create.mockImplementation(
-        async (entity) =>
-          ({
+        (entity: Partial<Notificacion>) =>
+          Promise.resolve({
             id: Math.floor(Math.random() * 1000) + 1,
             ...entity,
             leida: false,
             createdAt: new Date(),
-          }) as unknown as Notificacion,
+          } as unknown as Notificacion),
       );
 
       await service.notificarResponsablesCalidad(
@@ -171,7 +170,7 @@ describe('NotificacionesService', () => {
     it('debe obtener las notificaciones paginadas del repositorio y devolver la respuesta con la estructura del mapper', async () => {
       const usuarioId = 42;
       const empresaId = 1;
-      const query: NotificacionFilterQueryDto = { page: 1, limit: 10 } as any;
+      const query: NotificacionFilterQueryDto = { page: 1, limit: 10 };
 
       const mockEntities = [
         {

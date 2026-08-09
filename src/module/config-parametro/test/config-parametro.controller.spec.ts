@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
 import { ConfigParametroController } from '../config-parametro.controller';
 import { ConfigParametroService } from '../config-parametro.service';
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 const mockService = {
   crear: jest.fn(),

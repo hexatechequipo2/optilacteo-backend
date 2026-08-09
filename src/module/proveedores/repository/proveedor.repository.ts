@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { TenantScopedRepository } from '../../../common/repository/tenant-scoped.repository';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { Proveedor } from '../entities/proveedor.entity';
@@ -102,9 +102,10 @@ export class ProveedorRepository
     proveedor: Proveedor,
     tenant: TenantContext,
   ): Promise<Proveedor | null> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, empresa, createdAt, updatedAt, ...columns } = proveedor;
     const result = await this.repo.update(
-      this.scopedWhere(tenant, { id } as FindOptionsWhere<Proveedor>),
+      this.scopedWhere(tenant, { id }),
       columns,
     );
     if (!result.affected) {
@@ -122,10 +123,9 @@ export class ProveedorRepository
     estado: EstadoProveedor,
     tenant: TenantContext,
   ): Promise<boolean> {
-    const result = await this.repo.update(
-      this.scopedWhere(tenant, { id } as FindOptionsWhere<Proveedor>),
-      { estado },
-    );
+    const result = await this.repo.update(this.scopedWhere(tenant, { id }), {
+      estado,
+    });
     return !!result.affected;
   }
 

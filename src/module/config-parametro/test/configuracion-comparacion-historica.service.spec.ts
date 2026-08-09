@@ -63,8 +63,8 @@ describe('ConfiguracionComparacionHistoricaService', () => {
   describe('update', () => {
     it('cuando la empresa nunca tuvo configuración y envía ambos campos, debe crearla con esos valores', async () => {
       mockRepository.findByEmpresa.mockResolvedValue(null);
-      mockRepository.create.mockImplementation((c) => c);
-      mockRepository.save.mockImplementation(async (c) => c);
+      mockRepository.create.mockImplementation((c: object) => c);
+      mockRepository.save.mockImplementation((c: object) => c);
 
       const resultado = await service.update(1, {
         desvioSignificativoPorcentaje: 20,
@@ -84,8 +84,8 @@ describe('ConfiguracionComparacionHistoricaService', () => {
 
     it('cuando la empresa nunca tuvo configuración y no envía campos, debe crearla con los valores por defecto', async () => {
       mockRepository.findByEmpresa.mockResolvedValue(null);
-      mockRepository.create.mockImplementation((c) => c);
-      mockRepository.save.mockImplementation(async (c) => c);
+      mockRepository.create.mockImplementation((c: object) => c);
+      mockRepository.save.mockImplementation((c: object) => c);
 
       const resultado = await service.update(1, {});
 
@@ -106,7 +106,7 @@ describe('ConfiguracionComparacionHistoricaService', () => {
         cantidadRegistrosHistoricos: 20,
       };
       mockRepository.findByEmpresa.mockResolvedValue(configExistente);
-      mockRepository.save.mockImplementation(async (c) => c);
+      mockRepository.save.mockImplementation((c: object) => c);
 
       const resultado = await service.update(1, {
         desvioSignificativoPorcentaje: 40,
@@ -126,7 +126,7 @@ describe('ConfiguracionComparacionHistoricaService', () => {
         cantidadRegistrosHistoricos: 20,
       };
       mockRepository.findByEmpresa.mockResolvedValue(configExistente);
-      mockRepository.save.mockImplementation(async (c) => c);
+      mockRepository.save.mockImplementation((c: object) => c);
 
       const resultado = await service.update(1, {});
 

@@ -5,6 +5,9 @@ import { DashboardController } from '../dashboard.controller';
 import { DashboardService } from '../dashboard.service';
 import { GranularidadHistorico } from '../dto/dashboard-historico.dto';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 describe('DashboardController', () => {
   let controller: DashboardController;
 

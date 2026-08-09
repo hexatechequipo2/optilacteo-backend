@@ -11,7 +11,6 @@ import { Repository } from 'typeorm';
 import { Proveedor } from '../proveedores/entities/proveedor.entity';
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
 import type { TenantContext } from '../../common/types/tenant-context.type';
-import { Lote } from './entities/lote.entity';
 import { LoteParametro } from './entities/lote-parametro.entity';
 import { CreateLoteDto } from './dto/create-lote.dto';
 import { UpdateLoteDto } from './dto/update-lote.dto';

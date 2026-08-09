@@ -37,7 +37,7 @@ function buildRol(overrides: Partial<Rol> = {}): Rol {
     empresa: buildEmpresa(),
     permisos: [],
     ...overrides,
-  } as Rol;
+  };
 }
 
 function buildCreateDto(overrides: Partial<CreateRolDto> = {}): CreateRolDto {
@@ -276,6 +276,7 @@ describe('RolService', () => {
 
       expect(mockUserTypeormRepo.count).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           where: expect.objectContaining({ isActive: true }),
         }),
       );

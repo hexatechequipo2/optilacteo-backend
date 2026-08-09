@@ -13,6 +13,7 @@ import { DETALLE_POR_PLAN } from '../config/plan-detalles.config';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { StorageService } from '../../../common/storage/storage.service';
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 
 // HU-10 (aislamiento multi-tenant vía assertOwnEmpresa/404) ya está cubierta
 // en empresa-tenant-isolation.service.spec.ts. Este archivo se enfoca en las

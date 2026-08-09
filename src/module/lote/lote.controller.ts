@@ -156,7 +156,9 @@ export class LoteController {
     @CurrentEmpresa() tenant: TenantContext,
     @Req() req: any, // TODO: reemplazar por tu @CurrentUser() real
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const usuarioId = req.user.sub;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return this.loteService.revisarLote(+id, dto, tenant, usuarioId);
   }
 

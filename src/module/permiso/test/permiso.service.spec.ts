@@ -13,7 +13,7 @@ function buildPermiso(overrides: Partial<PermisoModulo> = {}): PermisoModulo {
     canWrite: false,
     rol: { id: 5, nombre: 'Gerente' } as PermisoModulo['rol'],
     ...overrides,
-  } as PermisoModulo;
+  };
 }
 
 describe('PermisoService', () => {

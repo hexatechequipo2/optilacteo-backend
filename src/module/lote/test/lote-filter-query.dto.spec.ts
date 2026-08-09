@@ -4,6 +4,8 @@ import { plainToInstance } from 'class-transformer';
 import { LoteFilterQueryDto } from '../dto/lote-filter-query.dto';
 import { EstadoLote } from '../enums/estado-lote.enum';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 const API_MODEL_PROPERTIES = 'swagger/apiModelProperties';
 

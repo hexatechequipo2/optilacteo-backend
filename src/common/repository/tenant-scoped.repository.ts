@@ -5,10 +5,7 @@ import {
   SelectQueryBuilder,
 } from 'typeorm';
 import type { TenantContext } from '../types/tenant-context.type';
-import {
-  ROLES,
-  type RolNombre,
-} from '../../module/rol/constants/roles.constants';
+import { ROLES } from '../../module/rol/constants/roles.constants';
 
 type TenantEntity = { id: number; empresaId: number };
 
@@ -21,7 +18,7 @@ export abstract class TenantScopedRepository<T extends TenantEntity> {
 
   protected scopedWhere(
     tenant: TenantContext,
-    extra: FindOptionsWhere<T> = {} as FindOptionsWhere<T>,
+    extra: FindOptionsWhere<T> = {},
   ): FindOptionsWhere<T> {
     if (this.isGlobalAccess(tenant)) {
       return extra;

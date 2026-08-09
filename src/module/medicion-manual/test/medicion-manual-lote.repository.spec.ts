@@ -5,6 +5,10 @@ import { MedicionManualLoteRepository } from '../repository/medicion-manual-lote
 import { MedicionManualLote } from '../entities/medicion-manual-lote.entity';
 import { HistorialMedicionManualFiltro } from '../repository/medicion-manual-lote.repository.interface';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 describe('MedicionManualLoteRepository', () => {
   let repository: MedicionManualLoteRepository;
   let typeormRepoMock: jest.Mocked<Repository<MedicionManualLote>>;

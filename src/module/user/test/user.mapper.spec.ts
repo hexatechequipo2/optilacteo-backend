@@ -15,7 +15,7 @@ function buildRol(overrides: Partial<Rol> = {}): Rol {
     isActive: true,
     permisos: [],
     ...overrides,
-  } as Rol;
+  };
 }
 
 function buildUser(overrides: Partial<User> = {}): User {
@@ -30,7 +30,7 @@ function buildUser(overrides: Partial<User> = {}): User {
     empresa: buildEmpresa(),
     rol: buildRol(),
     ...overrides,
-  } as User;
+  };
 }
 
 function buildCreateDto(overrides: Partial<CreateUserDto> = {}): CreateUserDto {

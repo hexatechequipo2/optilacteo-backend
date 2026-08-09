@@ -25,6 +25,12 @@ import type { Lote } from '../../lote/entities/lote.entity';
 import { ROLES } from '../../rol/constants/roles.constants';
 import { AuditLogService } from '../../audit/audit-log.service';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 describe('SensorService', () => {
   let service: SensorService;
 
@@ -64,7 +70,7 @@ describe('SensorService', () => {
   const gerenteTenant: TenantContext = {
     empresaId: 10,
     rolNombre: ROLES.GERENTE,
-  } as TenantContext;
+  };
 
   const invalidTenant: TenantContext = {
     empresaId: null,
@@ -148,9 +154,9 @@ describe('SensorService', () => {
 
   describe('resolveEmpresaId', () => {
     it('debe lanzar BadRequestException si el tenant no tiene empresaId', async () => {
-      await expect(
-        service.findAll({} as SensorFilterQueryDto, invalidTenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.findAll({}, invalidTenant)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -200,7 +206,7 @@ describe('SensorService', () => {
         ...dto,
         rangoMinFavor: 50,
         rangoMaxFavor: 10,
-      } as CreateSensorDto;
+      };
 
       await expect(service.create(invalidDto, validTenant)).rejects.toThrow(
         BadRequestException,
@@ -381,7 +387,7 @@ describe('SensorService', () => {
       nombre: 'Nuevo Nombre',
       rangoMinFavor: 5,
       rangoMaxFavor: 30,
-    } as UpdateSensorDto;
+    };
 
     it('debe actualizar el sensor correctamente', async () => {
       const sensor = {
@@ -394,7 +400,7 @@ describe('SensorService', () => {
       const actualizado = {
         ...sensor,
         ...dto,
-      } as Sensor;
+      };
 
       sensorRepoMock.findOne.mockResolvedValue(sensor);
       sensorRepoMock.findByNombre.mockResolvedValue(null);

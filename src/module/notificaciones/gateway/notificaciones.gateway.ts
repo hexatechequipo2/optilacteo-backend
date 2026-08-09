@@ -48,11 +48,11 @@ export class NotificacionesGateway
         client.disconnect(true);
         return;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       client.data.empresaId = payload.empresaId;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       client.data.userId = payload.sub;
-      await client.join(
-        this.room(payload.empresaId, payload.sub as unknown as number),
-      );
+      await client.join(this.room(payload.empresaId, payload.sub));
     } catch {
       this.logger.warn(`Conexión WS rechazada (token inválido): ${client.id}`);
       client.disconnect(true);

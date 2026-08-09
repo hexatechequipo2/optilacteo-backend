@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 
 import { SensorEventoRepository } from '../repository/sensor-evento.repository';
 import { SensorEvento } from '../entities/sensor-evento.entity';
+/* eslint-disable @typescript-eslint/unbound-method */
 
 describe('SensorEventoRepository', () => {
   let repository: SensorEventoRepository;

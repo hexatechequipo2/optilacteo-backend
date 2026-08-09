@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { ClasificacionLoteService } from '../clasificacion-lote.service';
 import { Lote } from '../entities/lote.entity';
 import { LoteClasificacionHistorial } from '../../lote/entities/lote-clasificacion-historial.entity';
@@ -13,6 +12,11 @@ import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { EstadoSensor } from '../../sensor/enums/estado-sensor.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { TipoNotificacion } from '../../notificaciones/enums/tipo-notificacion.enum';
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 
 type MockRepository<T = any> = {
   findOne: jest.Mock;
@@ -90,8 +94,7 @@ describe('ClasificacionLoteService', () => {
     medicionManualRepo = module.get(getRepositoryToken(MedicionManualLote));
     sensorRepo = module.get(getRepositoryToken(Sensor));
 
-    const createQueryBuilderMock =
-      sensorLecturaRepo.createQueryBuilder as jest.Mock;
+    const createQueryBuilderMock = sensorLecturaRepo.createQueryBuilder;
     createQueryBuilderMock.mockReturnValue(mockQueryBuilder as any);
   });
 

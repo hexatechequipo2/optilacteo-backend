@@ -1,5 +1,7 @@
 import { NotificacionPaginadaResponseDto } from '../dto/notificacion-paginada-response.dto';
 import { NotificacionResponseDto } from '../dto/notificacion-response.dto';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 describe('NotificacionPaginadaResponseDto', () => {
   it('debe instanciarse correctamente y asignar todas sus propiedades', () => {
     const mockData: NotificacionResponseDto[] = [

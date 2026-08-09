@@ -4,6 +4,9 @@ import { Server, Socket } from 'socket.io';
 import { NotificacionesGateway } from '../gateway/notificaciones.gateway';
 import { NotificacionResponseDto } from '../dto/notificacion-response.dto';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 describe('NotificacionesGateway', () => {
   let gateway: NotificacionesGateway;
@@ -110,7 +113,7 @@ describe('NotificacionesGateway', () => {
       jwtServiceMock.verifyAsync.mockResolvedValue({
         sub: null,
         empresaId: 2,
-      } as any);
+      });
 
       await gateway.handleConnection(socketMock as Socket);
 

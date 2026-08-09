@@ -15,6 +15,12 @@ import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { CreateMedicionManualLoteDto } from '../dto/create-medicion-manual-lote.dto';
 import { HistorialMedicionManualFilterQueryDto } from '../dto/historial-medicion-manual-filter-query.dto';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 describe('MedicionManualService', () => {
   let service: MedicionManualService;
   let loteRepoMock: any;
@@ -97,7 +103,7 @@ describe('MedicionManualService', () => {
         { parametro: Parametro.TEMPERATURA, valor: 4.5 },
         { parametro: Parametro.PH, valor: 6.7 },
       ],
-    } as any;
+    };
 
     it('debe lanzar BadRequestException si tenant.empresaId es nulo', async () => {
       const invalidTenant = { empresaId: null } as any;
@@ -185,14 +191,14 @@ describe('MedicionManualService', () => {
 
       jest
         .spyOn(MedicionManualMapper, 'toEntities')
-        .mockReturnValue(mockEntities as any);
+        .mockReturnValue(mockEntities);
       medicionRepoMock.create.mockResolvedValue(mockCreated);
       jest
         .spyOn(MedicionManualMapper, 'toResponseItemList')
         .mockReturnValue(mockResponseItems as any);
 
       clasificacionLoteServiceMock.evaluarYClasificar.mockResolvedValue(
-        undefined as any,
+        undefined,
       );
 
       const resultado = await service.registrar(

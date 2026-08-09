@@ -7,6 +7,8 @@ import { EstadoLote } from '../enums/estado-lote.enum';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('LoteRepository', () => {
   let repository: LoteRepository;
   let typeormRepoMock: jest.Mocked<Repository<Lote>>;

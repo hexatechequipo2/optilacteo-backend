@@ -17,7 +17,6 @@ import { DETALLE_POR_PLAN } from './config/plan-detalles.config';
 import { ModuloSistema } from './enums/modulo-sistema.enum';
 import { Plan } from './enums/plan.enum';
 import { ROLES } from '../rol/constants/roles.constants';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import {
   buildPaginatedResponse,
   type PaginatedResponse,
@@ -135,10 +134,7 @@ export class EmpresaService {
       ...(dto.plan !== undefined && { plan: dto.plan }),
     };
 
-    const updated = await this.empresaRepository.updateEmpresa(
-      id,
-      empresaToUpdate,
-    );
+    await this.empresaRepository.updateEmpresa(id, empresaToUpdate);
 
     if (dto.plan !== undefined && dto.plan !== empresaActual.plan) {
       const modulosNuevoPlan = DETALLE_POR_PLAN[dto.plan].modulos;

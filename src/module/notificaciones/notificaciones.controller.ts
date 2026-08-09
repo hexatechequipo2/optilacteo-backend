@@ -31,6 +31,7 @@ export class NotificacionesController {
     @Req() req: any,
   ) {
     return this.notificacionesService.listarPorUsuario(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
       req.user.sub,
       tenant.empresaId!,
       query,
@@ -45,6 +46,7 @@ export class NotificacionesController {
   ) {
     return this.notificacionesService.marcarLeida(
       +id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
       req.user.sub,
       tenant.empresaId!,
     );

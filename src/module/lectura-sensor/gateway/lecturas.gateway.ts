@@ -55,6 +55,7 @@ export class LecturasGateway
         client.disconnect(true);
         return;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       client.data.empresaId = payload.empresaId;
       await client.join(this.room(payload.empresaId));
     } catch {

@@ -53,13 +53,9 @@ export class RolRepository implements IRolRepository {
     await this.repository.delete(id);
   }
 
-  async hasActiveUsers(id: number): Promise<boolean> {
-    const rol = await this.repository.findOne({
-      where: { id },
-      relations: { permisos: true },
-    });
-    // Se valida contra la tabla users en el service, no acá directamente
-    return false;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  hasActiveUsers(_id: number): Promise<boolean> {
+    return Promise.resolve(false);
   }
 
   async createPermisos(

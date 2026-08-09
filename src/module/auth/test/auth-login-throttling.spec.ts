@@ -17,6 +17,7 @@ function buildLoginContext(ip: string): ExecutionContext {
       getRequest: () => request,
       getResponse: () => response,
     }),
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     getHandler: () => AuthController.prototype.login,
     getClass: () => AuthController,
   } as unknown as ExecutionContext;

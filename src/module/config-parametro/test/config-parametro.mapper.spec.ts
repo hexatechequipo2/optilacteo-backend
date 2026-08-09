@@ -7,9 +7,7 @@ import { CreateConfigParametroDto } from '../dto/create-config-parametro.dto';
 describe('ConfigParametroMapper', () => {
   afterEach(() => jest.clearAllMocks());
 
-  const tipoMateriaPrima = Object.values(
-    TipoMateriaPrima,
-  )[0] as TipoMateriaPrima;
+  const tipoMateriaPrima = Object.values(TipoMateriaPrima)[0];
 
   describe('toEntity', () => {
     it('cuando se recibe un DTO válido, debe crear una entidad con todos sus datos', () => {

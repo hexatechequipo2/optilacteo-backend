@@ -6,6 +6,7 @@ import { ConfigParametroRepository } from '../repository/config-parametro.reposi
 import { ConfiguracionParametro } from '../entities/config-parametro.entity';
 import { Parametro } from '../enums/parametro.enum';
 import { TipoMateriaPrima } from '../enums/tipo-materia-prima-enum';
+/* eslint-disable @typescript-eslint/unbound-method */
 
 describe('ConfigParametroRepository', () => {
   let repository: ConfigParametroRepository;

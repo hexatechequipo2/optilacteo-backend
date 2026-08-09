@@ -195,6 +195,7 @@ export class DashboardService {
       materiaPrima: string,
     ) => {
       const config = configs.find(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         (c) => c.parametro === parametro && c.tipoMateriaPrima === materiaPrima,
       );
       if (!config) return;

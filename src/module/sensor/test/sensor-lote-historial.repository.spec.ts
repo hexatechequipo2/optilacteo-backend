@@ -4,6 +4,10 @@ import { Repository } from 'typeorm';
 import { SensorLoteHistorialRepository } from '../repository/sensor-lote-historial.repository';
 import { SensorLoteHistorial } from '../entities/sensor-lote-historial.entity';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 describe('SensorLoteHistorialRepository', () => {
   let repository: SensorLoteHistorialRepository;
   let typeormRepoMock: jest.Mocked<Repository<SensorLoteHistorial>>;
