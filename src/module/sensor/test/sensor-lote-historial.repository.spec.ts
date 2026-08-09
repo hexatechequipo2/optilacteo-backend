@@ -87,6 +87,17 @@ describe('SensorLoteHistorialRepository', () => {
 
       expect(typeormRepoMock.find).toHaveBeenCalledWith({
         where: { sensorId, empresaId },
+        relations: { usuario: true },
+        select: {
+          id: true,
+          sensorId: true,
+          loteIdAnterior: true,
+          loteIdNuevo: true,
+          userId: true,
+          empresaId: true,
+          fecha: true,
+          usuario: { id: true, email: true },
+        },
         order: { fecha: 'DESC' },
       });
       expect(result).toBe(mockList);
