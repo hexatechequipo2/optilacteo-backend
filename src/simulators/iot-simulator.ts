@@ -75,11 +75,23 @@ function parseArgs(): Args {
   };
 }
 
+/**
+ * Sesión mutable compartida entre las funciones que envían lecturas.
+ * Se actualiza in-place cuando el access token se refresca, así todos los
+ * loops (setInterval, burst) ven el token nuevo sin tener que replantear
+ * su firma con callbacks.
+ */
+interface Sesion {
+  token: string;
+  refreshToken: string;
+  empresaId: number;
+}
+
 async function login(
   url: string,
   email: string,
   password: string,
-): Promise<{ token: string; empresaId: number }> {
+): Promise<{ token: string; refreshToken: string; empresaId: number }> {
   const res = await fetch(`${url}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -89,7 +101,79 @@ async function login(
     throw new Error(`Login falló (HTTP ${res.status}): ${await res.text()}`);
   }
   const body = await res.json();
-  return { token: body.access_token, empresaId: body.user.empresaId };
+  return {
+    token: body.access_token,
+    refreshToken: body.refresh_token,
+    empresaId: body.user.empresaId,
+  };
+}
+
+/** Renueva el access token vía POST /refresh (rotación), sin re-hacer login. */
+async function refrescarToken(
+  url: string,
+  refreshToken: string,
+): Promise<{ token: string; refreshToken: string }> {
+  const res = await fetch(`${url}/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!res.ok) {
+    throw new Error(`Refresh falló (HTTP ${res.status}): ${await res.text()}`);
+  }
+  const body = await res.json();
+  return { token: body.access_token, refreshToken: body.refresh_token };
+}
+
+// Evita que dos lecturas en paralelo (setInterval dispara una por sensor a
+// la vez, burst dispara todas juntas) disparen cada una su propio
+// login/refresh cuando el token expira — todas esperan la misma promesa.
+let reautenticacionEnCurso: Promise<void> | null = null;
+
+/**
+ * Refresca la sesión in-place. Intenta primero POST /refresh (rotación,
+ * sin exponer la contraseña de nuevo); si el refresh token también está
+ * vencido/inválido, cae a un login completo con las credenciales del
+ * simulador (cuenta de servicio, es un caso de uso válido).
+ */
+async function reautenticar(
+  url: string,
+  sesion: Sesion,
+  args: Args,
+  tokenQueFallo: string,
+): Promise<void> {
+  // Si otra lectura concurrente ya refrescó la sesión mientras esta request
+  // estaba en vuelo, el token actual ya no es el que dio 401 — no hace
+  // falta pegarle de nuevo al backend, alcanza con reintentar con el nuevo.
+  if (sesion.token !== tokenQueFallo) {
+    return;
+  }
+  if (reautenticacionEnCurso) {
+    return reautenticacionEnCurso;
+  }
+  reautenticacionEnCurso = (async () => {
+    console.log('Token expirado, re-autenticando...');
+    try {
+      const nuevo = await refrescarToken(url, sesion.refreshToken);
+      sesion.token = nuevo.token;
+      sesion.refreshToken = nuevo.refreshToken;
+      console.log('Re-autenticación exitosa (refresh token).');
+    } catch (err) {
+      console.warn(
+        `Refresh token falló (${(err as Error).message}); reintentando con login completo...`,
+      );
+      const nuevo = await login(url, args.email, args.password);
+      sesion.token = nuevo.token;
+      sesion.refreshToken = nuevo.refreshToken;
+      sesion.empresaId = nuevo.empresaId;
+      console.log('Re-autenticación exitosa (login completo).');
+    }
+  })();
+  try {
+    await reautenticacionEnCurso;
+  } finally {
+    reautenticacionEnCurso = null;
+  }
 }
 
 
@@ -144,15 +228,18 @@ function generarValor(sensor: SensorSimulable, modo: Args['modo']): number {
 
 async function enviarLectura(
   url: string,
-  token: string,
+  sesion: Sesion,
   sensor: SensorSimulable,
   valor: number,
+  args: Args,
+  esReintento = false,
 ): Promise<void> {
+  const tokenUsado = sesion.token;
   const res = await fetch(`${url}/sensores/lecturas`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${tokenUsado}`,
     },
     body: JSON.stringify({
       sensor_id: sensor.nombre,
@@ -161,6 +248,20 @@ async function enviarLectura(
       timestamp: new Date().toISOString(),
     }),
   });
+
+  if (res.status === 401 && !esReintento) {
+    await res.text().catch(() => null); // drenar body, no nos interesa el detalle acá
+    try {
+      await reautenticar(url, sesion, args, tokenUsado);
+    } catch (err) {
+      console.error(
+        `[401] ${sensor.nombre}: no se pudo re-autenticar (${(err as Error).message}). Se reintentará en el próximo ciclo.`,
+      );
+      return;
+    }
+    return enviarLectura(url, sesion, sensor, valor, args, true);
+  }
+
   const detalle = res.ok
     ? ''
     : ` ${JSON.stringify(await res.json().catch(() => null))}`;
@@ -182,12 +283,17 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { token, empresaId } = await login(args.url, args.email, args.password);
-  const sensores = await obtenerSensoresAsociados(args.url, token, empresaId);
+  const sesionInicial = await login(args.url, args.email, args.password);
+  const sesion: Sesion = { ...sesionInicial };
+  const sensores = await obtenerSensoresAsociados(
+    args.url,
+    sesion.token,
+    sesion.empresaId,
+  );
 
   if (sensores.length === 0) {
     console.error(
-      `No hay sensores asociados a un lote de la empresa ${empresaId}. Asociá al menos uno (PATCH /sensores/lote/:loteId/asociar) antes de simular.`,
+      `No hay sensores asociados a un lote de la empresa ${sesion.empresaId}. Asociá al menos uno (PATCH /sensores/lote/:loteId/asociar) antes de simular.`,
     );
     process.exitCode = 1;
     return;
@@ -201,9 +307,10 @@ async function main(): Promise<void> {
       const sensor = sensores[i % sensores.length];
       return enviarLectura(
         args.url,
-        token,
+        sesion,
         sensor,
         generarValor(sensor, 'normal'),
+        args,
       );
     });
     await Promise.all(tareas);
@@ -218,9 +325,10 @@ async function main(): Promise<void> {
     for (const sensor of sensores) {
       void enviarLectura(
         args.url,
-        token,
+        sesion,
         sensor,
         generarValor(sensor, args.modo),
+        args,
       );
     }
   };
