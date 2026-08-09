@@ -17,6 +17,8 @@ import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { AuditLogService } from '../../audit/audit-log.service';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 const tenantEmpresaA: TenantContext = {
   empresaId: 1,
   rolNombre: ROLES.GERENTE,

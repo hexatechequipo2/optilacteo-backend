@@ -29,10 +29,6 @@ const tenantEmpresaA: TenantContext = {
   empresaId: 1,
   rolNombre: ROLES.GERENTE,
 };
-const tenantEmpresaB: TenantContext = {
-  empresaId: 2,
-  rolNombre: ROLES.GERENTE,
-};
 const tenantAdmin: TenantContext = {
   empresaId: null,
   rolNombre: ROLES.ADMINISTRADOR,

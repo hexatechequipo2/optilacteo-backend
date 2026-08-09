@@ -106,10 +106,12 @@ export class SensorController {
     @CurrentEmpresa() tenant: TenantContext,
     @Req() req: any, // TODO: reemplazar por tu @CurrentUser() real
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const usuarioId = req.user.sub;
     return this.sensorService.asociarALote(
       +loteId,
       dto.sensorIds,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       usuarioId,
       tenant,
     );

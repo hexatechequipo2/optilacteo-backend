@@ -13,7 +13,7 @@ function buildRol(overrides: Partial<Rol> = {}): Rol {
     empresa: { id: 1, name: 'Lacteos Norte' } as Rol['empresa'],
     permisos: [],
     ...overrides,
-  } as Rol;
+  };
 }
 
 describe('RolRepository', () => {

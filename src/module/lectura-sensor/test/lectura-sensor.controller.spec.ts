@@ -2,7 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { LecturaSensorController } from '../lectura-sensor.controller';
 import { LecturaSensorService } from '../lectura-sensor.service';
-
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 describe('LecturaSensorController', () => {
   let controller: LecturaSensorController;
 

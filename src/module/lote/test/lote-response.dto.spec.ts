@@ -11,6 +11,9 @@ import { DestinoLote } from '../enums/destino-lote.enum';
 import { EstadoLote } from '../enums/estado-lote.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 describe('DTOs de Respuesta de Lote', () => {
   describe('LoteParametroResponseDto', () => {
     it('debe instanciarse correctamente y asignar sus propiedades', () => {
@@ -93,14 +96,12 @@ describe('DTOs de Respuesta de Lote', () => {
       dto.codigo = 'LOTE-1-00001';
       dto.empresaId = 1;
       dto.proveedorId = 10;
-      const materiaPrima = Object.values(
-        TipoMateriaPrima,
-      )[0] as TipoMateriaPrima;
+      const materiaPrima = Object.values(TipoMateriaPrima)[0];
       dto.materiaPrima = materiaPrima;
       dto.fechaIngreso = fechaIngreso;
       dto.clasificacion = ClasificacionLote.APTO;
       dto.destinoInicial = 'PROCESAMIENTO' as DestinoLote;
-      const ubicacionInicial = Object.values(Ubicacion)[0] as Ubicacion;
+      const ubicacionInicial = Object.values(Ubicacion)[0];
       dto.ubicacionInicial = ubicacionInicial;
       dto.estado = EstadoLote.REGISTRADO;
       dto.parametros = [paramDto];
@@ -128,7 +129,7 @@ describe('DTOs de Respuesta de Lote', () => {
       dto.codigo = 'LOTE-1-00002';
       dto.empresaId = 1;
       dto.proveedorId = 10;
-      dto.materiaPrima = Object.values(TipoMateriaPrima)[0] as TipoMateriaPrima;
+      dto.materiaPrima = Object.values(TipoMateriaPrima)[0];
       dto.fechaIngreso = new Date();
       dto.clasificacion = null;
       dto.destinoInicial = undefined;

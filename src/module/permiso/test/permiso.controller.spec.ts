@@ -71,7 +71,7 @@ describe('PermisoController', () => {
       };
       mockPermisoService.update.mockResolvedValue({ id: 1, ...dto });
 
-      await controller.update('1', dto as never);
+      await controller.update('1', dto);
 
       expect(mockPermisoService.update).toHaveBeenCalledWith(1, dto);
     });

@@ -8,6 +8,9 @@ import { AsociarLoteDto } from '../dto/asociar-lote.dto';
 import { TenantContext } from '../../../common/types/tenant-context.type';
 import { ROLES } from '../../rol/constants/roles.constants';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 describe('SensorController', () => {
   let controller: SensorController;

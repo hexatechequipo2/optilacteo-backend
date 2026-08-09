@@ -47,7 +47,7 @@ describe('RolController', () => {
       const dto = { nombre: 'Supervisor de calidad', empresaId: 1 };
       mockRolService.create.mockResolvedValue({ id: 1, ...dto });
 
-      await controller.create(dto as never);
+      await controller.create(dto);
 
       expect(mockRolService.create).toHaveBeenCalledWith(dto);
     });
@@ -88,7 +88,7 @@ describe('RolController', () => {
       const dto = { nombre: 'Nuevo nombre' };
       mockRolService.update.mockResolvedValue({ id: 5, ...dto });
 
-      await controller.update('5', dto as never);
+      await controller.update('5', dto);
 
       expect(mockRolService.update).toHaveBeenCalledWith(5, dto);
     });
@@ -106,7 +106,7 @@ describe('RolController', () => {
         permisos: [dto],
       });
 
-      await controller.updatePermiso('5', dto as never, tenantGerente);
+      await controller.updatePermiso('5', dto, tenantGerente);
 
       expect(mockRolService.updatePermiso).toHaveBeenCalledWith(
         5,

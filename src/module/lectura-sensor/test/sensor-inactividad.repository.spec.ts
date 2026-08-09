@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In } from 'typeorm';
 
 import { SensorInactividadRepository } from '../repository/sensor-inactividad.repository';
 import { Sensor } from '../../sensor/entities/sensor.entity';

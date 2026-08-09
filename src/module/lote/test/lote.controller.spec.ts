@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { LoteController } from '../lote.controller';
 import { LoteService } from '../lote.service';
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 describe('LoteController', () => {
   let controller: LoteController;

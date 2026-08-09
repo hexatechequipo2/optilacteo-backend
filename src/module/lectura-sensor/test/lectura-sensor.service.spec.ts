@@ -23,6 +23,11 @@ import { EstadoSensor } from '../../sensor/enums/estado-sensor.enum';
 import { EstadoMedicion } from '../enums/estado-medicion.enum';
 import { ROLES } from '../../rol/constants/roles.constants';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/unbound-method */
+
 // El mapper se mockea: al Service solo le interesa que lo invoque bien,
 // no la lógica interna de conversión (eso se testea en lectura.mapper.spec.ts).
 jest.mock('../mappers/lectura.mapper', () => ({
@@ -435,7 +440,7 @@ describe('LecturaSensorService', () => {
       mockLoteRepository.findByCodigo.mockResolvedValue(null);
 
       const resultado = await service.consultarHistorial(
-        { loteCodigo: 'NOEXISTE' } as any,
+        { loteCodigo: 'NOEXISTE' },
         tenant,
       );
 
@@ -453,7 +458,7 @@ describe('LecturaSensorService', () => {
       mockLecturaRepository.findHistorial.mockResolvedValue([[], 0]);
       mockConfigParametroRepository.find.mockResolvedValue([]);
 
-      await service.consultarHistorial({} as any, tenant);
+      await service.consultarHistorial({}, tenant);
 
       expect(mockLecturaRepository.findHistorial).toHaveBeenCalledWith(
         expect.objectContaining({ page: 1, limit: 20 }),
@@ -470,7 +475,7 @@ describe('LecturaSensorService', () => {
       mockLecturaRepository.findHistorial.mockResolvedValue([[lectura], 1]);
       mockConfigParametroRepository.find.mockResolvedValue([]); // sin configuraciones
 
-      await service.consultarHistorial({} as any, tenant);
+      await service.consultarHistorial({}, tenant);
 
       expect(LecturaMapper.toHistorialItemDto).toHaveBeenCalledWith(
         lectura,
@@ -494,7 +499,7 @@ describe('LecturaSensorService', () => {
         },
       ]);
 
-      await service.consultarHistorial({} as any, tenant);
+      await service.consultarHistorial({}, tenant);
 
       expect(LecturaMapper.toHistorialItemDto).toHaveBeenCalledWith(
         lectura,
@@ -518,7 +523,7 @@ describe('LecturaSensorService', () => {
         },
       ]);
 
-      await service.consultarHistorial({} as any, tenant);
+      await service.consultarHistorial({}, tenant);
 
       expect(LecturaMapper.toHistorialItemDto).toHaveBeenCalledWith(
         lectura,
@@ -572,8 +577,11 @@ describe('LecturaSensorService', () => {
       });
 
       const resultado = await service.consultarHistorial(
-        {} as any,
-        { empresaId: 99, rolNombre: ROLES.GERENTE } as any,
+        {},
+        {
+          empresaId: 99,
+          rolNombre: ROLES.GERENTE,
+        },
       );
 
       expect(mockAuditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
@@ -602,10 +610,10 @@ describe('LecturaSensorService', () => {
         valor: 7,
       });
 
-      await service.consultarHistorial(
-        {} as any,
-        { empresaId: 99, rolNombre: 'RESPONSABLE_DE_CALIDAD' } as any,
-      );
+      await service.consultarHistorial({}, {
+        empresaId: 99,
+        rolNombre: 'RESPONSABLE_DE_CALIDAD',
+      } as any);
 
       expect(mockAuditLogService.getTrazabilidadBatch).not.toHaveBeenCalled();
     });
@@ -635,7 +643,7 @@ describe('LecturaSensorService', () => {
       mockLoteRepository.findByCodigo.mockResolvedValue(null);
 
       const resultado = await service.exportarHistorial(
-        { loteCodigo: 'NOEXISTE' } as any,
+        { loteCodigo: 'NOEXISTE' },
         tenant,
       );
 
@@ -666,7 +674,7 @@ describe('LecturaSensorService', () => {
         estado: EstadoMedicion.SIN_UMBRAL_CONFIGURADO,
       });
 
-      const resultado = await service.exportarHistorial({} as any, tenant);
+      const resultado = await service.exportarHistorial({}, tenant);
 
       expect(mockLecturaRepository.findHistorialCompleto).toHaveBeenCalledWith(
         expect.objectContaining({ loteId: undefined }),
@@ -706,7 +714,7 @@ describe('LecturaSensorService', () => {
         estado: EstadoMedicion.NORMAL,
       });
 
-      const resultado = await service.exportarHistorial({} as any, tenant);
+      const resultado = await service.exportarHistorial({}, tenant);
 
       expect(resultado).toContain('"sensor ""principal"""');
     });

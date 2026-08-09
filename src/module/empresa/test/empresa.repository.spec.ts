@@ -5,6 +5,8 @@ import { EmpresaModulo } from '../entities/empresa-modulo.entity';
 import { ModuloSistema } from '../enums/modulo-sistema.enum';
 import { Plan } from '../enums/plan.enum';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 // La logica de negocio de EmpresaService (limites de plan, aislamiento
 // tenant, etc.) ya esta cubierta en empresa.service.spec.ts, donde este
 // repository esta mockeado por completo. Ese mock oculta que syncModulos()

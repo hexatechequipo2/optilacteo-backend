@@ -311,6 +311,7 @@ export class SensorService {
       sensorId,
       empresaId,
     );
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     return historial.map(SensorMapper.historialToResponseDto);
   }
 }

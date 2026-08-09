@@ -10,6 +10,10 @@ import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { PERMISSIONS_KEY } from '../../../common/decorators/permissions.decorator';
 import { AUDIT_KEY } from '../../audit/decorators/audit-log.decorator';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 describe('MedicionManualController', () => {
   let controller: MedicionManualController;
   let serviceMock: jest.Mocked<MedicionManualService>;

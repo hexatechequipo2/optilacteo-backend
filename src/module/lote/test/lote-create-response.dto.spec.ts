@@ -3,6 +3,9 @@ import { LoteCreateResponseDto } from '../dto/lote-create-response.dto';
 import { LoteResponseDto } from '../dto/lote-response.dto';
 import { SensorResponseDto } from '../../sensor/dto/sensor-response.dto';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 const SWAGGER_API_MODEL_PROPERTIES = 'swagger/apiModelProperties';
 
 describe('LoteCreateResponseDto', () => {

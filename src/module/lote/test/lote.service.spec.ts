@@ -29,6 +29,12 @@ import { ROLES } from '../../rol/constants/roles.constants';
 
 import { TenantContext } from '../../../common/types/tenant-context.type';
 
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type MockRepository<T extends Record<string, any> = any> = {
   findOne: jest.Mock;
   find: jest.Mock;
@@ -609,7 +615,7 @@ describe('LoteService', () => {
         Promise.resolve(entidad),
       );
 
-      const resultado = await service.finalizar(10, {} as any, mockTenant);
+      const resultado = await service.finalizar(10, {}, mockTenant);
 
       expect(loteExistente.estado).toBe(EstadoLote.FINALIZADO);
 

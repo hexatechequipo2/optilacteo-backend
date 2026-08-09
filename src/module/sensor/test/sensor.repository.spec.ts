@@ -4,6 +4,10 @@ import { Repository } from 'typeorm';
 import { SensorRepository } from '../repository/sensor.repository';
 import { Sensor } from '../entities/sensor.entity';
 import { SensorFilterQueryDto } from '../dto/sensor-filter-query.dto';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/unbound-method */
 
 describe('SensorRepository', () => {
   let repository: SensorRepository;

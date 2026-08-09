@@ -45,7 +45,7 @@ describe('SystemConfigController', () => {
         ...dto,
       });
 
-      await controller.updateInactivityTimeout(dto as never);
+      await controller.updateInactivityTimeout(dto);
 
       expect(
         mockSystemConfigService.updateInactivityTimeout,

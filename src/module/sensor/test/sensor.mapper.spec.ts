@@ -3,6 +3,7 @@ import { Sensor } from '../entities/sensor.entity';
 import { SensorLoteHistorial } from '../entities/sensor-lote-historial.entity';
 import { CreateSensorDto } from '../dto/create-sensor.dto';
 import { EstadoSensor } from '../enums/estado-sensor.enum';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 describe('SensorMapper', () => {
   describe('toEntity', () => {
@@ -12,6 +13,7 @@ describe('SensorMapper', () => {
         tipo: 'DIGITAL' as any,
         parametro: 'HUMEDAD' as any,
         ubicacion: 'Cámara A' as any,
+        marca: 'Marca Test',
         rangoMinFavor: 40,
         rangoMaxFavor: 80,
       };

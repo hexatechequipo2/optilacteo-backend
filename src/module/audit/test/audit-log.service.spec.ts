@@ -279,7 +279,7 @@ describe('AuditLogService', () => {
       mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([
         ...logsEntidad1,
         logEntidad2,
-      ] as unknown as AuditLog[]);
+      ] as unknown);
 
       const result = await service.getTrazabilidadBatch('Lote', [1, 2], 5);
 

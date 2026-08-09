@@ -8,7 +8,6 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 
 import type { IUserRepository } from '../user/repository/user-repository.interface';
 import { USER_REPOSITORY } from '../user/repository/user-repository.interface';
@@ -354,6 +353,7 @@ export class AuthService {
       typeof error === 'object' &&
       error !== null &&
       'code' in error &&
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       (error as any).code === '23505'
     );
   }

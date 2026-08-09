@@ -36,7 +36,8 @@ export class AuditInterceptor implements NestInterceptor {
       tap((responseBody) => {
         // Registro de éxito
         this.registerAudit(auditMeta, request, responseBody, 'SUCCESS').catch(
-          (err) => this.logger.error(`Fallo auditando éxito: ${err.message}`),
+          (err: Error) =>
+            this.logger.error(`Fallo auditando éxito: ${err.message}`),
         );
       }),
       catchError((error) => {
@@ -44,11 +45,14 @@ export class AuditInterceptor implements NestInterceptor {
         this.registerAudit(
           auditMeta,
           request,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           { message: error.message },
           'FAILURE',
         ).catch((err) =>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           this.logger.error(`Fallo auditando error: ${err.message}`),
         );
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return throwError(() => error);
       }),
     );
@@ -65,7 +69,10 @@ export class AuditInterceptor implements NestInterceptor {
     // Si no hay usuario, intentamos obtener el email del body (si es login)
     // o dejamos los campos de usuario como null/0
     const userId = user?.sub ?? null;
-    const userEmail = user?.email ?? request.body?.email ?? 'anonymous';
+    const userEmail =
+      user?.email ??
+      (request.body as { email?: string } | undefined)?.email ??
+      'anonymous';
     const empresaId = user?.empresaId ?? null;
 
     await this.auditLogService.record({

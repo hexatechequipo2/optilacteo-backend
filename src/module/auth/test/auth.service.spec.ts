@@ -1,4 +1,4 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -182,8 +182,10 @@ describe('AuthService', () => {
         'REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME',
       );
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const createdArgs = mockRefreshTokenRepository.create.mock.calls[0][0];
       const diffDays = Math.round(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         (createdArgs.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
       );
       expect(diffDays).toBe(7);
@@ -210,8 +212,10 @@ describe('AuthService', () => {
         'REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME',
       );
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const createdArgs = mockRefreshTokenRepository.create.mock.calls[0][0];
       const diffDays = Math.round(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         (createdArgs.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
       );
       expect(diffDays).toBe(30);
@@ -231,8 +235,10 @@ describe('AuthService', () => {
       await service.login(dto);
 
       // Assert
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const createdArgs = mockRefreshTokenRepository.create.mock.calls[0][0];
       const diffDays = Math.round(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         (createdArgs.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
       );
       expect(diffDays).toBe(30);

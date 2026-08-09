@@ -84,7 +84,7 @@ export class ConfigParametroService {
     tenant: TenantContext,
   ): Promise<ConfigParametroResponseDto[]> {
     const configs = await this.repository.findByEmpresa(empresaId);
-    const dtos = configs.map(ConfigParametroMapper.toResponse);
+    const dtos = configs.map((c) => ConfigParametroMapper.toResponse(c));
 
     if (this.puedeVerAuditoria(tenant)) {
       const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch(

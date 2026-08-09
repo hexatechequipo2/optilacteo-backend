@@ -3,6 +3,7 @@ import { CreateMedicionManualLoteDto } from '../dto/create-medicion-manual-lote.
 import { MedicionManualLote } from '../entities/medicion-manual-lote.entity';
 import { ConfiguracionParametro } from '../../config-parametro/entities/config-parametro.entity';
 import { EstadoMedicion } from '../../lectura-sensor/enums/estado-medicion.enum';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 describe('MedicionManualMapper', () => {
   describe('toEntities', () => {

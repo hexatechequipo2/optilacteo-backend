@@ -12,7 +12,7 @@ export const multerLogoOptions = {
   fileFilter: (
     req: unknown,
     file: Express.Multer.File,
-    callback: Function,
+    callback: (error: Error | null, acceptFile: boolean) => void,
   ) => {
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       return callback(

@@ -5,6 +5,8 @@ import { NotificacionRepository } from '../repository/notificacion.repository';
 import { Notificacion } from '../entities/notificacion.entity';
 import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('NotificacionRepository', () => {
   let repository: NotificacionRepository;
   let typeormRepoMock: jest.Mocked<Repository<Notificacion>>;

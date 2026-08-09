@@ -11,6 +11,10 @@ import { AuditLogService } from '../../audit/audit-log.service';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/unbound-method */
+
 // El mapper se mockea porque solo interesa validar que el Service lo invoque
 // correctamente, no su lógica interna de conversión (eso se testea aparte).
 jest.mock('../mappers/config-parametro.mapper', () => ({
@@ -136,7 +140,7 @@ describe('ConfigParametroService', () => {
       const resultado = await service.editar(1, 1, {
         umbralMin: 6,
         umbralMax: 12,
-      } as any);
+      });
 
       expect(mockRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ umbralMin: 6, umbralMax: 12 }),
@@ -153,7 +157,7 @@ describe('ConfigParametroService', () => {
       };
       mockRepository.findByEmpresa.mockResolvedValue([{ id: 1 }, { id: 2 }]);
       (ConfigParametroMapper.toResponse as jest.Mock).mockImplementation(
-        (c: any) => ({ id: c.id }),
+        (c: { id: number }) => ({ id: c.id }),
       );
 
       const resultado = await service.listarPorEmpresa(1, tenant);
@@ -167,7 +171,7 @@ describe('ConfigParametroService', () => {
       const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
       mockRepository.findByEmpresa.mockResolvedValue([{ id: 1 }, { id: 2 }]);
       (ConfigParametroMapper.toResponse as jest.Mock).mockImplementation(
-        (c: any) => ({ id: c.id }),
+        (c: { id: number }) => ({ id: c.id }),
       );
       const trazabilidadMap = new Map([
         [

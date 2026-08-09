@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
 import { LecturasGateway } from '../gateway/lecturas.gateway';
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 describe('LecturasGateway', () => {
   let gateway: LecturasGateway;

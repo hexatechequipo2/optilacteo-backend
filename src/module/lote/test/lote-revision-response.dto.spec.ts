@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import { LoteRevisionResponseDto } from '../dto/lote-revision-response.dto';
 import { DecisionRevision } from '../enums/decision-revision.enum';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 const API_MODEL_PROPERTIES = 'swagger/apiModelProperties';
 

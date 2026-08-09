@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { of, throwError, lastValueFrom } from 'rxjs';
 import { AuditInterceptor } from '../interceptor/audit-log.interceptor';
 import { AuditLogService } from '../audit-log.service';
-import { AUDIT_KEY } from '../decorators/audit-log.decorator';
 
 const mockAuditLogService = {
   record: jest.fn(),

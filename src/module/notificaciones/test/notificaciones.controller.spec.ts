@@ -6,6 +6,9 @@ import { TenantContext } from '../../../common/types/tenant-context.type';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 describe('NotificacionesController', () => {
   let controller: NotificacionesController;
@@ -66,7 +69,7 @@ describe('NotificacionesController', () => {
       const queryDto: NotificacionFilterQueryDto = {
         page: 1,
         limit: 10,
-      } as any;
+      };
 
       const expectedResponse = {
         data: [{ id: 1, mensaje: 'Notificación 1' }],

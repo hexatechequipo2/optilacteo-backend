@@ -56,7 +56,7 @@ describe('ProveedoresController', () => {
       const pagination = { page: 2, limit: 10 };
       mockProveedoresService.findAll.mockResolvedValue({ data: [], meta: {} });
 
-      await controller.findAll(tenantEmpresaA, pagination as never);
+      await controller.findAll(tenantEmpresaA, pagination);
 
       expect(mockProveedoresService.findAll).toHaveBeenCalledWith(
         tenantEmpresaA,
@@ -90,7 +90,7 @@ describe('ProveedoresController', () => {
       };
       mockProveedoresService.create.mockResolvedValue({ id: 1, ...dto });
 
-      const result = await controller.create(dto as never, tenantEmpresaA);
+      const result = await controller.create(dto, tenantEmpresaA);
 
       expect(mockProveedoresService.create).toHaveBeenCalledWith(
         dto,
@@ -108,7 +108,7 @@ describe('ProveedoresController', () => {
       };
       mockProveedoresService.create.mockResolvedValue({ id: 2, ...dto });
 
-      await controller.create(dto as never, tenantAdmin);
+      await controller.create(dto, tenantAdmin);
 
       expect(mockProveedoresService.create).toHaveBeenCalledWith(
         dto,
@@ -122,7 +122,7 @@ describe('ProveedoresController', () => {
       const dto = { razonSocial: 'Nueva razon social' };
       mockProveedoresService.update.mockResolvedValue({ id: 3, ...dto });
 
-      await controller.update(3, dto as never, tenantEmpresaA);
+      await controller.update(3, dto, tenantEmpresaA);
 
       expect(mockProveedoresService.update).toHaveBeenCalledWith(
         3,

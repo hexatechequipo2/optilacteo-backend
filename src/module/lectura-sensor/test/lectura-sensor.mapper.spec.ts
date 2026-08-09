@@ -2,6 +2,9 @@ import { LecturaMapper } from '../mappers/lectura.mapper';
 import { OrigenLectura } from '../enums/origen-lectura.enum';
 import { EstadoMedicion } from '../enums/estado-medicion.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 describe('LecturaMapper', () => {
   describe('toEntity', () => {

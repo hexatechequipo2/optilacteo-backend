@@ -35,11 +35,13 @@ export class ProveedoresService {
 
   // Guardia de seguridad para aislamiento multi-tenant
   private assertOwnEmpresa(proveedor: any, tenant: TenantContext) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (!proveedor || !proveedor.empresa?.id) {
       throw new NotFoundException('Proveedor no encontrado');
     }
     if (
       tenant.rolNombre !== ROLES.ADMINISTRADOR &&
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       proveedor.empresa.id !== tenant.empresaId
     ) {
       throw new NotFoundException('Proveedor no encontrado');

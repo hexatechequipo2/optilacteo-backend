@@ -115,7 +115,7 @@ describe('EmpresaController', () => {
       mockEmpresaService.update.mockResolvedValue({ id: 3, ...dto });
 
       // Act
-      await controller.update('3', dto as never, tenantAdmin);
+      await controller.update('3', dto, tenantAdmin);
 
       // Assert
       expect(mockEmpresaService.update).toHaveBeenCalledWith(
@@ -166,7 +166,7 @@ describe('EmpresaController', () => {
       });
 
       // Act
-      await controller.activarModulo('5', dto as never, tenantAdmin);
+      await controller.activarModulo('5', dto, tenantAdmin);
 
       // Assert
       expect(mockEmpresaService.activarModulo).toHaveBeenCalledWith(
@@ -185,7 +185,7 @@ describe('EmpresaController', () => {
       });
 
       // Act
-      await controller.desactivarModulo('5', dto as never, tenantAdmin);
+      await controller.desactivarModulo('5', dto, tenantAdmin);
 
       // Assert
       expect(mockEmpresaService.desactivarModulo).toHaveBeenCalledWith(

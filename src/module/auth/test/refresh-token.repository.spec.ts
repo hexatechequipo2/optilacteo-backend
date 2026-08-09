@@ -4,6 +4,8 @@ import { IsNull, MoreThan } from 'typeorm';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { RefreshTokenRepository } from '../repository/refresh-token.repository';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 describe('RefreshTokenRepository', () => {
   let refreshTokenRepository: RefreshTokenRepository;
   let mockTypeOrmRepository: {

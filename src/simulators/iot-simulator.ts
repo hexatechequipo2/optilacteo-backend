@@ -100,10 +100,14 @@ async function login(
   if (!res.ok) {
     throw new Error(`Login falló (HTTP ${res.status}): ${await res.text()}`);
   }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const body = await res.json();
   return {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     token: body.access_token,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     refreshToken: body.refresh_token,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     empresaId: body.user.empresaId,
   };
 }
@@ -121,7 +125,9 @@ async function refrescarToken(
   if (!res.ok) {
     throw new Error(`Refresh falló (HTTP ${res.status}): ${await res.text()}`);
   }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const body = await res.json();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
   return { token: body.access_token, refreshToken: body.refresh_token };
 }
 

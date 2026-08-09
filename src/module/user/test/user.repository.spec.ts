@@ -16,7 +16,7 @@ function buildUser(overrides: Partial<User> = {}): User {
     empresa: { id: 1, name: 'Lacteos Norte' } as User['empresa'],
     rol: { id: 2, nombre: 'GERENTE' } as User['rol'],
     ...overrides,
-  } as User;
+  };
 }
 
 describe('UserRepository', () => {

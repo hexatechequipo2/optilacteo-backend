@@ -3,6 +3,8 @@ import { ForbiddenException } from '@nestjs/common';
 import { ConfiguracionComparacionHistoricaController } from '../configuracion-comparacion-historica.controller';
 import { ConfiguracionComparacionHistoricaService } from '../configuracion-comparacion-historica.service';
 
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 const mockService = {
   getConfig: jest.fn(),
   update: jest.fn(),
@@ -61,7 +63,7 @@ describe('ConfiguracionComparacionHistoricaController', () => {
       const dto = { desvioSignificativoPorcentaje: 25 };
       mockService.update.mockReturnValue({ desvioSignificativoPorcentaje: 25 });
 
-      const resultado = controller.update({ empresaId: 5 } as any, dto as any);
+      const resultado = controller.update({ empresaId: 5 } as any, dto);
 
       expect(mockService.update).toHaveBeenCalledWith(5, dto);
       expect(resultado).toEqual({ desvioSignificativoPorcentaje: 25 });

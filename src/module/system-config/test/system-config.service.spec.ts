@@ -89,9 +89,11 @@ describe('SystemConfigService', () => {
         inactivityTimeout: 15,
       });
       expect(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         mockSystemConfigRepository.updateConfig.mock.calls[0][0],
       ).not.toHaveProperty('userId');
       expect(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         mockSystemConfigRepository.updateConfig.mock.calls[0][0],
       ).not.toHaveProperty('empresaId');
     });

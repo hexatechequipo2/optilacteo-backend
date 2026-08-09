@@ -11,6 +11,12 @@ import { SensorLectura } from '../../lectura-sensor/entities/sensor-lectura.enti
 import { MedicionManualLote } from '../../medicion-manual/entities/medicion-manual-lote.entity';
 import { EstadoLote } from '../../lote/enums/estado-lote.enum';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 describe('DashboardService', () => {
   let service: DashboardService;
 

@@ -33,6 +33,7 @@ import * as bcrypt from 'bcrypt';
 
 const bcryptHash = bcrypt.hash as jest.Mock;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildEmpresa(overrides: Partial<Empresa> = {}): Empresa {
   return { id: 1, name: 'Lacteos Norte', plan: 'starter' } as Empresa &
     typeof overrides;
@@ -45,7 +46,7 @@ function buildRol(overrides: Partial<Rol> = {}): Rol {
     isActive: true,
     permisos: [],
     ...overrides,
-  } as Rol;
+  };
 }
 
 function buildUser(overrides: Partial<User> = {}): User {
@@ -60,7 +61,7 @@ function buildUser(overrides: Partial<User> = {}): User {
     empresa: buildEmpresa(),
     rol: buildRol(),
     ...overrides,
-  } as User;
+  };
 }
 
 function buildCreateDto(overrides: Partial<CreateUserDto> = {}): CreateUserDto {
@@ -160,7 +161,9 @@ describe('UserService', () => {
 
       await service.create(dto, tenantAdministrador);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const created = mockUserRepository.createUser.mock.calls[0][0];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(created.password).not.toBe('plainPassword123');
     });
 
@@ -273,7 +276,7 @@ describe('UserService', () => {
 
     it('respeta el empresaId del body cuando quien crea es Administrador', async () => {
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(
-        buildEmpresa({ id: 7 } as never),
+        buildEmpresa({ id: 7 }),
       );
       mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol());
       mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
@@ -369,6 +372,7 @@ describe('UserService', () => {
 
     it('devuelve el usuario mapeado cuando existe y pertenece al tenant', async () => {
       mockUserRepository.findById.mockResolvedValue(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         buildUser({ empresa: { id: 1 } as any }),
       );
       const result = await service.findOne(10, tenantGerente);
@@ -379,6 +383,7 @@ describe('UserService', () => {
     it('lanza NotFoundException si el usuario existe pero pertenece a otra empresa', async () => {
       // El usuario encontrado es de la empresa 2, pero el tenant es de la empresa 1
       mockUserRepository.findById.mockResolvedValue(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         buildUser({ empresa: { id: 2 } as any }),
       );
 
@@ -474,7 +479,7 @@ describe('UserService', () => {
       const nuevaEmpresa = buildEmpresa({
         id: 2,
         name: 'Lacteos Sur',
-      } as never);
+      });
       mockUserRepository.findById.mockResolvedValue(buildUser());
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(nuevaEmpresa);
       mockUserRepository.updateUser.mockResolvedValue(

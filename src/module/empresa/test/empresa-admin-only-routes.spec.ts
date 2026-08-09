@@ -3,6 +3,8 @@ import { ROLES } from '../../rol/constants/roles.constants';
 import { EmpresaController } from '../empresa.controller';
 import { PlanesController } from '../planes.controller';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('Metadata de @Roles en endpoints de Empresa/Planes', () => {
   it('EmpresaController no tiene @Roles a nivel de clase (los roles se definen por metodo)', () => {
     expect(Reflect.getMetadata(ROLES_KEY, EmpresaController)).toBeUndefined();

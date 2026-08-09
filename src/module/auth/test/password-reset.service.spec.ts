@@ -106,9 +106,12 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
 
       await service.requestReset({ email: 'operario@lacteo.com' });
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const tokenGuardado = mockTokenRepository.save.mock.calls[0][0];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(tokenGuardado.used).toBe(false);
       const diferenciaMinutos =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         (tokenGuardado.expiresAt.getTime() - ahoraMasOMenos.getTime()) / 60000;
       expect(diferenciaMinutos).toBeCloseTo(30, 0);
     });

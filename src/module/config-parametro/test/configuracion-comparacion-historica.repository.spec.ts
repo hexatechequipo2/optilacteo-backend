@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 
 import { ConfiguracionComparacionHistoricaRepository } from '../repository/configuracion-comparacion-historica.repository';
 import { ConfiguracionComparacionHistorica } from '../entities/configuracion-comparacion-historica.entity';
+/* eslint-disable @typescript-eslint/unbound-method */
 
 describe('ConfiguracionComparacionHistoricaRepository', () => {
   let repository: ConfiguracionComparacionHistoricaRepository;

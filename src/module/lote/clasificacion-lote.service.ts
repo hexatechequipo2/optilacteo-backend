@@ -7,13 +7,11 @@ import { ConfiguracionParametro } from '../config-parametro/entities/config-para
 import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity';
 import { MedicionManualLote } from '../medicion-manual/entities/medicion-manual-lote.entity';
 import { Sensor } from '../sensor/entities/sensor.entity';
-import { EstadoSensor } from '../sensor/enums/estado-sensor.enum';
 import { Parametro } from '../config-parametro/enums/parametro.enum';
 import { ClasificacionLote } from './enums/clasificacion-lote.enum';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { TipoNotificacion } from '../notificaciones/enums/tipo-notificacion.enum';
 
-const VENTANA_DATO_DESACTUALIZADO_MS = 10 * 60 * 1000; // 10 minutos
 const EPSILON_CONFLICTO = 0.001; // tolerancia para comparar decimales
 
 interface ValorVigente {
@@ -74,15 +72,10 @@ export class ClasificacionLoteService {
     );
     console.log('>>> valoresVigentes', Array.from(valoresVigentes.entries()));
 
-    const faltantes = configs
-      .map((c) => c.parametro)
-      .filter((p) => !valoresVigentes.has(p));
     if (valoresVigentes.size === 0) {
       this.logger.warn(`No hay valores vigentes para lote ${loteId}`);
       return;
     }
-    const ahora = new Date();
-    let enRevision = false;
     let noApto = false;
     const parametrosUtilizados: LoteClasificacionHistorial['parametrosUtilizados'] =
       [];
@@ -92,20 +85,6 @@ export class ClasificacionLoteService {
         parametro,
         valor: valor.valor,
       });
-
-      if (valor.enRevisionPorConflicto) enRevision = true;
-      if (
-        ahora.getTime() - valor.timestamp.getTime() >
-        VENTANA_DATO_DESACTUALIZADO_MS
-      )
-        enRevision = true;
-
-      if (valor.origen === 'sensor' && valor.sensorId) {
-        const sensor = await this.sensorRepository.findOne({
-          where: { id: valor.sensorId },
-        });
-        if (sensor?.estado === EstadoSensor.INACTIVO) enRevision = true;
-      }
 
       const config = mapaConfig.get(parametro);
       if (
@@ -125,7 +104,7 @@ export class ClasificacionLoteService {
 
     console.log('>>> parámetros utilizados calculados', parametrosUtilizados);
     if (parametrosUtilizados.length > 0) {
-      let ultimoHistorial = await this.historialRepository.findOne({
+      const ultimoHistorial = await this.historialRepository.findOne({
         where: { loteId, empresaId },
         order: { createdAt: 'DESC' },
       });
@@ -233,10 +212,10 @@ export class ClasificacionLoteService {
         usarSensor
           ? {
               parametro,
-              valor: Number(ultimaLectura!.valor),
+              valor: Number(ultimaLectura.valor),
               origen: 'sensor',
-              timestamp: ultimaLectura!.timestampLectura,
-              sensorId: ultimaLectura!.sensorId,
+              timestamp: ultimaLectura.timestampLectura,
+              sensorId: ultimaLectura.sensorId,
               enRevisionPorConflicto: conflicto,
             }
           : {
