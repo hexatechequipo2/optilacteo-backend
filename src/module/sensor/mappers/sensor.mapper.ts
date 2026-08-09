@@ -50,6 +50,7 @@ export class SensorMapper {
       loteIdAnterior: h.loteIdAnterior,
       loteIdNuevo: h.loteIdNuevo,
       userId: h.userId,
+      userEmail: h.usuario?.email,
       fecha: h.fecha,
     };
   }

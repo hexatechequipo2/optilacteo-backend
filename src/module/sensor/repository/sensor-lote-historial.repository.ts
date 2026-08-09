@@ -21,6 +21,18 @@ export class SensorLoteHistorialRepository implements ISensorLoteHistorialReposi
   ): Promise<SensorLoteHistorial[]> {
     return this.repo.find({
       where: { sensorId, empresaId },
+      relations: { usuario: true },
+      // Solo id + email del usuario: evita traer el hash de password u otros datos sensibles.
+      select: {
+        id: true,
+        sensorId: true,
+        loteIdAnterior: true,
+        loteIdNuevo: true,
+        userId: true,
+        empresaId: true,
+        fecha: true,
+        usuario: { id: true, email: true },
+      },
       order: { fecha: 'DESC' },
     });
   }

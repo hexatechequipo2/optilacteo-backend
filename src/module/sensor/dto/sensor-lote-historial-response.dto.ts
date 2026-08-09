@@ -17,5 +17,8 @@ export class SensorLoteHistorialResponseDto {
   userId!: number;
 
   @ApiProperty()
+  userEmail!: string;
+
+  @ApiProperty()
   fecha!: Date;
 }
