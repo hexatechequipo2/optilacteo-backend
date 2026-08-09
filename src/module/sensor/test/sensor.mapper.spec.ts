@@ -88,6 +88,7 @@ describe('SensorMapper', () => {
         loteIdAnterior: 5,
         loteIdNuevo: 12,
         userId: 42,
+        usuario: { id: 42, email: 'operario@optilacteo.com' },
         empresaId: 10,
         fecha: mockFecha,
       } as SensorLoteHistorial;
@@ -100,6 +101,7 @@ describe('SensorMapper', () => {
         loteIdAnterior: 5,
         loteIdNuevo: 12,
         userId: 42,
+        userEmail: 'operario@optilacteo.com',
         fecha: mockFecha,
       });
     });

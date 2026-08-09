@@ -10,6 +10,7 @@ describe('SensorLoteHistorialResponseDto', () => {
     dto.loteIdAnterior = 5;
     dto.loteIdNuevo = 8;
     dto.userId = 42;
+    dto.userEmail = 'operario@optilacteo.com';
     dto.fecha = fecha;
 
     expect(dto.id).toBe(1);
@@ -17,6 +18,7 @@ describe('SensorLoteHistorialResponseDto', () => {
     expect(dto.loteIdAnterior).toBe(5);
     expect(dto.loteIdNuevo).toBe(8);
     expect(dto.userId).toBe(42);
+    expect(dto.userEmail).toBe('operario@optilacteo.com');
     expect(dto.fecha).toBe(fecha);
   });
 
