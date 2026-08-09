@@ -97,10 +97,10 @@ describe('AuthService', () => {
     mockConfigService.get.mockReturnValue(undefined);
   });
 
-  //CP-01 
-  // Valida el proceso de autenticación del sistema completo. 
+  //CP-01
+  // Valida el proceso de autenticación del sistema completo.
 
-  //CP-08 
+  //CP-08
   // Validar aislamiento completo de datos entre tenants en todos los endpoints del sprint.
   describe('login - caso exitoso', () => {
     it('deberia retornar access_token y datos del usuario cuando las credenciales son correctas', async () => {
@@ -239,7 +239,7 @@ describe('AuthService', () => {
     });
   });
 
-  // CP-02 
+  // CP-02
   // Validar rechazo ante credenciales inválidas sin revelar información sensible.
   describe('login - email no registrado', () => {
     it('deberia lanzar UnauthorizedException con mensaje generico cuando el email no existe', async () => {
@@ -258,7 +258,7 @@ describe('AuthService', () => {
     });
   });
 
-  // CP-02 
+  // CP-02
   // Validar rechazo ante credenciales inválidas sin revelar información sensible.
   describe('login - contrasena incorrecta', () => {
     it('deberia lanzar UnauthorizedException con mensaje generico cuando la contrasena no coincide', async () => {
@@ -339,26 +339,36 @@ describe('AuthService', () => {
   describe('login - bloqueo por intentos fallidos', () => {
     it('deberia incrementar el contador de intentos fallidos cuando la contrasena es incorrecta', async () => {
       // Arrange
-      const dto: LoginDto = { email: 'admin@empresa.com', password: 'clave_erronea' };
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave_erronea',
+      };
       const userWithAttempts = { ...activeUser, failedLoginAttempts: 2 };
       mockUserRepository.findByEmail.mockResolvedValue(userWithAttempts);
       bcryptCompare.mockResolvedValue(false);
 
       // Act & Assert
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
-      expect(mockUserRepository.incrementFailedAttempts).toHaveBeenCalledWith(1);
+      expect(mockUserRepository.incrementFailedAttempts).toHaveBeenCalledWith(
+        1,
+      );
     });
 
     it('deberia bloquear la cuenta cuando se alcanza el limite de intentos fallidos', async () => {
       // Arrange — usuario con 4 intentos fallidos (el proximo es el 5to = limite)
-      const dto: LoginDto = { email: 'admin@empresa.com', password: 'clave_erronea' };
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave_erronea',
+      };
       const userAtLimit = { ...activeUser, failedLoginAttempts: 4 };
       mockUserRepository.findByEmail.mockResolvedValue(userAtLimit);
       bcryptCompare.mockResolvedValue(false);
 
       // Act & Assert
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
-      expect(mockUserRepository.incrementFailedAttempts).toHaveBeenCalledWith(1);
+      expect(mockUserRepository.incrementFailedAttempts).toHaveBeenCalledWith(
+        1,
+      );
       expect(mockUserRepository.lockUser).toHaveBeenCalledWith(
         1,
         expect.any(Date),
@@ -401,8 +411,15 @@ describe('AuthService', () => {
       // Arrange — bloqueo vencido hace 5 minutos
       const pastDate = new Date();
       pastDate.setMinutes(pastDate.getMinutes() - 5);
-      const expiredLockUser = { ...activeUser, lockedUntil: pastDate, failedLoginAttempts: 5 };
-      const dto: LoginDto = { email: 'admin@empresa.com', password: 'clave123' };
+      const expiredLockUser = {
+        ...activeUser,
+        lockedUntil: pastDate,
+        failedLoginAttempts: 5,
+      };
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave123',
+      };
       mockUserRepository.findByEmail.mockResolvedValue(expiredLockUser);
       bcryptCompare.mockResolvedValue(true);
 
@@ -417,7 +434,10 @@ describe('AuthService', () => {
     it('deberia resetear el contador de intentos fallidos cuando el login es exitoso', async () => {
       // Arrange — usuario con intentos fallidos previos
       const userWithPriorAttempts = { ...activeUser, failedLoginAttempts: 3 };
-      const dto: LoginDto = { email: 'admin@empresa.com', password: 'clave123' };
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave123',
+      };
       mockUserRepository.findByEmail.mockResolvedValue(userWithPriorAttempts);
       bcryptCompare.mockResolvedValue(true);
 
@@ -431,7 +451,10 @@ describe('AuthService', () => {
 
     it('no deberia llamar a resetFailedAttempts si el usuario no tenia intentos fallidos previos', async () => {
       // Arrange
-      const dto: LoginDto = { email: 'admin@empresa.com', password: 'clave123' };
+      const dto: LoginDto = {
+        email: 'admin@empresa.com',
+        password: 'clave123',
+      };
       mockUserRepository.findByEmail.mockResolvedValue(activeUser);
       bcryptCompare.mockResolvedValue(true);
 

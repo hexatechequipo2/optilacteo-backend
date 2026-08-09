@@ -36,7 +36,10 @@ export class LoteController {
   // HU-60: registro de lotes — solo Responsable de calidad.
   @Post()
   @Roles(ROLES.RESPONSABLE_CALIDAD)
-  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions(
+    [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
+    'canWrite',
+  )
   @AuditLog('LOTE_REGISTRAR', 'Lote')
   create(
     @Body() createLoteDto: CreateLoteDto,
@@ -46,7 +49,13 @@ export class LoteController {
   }
 
   @Get()
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_PRODUCCION)
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+    ROLES.OPERARIO_LINEA,
+    ROLES.RESPONSABLE_PRODUCCION,
+  )
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
   findAll(
     @Query() query: LoteFilterQueryDto,
@@ -78,7 +87,12 @@ export class LoteController {
   // en roles.constants. Mientras tanto se habilita para los roles que ya
   // pueden leer lotes; ajustar cuando se confirme.
   @Get(':id/metricas-calidad')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.OPERARIO_LINEA)
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+    ROLES.OPERARIO_LINEA,
+  )
   @Permissions([ModuloSistema.MONITOREO_ALERTAS], 'canRead')
   getMetricasCalidad(
     @Param('id') id: string,
@@ -89,7 +103,10 @@ export class LoteController {
 
   @Patch(':id')
   @Roles(ROLES.RESPONSABLE_CALIDAD)
-  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions(
+    [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
+    'canWrite',
+  )
   @AuditLog('LOTE_ACTUALIZAR', 'Lote')
   update(
     @Param('id') id: string,
@@ -101,7 +118,10 @@ export class LoteController {
 
   @Patch(':id/finalizar')
   @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
-  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions(
+    [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
+    'canWrite',
+  )
   @AuditLog('LOTE_FINALIZAR', 'Lote')
   finalizar(
     @Param('id') id: string,
@@ -114,7 +134,10 @@ export class LoteController {
   // HU-21 (AC7): historial de clasificaciones automáticas del lote.
   @Get(':id/clasificaciones')
   @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions([ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions(
+    [ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD],
+    'canRead',
+  )
   getHistorialClasificaciones(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,

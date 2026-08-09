@@ -209,10 +209,9 @@ describe('MedicionManualService', () => {
         usuarioId,
       );
       expect(medicionRepoMock.create).toHaveBeenCalledWith(mockEntities);
-      expect(clasificacionLoteServiceMock.evaluarYClasificar).toHaveBeenCalledWith(
-        loteId,
-        1,
-      );
+      expect(
+        clasificacionLoteServiceMock.evaluarYClasificar,
+      ).toHaveBeenCalledWith(loteId, 1);
       expect(resultado).toEqual({
         loteId,
         tipoMateriaPrima: dto.tipoMateriaPrima,
@@ -247,10 +246,9 @@ describe('MedicionManualService', () => {
       );
 
       expect(resultado.loteId).toBe(loteId);
-      expect(clasificacionLoteServiceMock.evaluarYClasificar).toHaveBeenCalledWith(
-        loteId,
-        1,
-      );
+      expect(
+        clasificacionLoteServiceMock.evaluarYClasificar,
+      ).toHaveBeenCalledWith(loteId, 1);
     });
   });
 
@@ -260,9 +258,9 @@ describe('MedicionManualService', () => {
     it('debe lanzar NotFoundException si el lote no existe', async () => {
       loteRepoMock.findById.mockResolvedValue(null);
 
-      await expect(
-        service.historial(loteId, {}, mockTenant),
-      ).rejects.toThrow(new NotFoundException(`Lote ${loteId} no encontrado`));
+      await expect(service.historial(loteId, {}, mockTenant)).rejects.toThrow(
+        new NotFoundException(`Lote ${loteId} no encontrado`),
+      );
     });
 
     it('debe lanzar BadRequestException si fechaFin es menor que fechaInicio', async () => {

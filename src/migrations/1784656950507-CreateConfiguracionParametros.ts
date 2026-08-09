@@ -1,4 +1,10 @@
-import { MigrationInterface, QueryRunner, Table, TableUnique, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableUnique,
+  TableForeignKey,
+} from 'typeorm';
 
 export class CreateConfiguracionParametros1784656950507 implements MigrationInterface {
   name = 'CreateConfiguracionParametros1784656950507';
@@ -23,7 +29,15 @@ export class CreateConfiguracionParametros1784656950507 implements MigrationInte
           {
             name: 'parametro',
             type: 'enum',
-            enum: ['ph', 'temperatura', 'densidad', 'grasa', 'proteina', 'acidez', 'conductividad'],
+            enum: [
+              'ph',
+              'temperatura',
+              'densidad',
+              'grasa',
+              'proteina',
+              'acidez',
+              'conductividad',
+            ],
             enumName: 'configuracion_parametros_parametro_enum',
             isNullable: false,
           },
@@ -84,8 +98,14 @@ export class CreateConfiguracionParametros1784656950507 implements MigrationInte
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropForeignKey('configuracion_parametros', 'FK_config_parametro_empresa');
-    await queryRunner.dropUniqueConstraint('configuracion_parametros', 'UQ_config_parametro_empresa_parametro_materia');
+    await queryRunner.dropForeignKey(
+      'configuracion_parametros',
+      'FK_config_parametro_empresa',
+    );
+    await queryRunner.dropUniqueConstraint(
+      'configuracion_parametros',
+      'UQ_config_parametro_empresa_parametro_materia',
+    );
     await queryRunner.dropTable('configuracion_parametros');
   }
 }

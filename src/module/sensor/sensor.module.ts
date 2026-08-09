@@ -15,13 +15,16 @@ import { AuditLogModule } from '../audit/audit-log.module';
   imports: [
     TypeOrmModule.forFeature([Sensor, SensorLoteHistorial]),
     forwardRef(() => LoteModule),
-    AuditLogModule
+    AuditLogModule,
   ],
   controllers: [SensorController],
   providers: [
     SensorService,
     { provide: SENSOR_REPOSITORY, useClass: SensorRepository },
-    { provide: SENSOR_LOTE_HISTORIAL_REPOSITORY, useClass: SensorLoteHistorialRepository },
+    {
+      provide: SENSOR_LOTE_HISTORIAL_REPOSITORY,
+      useClass: SensorLoteHistorialRepository,
+    },
   ],
   exports: [SensorService, SENSOR_REPOSITORY, SENSOR_LOTE_HISTORIAL_REPOSITORY],
 })

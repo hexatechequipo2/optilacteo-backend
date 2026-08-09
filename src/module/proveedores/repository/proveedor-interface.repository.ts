@@ -26,9 +26,16 @@ export interface IProveedorRepository {
   findByCuit(cuit: string): Promise<Proveedor | null>;
   findByRazonSocial(razonSocial: string): Promise<Proveedor | null>;
   save(proveedor: Proveedor): Promise<Proveedor>;
-  update(proveedor: Proveedor, tenant: TenantContext): Promise<Proveedor | null>;
+  update(
+    proveedor: Proveedor,
+    tenant: TenantContext,
+  ): Promise<Proveedor | null>;
   softDelete(id: number, tenant: TenantContext): Promise<boolean>;
-  setEstado(id: number, estado: EstadoProveedor, tenant: TenantContext): Promise<boolean>;
+  setEstado(
+    id: number,
+    estado: EstadoProveedor,
+    tenant: TenantContext,
+  ): Promise<boolean>;
   countByEmpresa(empresaId: number): Promise<number>;
 }
 

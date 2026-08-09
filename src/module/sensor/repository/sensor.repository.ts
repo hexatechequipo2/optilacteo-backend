@@ -22,7 +22,9 @@ export class SensorRepository implements ISensorRepository {
       .where('sensor.empresaId = :empresaId', { empresaId });
 
     if (filter.nombre) {
-      qb.andWhere('sensor.nombre ILIKE :nombre', { nombre: `%${filter.nombre}%` });
+      qb.andWhere('sensor.nombre ILIKE :nombre', {
+        nombre: `%${filter.nombre}%`,
+      });
     }
     if (filter.marca) {
       qb.andWhere('sensor.marca ILIKE :marca', { marca: `%${filter.marca}%` });
@@ -31,13 +33,17 @@ export class SensorRepository implements ISensorRepository {
       qb.andWhere('sensor.tipo = :tipo', { tipo: filter.tipo });
     }
     if (filter.parametro) {
-      qb.andWhere('sensor.parametro = :parametro', { parametro: filter.parametro });
+      qb.andWhere('sensor.parametro = :parametro', {
+        parametro: filter.parametro,
+      });
     }
     if (filter.estado) {
       qb.andWhere('sensor.estado = :estado', { estado: filter.estado });
     }
     if (filter.ubicacion) {
-      qb.andWhere('sensor.ubicacion = :ubicacion', { ubicacion: filter.ubicacion });
+      qb.andWhere('sensor.ubicacion = :ubicacion', {
+        ubicacion: filter.ubicacion,
+      });
     }
 
     return qb.getMany();

@@ -2,7 +2,11 @@ import { LoteUbicacionHistorial } from '../entities/lote-ubicacion-historial.ent
 
 export interface ILoteUbicacionHistorialRepository {
   create(registro: LoteUbicacionHistorial): Promise<LoteUbicacionHistorial>;
-  findUltimoPorLote(loteId: number, empresaId: number): Promise<LoteUbicacionHistorial | null>;
+  findUltimoPorLote(
+    loteId: number,
+    empresaId: number,
+  ): Promise<LoteUbicacionHistorial | null>;
 }
 
-export const LOTE_UBICACION_HISTORIAL_REPOSITORY = 'ILoteUbicacionHistorialRepository';
+export const LOTE_UBICACION_HISTORIAL_REPOSITORY =
+  'ILoteUbicacionHistorialRepository';

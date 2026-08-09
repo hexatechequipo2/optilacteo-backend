@@ -1,11 +1,11 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class UpdateClasificacionAndCreateHistorialNotificaciones1785199346095 implements MigrationInterface {
-    name = 'UpdateClasificacionAndCreateHistorialNotificaciones1785199346095'
+  name = 'UpdateClasificacionAndCreateHistorialNotificaciones1785199346095';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // 1. Crear nuevo enum unificado
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // 1. Crear nuevo enum unificado
+    await queryRunner.query(`
           CREATE TYPE "clasificacion_lote_enum" AS ENUM (
             'apto',
             'no_apto',
@@ -13,14 +13,14 @@ export class UpdateClasificacionAndCreateHistorialNotificaciones1785199346095 im
           )
         `);
 
-        // 2. Convertir columna a texto para poder mapear valores viejos
-        await queryRunner.query(`
+    // 2. Convertir columna a texto para poder mapear valores viejos
+    await queryRunner.query(`
           ALTER TABLE "lotes"
           ALTER COLUMN "clasificacion" TYPE text
         `);
 
-        // 3. Normalizar valores existentes
-        await queryRunner.query(`
+    // 3. Normalizar valores existentes
+    await queryRunner.query(`
           UPDATE "lotes"
           SET "clasificacion" = CASE
             WHEN clasificacion = 'primera' THEN 'apto'
@@ -31,19 +31,21 @@ export class UpdateClasificacionAndCreateHistorialNotificaciones1785199346095 im
           END
         `);
 
-        // 4. Alterar columna para usar el nuevo enum
-        await queryRunner.query(`
+    // 4. Alterar columna para usar el nuevo enum
+    await queryRunner.query(`
           ALTER TABLE "lotes"
           ALTER COLUMN "clasificacion" TYPE "clasificacion_lote_enum"
           USING clasificacion::"clasificacion_lote_enum"
         `);
 
-        // 5. Borrar tipos viejos si existen
-        await queryRunner.query(`DROP TYPE IF EXISTS "lotes_clasificacion_enum"`);
-        await queryRunner.query(`DROP TYPE IF EXISTS "lote_clasificacion_historial_clasificacion_enum"`);
+    // 5. Borrar tipos viejos si existen
+    await queryRunner.query(`DROP TYPE IF EXISTS "lotes_clasificacion_enum"`);
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "lote_clasificacion_historial_clasificacion_enum"`,
+    );
 
-        // 6. Crear tabla historial usando el mismo enum
-        await queryRunner.query(`
+    // 6. Crear tabla historial usando el mismo enum
+    await queryRunner.query(`
           CREATE TABLE "lote_clasificacion_historial" (
             "id" SERIAL PRIMARY KEY,
             "loteId" integer NOT NULL,
@@ -55,13 +57,13 @@ export class UpdateClasificacionAndCreateHistorialNotificaciones1785199346095 im
           )
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
           CREATE INDEX "IDX_historial_empresa_lote_fecha"
           ON "lote_clasificacion_historial" ("empresaId", "loteId", "createdAt")
         `);
 
-        // 7. Migrar clasificaciones vigentes al historial
-        await queryRunner.query(`
+    // 7. Migrar clasificaciones vigentes al historial
+    await queryRunner.query(`
           INSERT INTO "lote_clasificacion_historial" ("loteId", "clasificacion", "parametrosUtilizados", "empresaId", "createdAt")
           SELECT id,
                  clasificacion::"clasificacion_lote_enum",
@@ -72,16 +74,16 @@ export class UpdateClasificacionAndCreateHistorialNotificaciones1785199346095 im
           WHERE clasificacion IS NOT NULL
         `);
 
-        // 8. Crear enum para notificaciones
-        await queryRunner.query(`
+    // 8. Crear enum para notificaciones
+    await queryRunner.query(`
           CREATE TYPE "notificaciones_tipo_enum" AS ENUM (
             'lote_no_apto',
             'lote_en_revision'
           )
         `);
 
-        // 9. Crear tabla notificaciones
-        await queryRunner.query(`
+    // 9. Crear tabla notificaciones
+    await queryRunner.query(`
           CREATE TABLE "notificaciones" (
             "id" SERIAL PRIMARY KEY,
             "tipo" "notificaciones_tipo_enum" NOT NULL,
@@ -95,13 +97,13 @@ export class UpdateClasificacionAndCreateHistorialNotificaciones1785199346095 im
           )
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
           CREATE INDEX "IDX_notificaciones_empresa_usuario_leida"
           ON "notificaciones" ("empresaId", "usuarioId", "leida")
         `);
 
-        // 10. Crear función y trigger para trazabilidad automática
-        await queryRunner.query(`
+    // 10. Crear función y trigger para trazabilidad automática
+    await queryRunner.query(`
           CREATE OR REPLACE FUNCTION insert_clasificacion_historial()
           RETURNS TRIGGER AS $$
           BEGIN
@@ -118,27 +120,31 @@ export class UpdateClasificacionAndCreateHistorialNotificaciones1785199346095 im
           $$ LANGUAGE plpgsql;
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
           CREATE TRIGGER trg_insert_clasificacion_historial
           AFTER UPDATE OF clasificacion ON lotes
           FOR EACH ROW
           EXECUTE FUNCTION insert_clasificacion_historial();
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // Notificaciones
-        await queryRunner.query(`DROP TABLE "notificaciones"`);
-        await queryRunner.query(`DROP TYPE "notificaciones_tipo_enum"`);
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Notificaciones
+    await queryRunner.query(`DROP TABLE "notificaciones"`);
+    await queryRunner.query(`DROP TYPE "notificaciones_tipo_enum"`);
 
-        // Trigger y función
-        await queryRunner.query(`DROP TRIGGER IF EXISTS trg_insert_clasificacion_historial ON lotes`);
-        await queryRunner.query(`DROP FUNCTION IF EXISTS insert_clasificacion_historial`);
+    // Trigger y función
+    await queryRunner.query(
+      `DROP TRIGGER IF EXISTS trg_insert_clasificacion_historial ON lotes`,
+    );
+    await queryRunner.query(
+      `DROP FUNCTION IF EXISTS insert_clasificacion_historial`,
+    );
 
-        // Historial
-        await queryRunner.query(`DROP TABLE "lote_clasificacion_historial"`);
+    // Historial
+    await queryRunner.query(`DROP TABLE "lote_clasificacion_historial"`);
 
-        // Revertir enum de lotes
-        await queryRunner.query(`DROP TYPE IF EXISTS "clasificacion_lote_enum"`);
-    }
+    // Revertir enum de lotes
+    await queryRunner.query(`DROP TYPE IF EXISTS "clasificacion_lote_enum"`);
+  }
 }

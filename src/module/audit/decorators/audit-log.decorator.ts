@@ -12,5 +12,5 @@ export interface AuditMetadata {
  * @param accion - Descripción de la acción (ej: 'USUARIO_CREAR')
  * @param entidad - Nombre de la entidad afectada (ej: 'Usuario')
  */
-export const AuditLog = (accion: string, entidad: string) => 
+export const AuditLog = (accion: string, entidad: string) =>
   SetMetadata(AUDIT_KEY, { accion, entidad } as AuditMetadata);

@@ -137,7 +137,10 @@ describe('MedicionManualMapper', () => {
       const configMap = new Map<string, ConfiguracionParametro>();
       configMap.set('TEMP|LECHE', configTemp); // 'PH|LECHE' no se agrega para probar SIN_UMBRAL
 
-      const results = MedicionManualMapper.toResponseItemList(entities, configMap);
+      const results = MedicionManualMapper.toResponseItemList(
+        entities,
+        configMap,
+      );
 
       expect(results).toHaveLength(2);
 

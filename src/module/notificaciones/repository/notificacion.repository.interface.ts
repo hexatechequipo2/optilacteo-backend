@@ -12,10 +12,7 @@ export interface INotificacionRepository {
     query: NotificacionFilterQueryDto,
   ): Promise<[Notificacion[], number]>;
 
-  findById(
-    id: number,
-    empresaId: number,
-  ): Promise<Notificacion | null>;
+  findById(id: number, empresaId: number): Promise<Notificacion | null>;
 
   markAsLeida(
     id: number,

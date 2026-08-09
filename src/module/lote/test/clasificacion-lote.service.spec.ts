@@ -58,11 +58,26 @@ describe('ClasificacionLoteService', () => {
       providers: [
         ClasificacionLoteService,
         { provide: getRepositoryToken(Lote), useValue: createMockRepository() },
-        { provide: getRepositoryToken(LoteClasificacionHistorial), useValue: createMockRepository() },
-        { provide: getRepositoryToken(ConfiguracionParametro), useValue: createMockRepository() },
-        { provide: getRepositoryToken(SensorLectura), useValue: createMockRepository() },
-        { provide: getRepositoryToken(MedicionManualLote), useValue: createMockRepository() },
-        { provide: getRepositoryToken(Sensor), useValue: createMockRepository() },
+        {
+          provide: getRepositoryToken(LoteClasificacionHistorial),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(ConfiguracionParametro),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(SensorLectura),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(MedicionManualLote),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(Sensor),
+          useValue: createMockRepository(),
+        },
         { provide: NotificacionesService, useValue: notificacionesService },
       ],
     }).compile();
@@ -75,7 +90,8 @@ describe('ClasificacionLoteService', () => {
     medicionManualRepo = module.get(getRepositoryToken(MedicionManualLote));
     sensorRepo = module.get(getRepositoryToken(Sensor));
 
-    const createQueryBuilderMock = sensorLecturaRepo.createQueryBuilder as jest.Mock;
+    const createQueryBuilderMock =
+      sensorLecturaRepo.createQueryBuilder as jest.Mock;
     createQueryBuilderMock.mockReturnValue(mockQueryBuilder as any);
   });
 
@@ -148,9 +164,13 @@ describe('ClasificacionLoteService', () => {
         loteId,
         empresaId,
         clasificacion: ClasificacionLote.APTO,
-        parametrosUtilizados: [{ parametro: 'HUMEDAD' as Parametro, valor: 12 }],
+        parametrosUtilizados: [
+          { parametro: 'HUMEDAD' as Parametro, valor: 12 },
+        ],
       });
-      expect(notificacionesService.notificarResponsablesCalidad).not.toHaveBeenCalled();
+      expect(
+        notificacionesService.notificarResponsablesCalidad,
+      ).not.toHaveBeenCalled();
     });
 
     it('debe clasificar como NO_APTO y notificar si el valor excede el umbral máximo', async () => {
@@ -168,11 +188,17 @@ describe('ClasificacionLoteService', () => {
 
       expect(loteConHumedadAlta.clasificacion).toBe(ClasificacionLote.NO_APTO);
       expect(loteRepo.save).toHaveBeenCalledWith(loteConHumedadAlta);
-      expect(notificacionesService.notificarResponsablesCalidad).toHaveBeenCalledWith(
+      expect(
+        notificacionesService.notificarResponsablesCalidad,
+      ).toHaveBeenCalledWith(
         empresaId,
         TipoNotificacion.LOTE_NO_APTO,
         `El lote ${mockLote.codigo} fue clasificado como no_apto.`,
-        { loteId: mockLote.id, loteCodigo: mockLote.codigo, clasificacion: ClasificacionLote.NO_APTO },
+        {
+          loteId: mockLote.id,
+          loteCodigo: mockLote.codigo,
+          clasificacion: ClasificacionLote.NO_APTO,
+        },
       );
     });
 
@@ -194,14 +220,19 @@ describe('ClasificacionLoteService', () => {
         createdAt: fechaManual,
       });
 
-      sensorRepo.findOne.mockResolvedValue({ id: 99, estado: EstadoSensor.ACTIVO });
+      sensorRepo.findOne.mockResolvedValue({
+        id: 99,
+        estado: EstadoSensor.ACTIVO,
+      });
 
       await service.evaluarYClasificar(loteId, empresaId);
 
       expect(mockLote.clasificacion).toBe(ClasificacionLote.APTO);
       expect(historialRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          parametrosUtilizados: [{ parametro: 'HUMEDAD' as Parametro, valor: 11.5 }],
+          parametrosUtilizados: [
+            { parametro: 'HUMEDAD' as Parametro, valor: 11.5 },
+          ],
         }),
       );
     });
@@ -228,7 +259,9 @@ describe('ClasificacionLoteService', () => {
         expect.objectContaining({
           id: 10,
           clasificacion: ClasificacionLote.APTO,
-          parametrosUtilizados: [{ parametro: 'HUMEDAD' as Parametro, valor: 12 }],
+          parametrosUtilizados: [
+            { parametro: 'HUMEDAD' as Parametro, valor: 12 },
+          ],
         }),
       );
       expect(historialRepo.create).not.toHaveBeenCalled();

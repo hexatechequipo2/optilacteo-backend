@@ -1,4 +1,8 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RolService } from '../rol.service';
@@ -82,7 +86,10 @@ describe('RolService', () => {
       providers: [
         RolService,
         { provide: ROL_REPOSITORY, useValue: mockRolRepository },
-        { provide: getRepositoryToken(Empresa), useValue: mockEmpresaTypeormRepo },
+        {
+          provide: getRepositoryToken(Empresa),
+          useValue: mockEmpresaTypeormRepo,
+        },
         { provide: getRepositoryToken(User), useValue: mockUserTypeormRepo },
       ],
     }).compile();
@@ -101,7 +108,10 @@ describe('RolService', () => {
 
       expect(mockEmpresaTypeormRepo.findOneBy).toHaveBeenCalledWith({ id: 1 });
       expect(mockRolRepository.createRol).toHaveBeenCalledWith(
-        expect.objectContaining({ nombre: 'Supervisor de calidad', descripcion: dto.descripcion }),
+        expect.objectContaining({
+          nombre: 'Supervisor de calidad',
+          descripcion: dto.descripcion,
+        }),
       );
       expect(result.nombre).toBe('Supervisor de calidad');
     });
@@ -109,7 +119,9 @@ describe('RolService', () => {
     it('lanza NotFoundException si la empresa indicada no existe', async () => {
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(null);
 
-      await expect(service.create(buildCreateDto())).rejects.toThrow(NotFoundException);
+      await expect(service.create(buildCreateDto())).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockRolRepository.createRol).not.toHaveBeenCalled();
     });
 
@@ -149,7 +161,10 @@ describe('RolService', () => {
 
   describe('findAll', () => {
     it('deberia devolver la lista de roles mapeada', async () => {
-      mockRolRepository.findAll.mockResolvedValue([buildRol({ id: 1 }), buildRol({ id: 2 })]);
+      mockRolRepository.findAll.mockResolvedValue([
+        buildRol({ id: 1 }),
+        buildRol({ id: 2 }),
+      ]);
 
       const result = await service.findAll();
 
@@ -187,15 +202,22 @@ describe('RolService', () => {
     it('lanza NotFoundException si el rol no existe', async () => {
       mockRolRepository.findById.mockResolvedValue(null);
 
-      await expect(service.update(999, { nombre: 'x' })).rejects.toThrow(NotFoundException);
+      await expect(service.update(999, { nombre: 'x' })).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockRolRepository.updateRol).not.toHaveBeenCalled();
     });
 
     it('deberia actualizar nombre y descripcion cuando vienen en el DTO', async () => {
       mockRolRepository.findById.mockResolvedValue(buildRol());
-      mockRolRepository.updateRol.mockResolvedValue(buildRol({ nombre: 'Nuevo nombre' }));
+      mockRolRepository.updateRol.mockResolvedValue(
+        buildRol({ nombre: 'Nuevo nombre' }),
+      );
 
-      await service.update(5, { nombre: 'Nuevo nombre', descripcion: 'Nueva descripcion' });
+      await service.update(5, {
+        nombre: 'Nuevo nombre',
+        descripcion: 'Nueva descripcion',
+      });
 
       expect(mockRolRepository.updateRol).toHaveBeenCalledWith(5, {
         nombre: 'Nuevo nombre',
@@ -209,7 +231,9 @@ describe('RolService', () => {
 
       await service.update(5, { nombre: 'Solo nombre' });
 
-      expect(mockRolRepository.updateRol).toHaveBeenCalledWith(5, { nombre: 'Solo nombre' });
+      expect(mockRolRepository.updateRol).toHaveBeenCalledWith(5, {
+        nombre: 'Solo nombre',
+      });
     });
   });
 
@@ -239,7 +263,9 @@ describe('RolService', () => {
       const result = await service.remove(5);
 
       expect(mockRolRepository.deleteRol).toHaveBeenCalledWith(5);
-      expect(result).toEqual({ message: 'Rol con id 5 eliminado correctamente' });
+      expect(result).toEqual({
+        message: 'Rol con id 5 eliminado correctamente',
+      });
     });
 
     it('el conteo de usuarios activos ignora a los usuarios inactivos con ese rol (isActive:true en el filtro)', async () => {
@@ -249,7 +275,9 @@ describe('RolService', () => {
       await service.remove(5);
 
       expect(mockUserTypeormRepo.count).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ isActive: true }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ isActive: true }),
+        }),
       );
     });
   });
@@ -281,14 +309,24 @@ describe('RolService', () => {
       );
 
       expect(mockRolRepository.createPermisos).toHaveBeenCalledWith([
-        { modulo: ModuloSistema.SENSORES_IOT, canRead: true, canWrite: false, rol },
+        {
+          modulo: ModuloSistema.SENSORES_IOT,
+          canRead: true,
+          canWrite: false,
+          rol,
+        },
       ]);
       expect(mockRolRepository.updatePermiso).not.toHaveBeenCalled();
     });
 
     it('deberia actualizar el permiso existente para ese modulo (editar permisos de un rol existente)', async () => {
       const rol = buildRol();
-      const permisoExistente = { id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false };
+      const permisoExistente = {
+        id: 7,
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: false,
+      };
       mockRolRepository.findById.mockResolvedValue(rol);
       mockRolRepository.findPermiso.mockResolvedValue(permisoExistente);
 
@@ -298,13 +336,22 @@ describe('RolService', () => {
         tenantAdministrador,
       );
 
-      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(7, true, true);
+      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(
+        7,
+        true,
+        true,
+      );
       expect(mockRolRepository.createPermisos).not.toHaveBeenCalled();
     });
 
     it('desasignar un permiso significa poner canRead y canWrite en false (no se borra la fila)', async () => {
       const rol = buildRol();
-      const permisoExistente = { id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true };
+      const permisoExistente = {
+        id: 7,
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: true,
+      };
       mockRolRepository.findById.mockResolvedValue(rol);
       mockRolRepository.findPermiso.mockResolvedValue(permisoExistente);
 
@@ -314,16 +361,35 @@ describe('RolService', () => {
         tenantAdministrador,
       );
 
-      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(7, false, false);
+      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(
+        7,
+        false,
+        false,
+      );
     });
 
     it('devuelve el rol recargado (con los permisos actualizados) al final', async () => {
       const rol = buildRol();
       const rolActualizado = buildRol({
-        permisos: [{ id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true, rol: undefined as never }],
+        permisos: [
+          {
+            id: 7,
+            modulo: ModuloSistema.DASHBOARD,
+            canRead: true,
+            canWrite: true,
+            rol: undefined as never,
+          },
+        ],
       });
-      mockRolRepository.findById.mockResolvedValueOnce(rol).mockResolvedValueOnce(rolActualizado);
-      mockRolRepository.findPermiso.mockResolvedValue({ id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false });
+      mockRolRepository.findById
+        .mockResolvedValueOnce(rol)
+        .mockResolvedValueOnce(rolActualizado);
+      mockRolRepository.findPermiso.mockResolvedValue({
+        id: 7,
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: false,
+      });
 
       const result = await service.updatePermiso(
         5,
@@ -337,7 +403,9 @@ describe('RolService', () => {
     });
 
     it('lanza ForbiddenException si un Gerente intenta editar los permisos del rol Administrador', async () => {
-      mockRolRepository.findById.mockResolvedValue(buildRol({ nombre: ROLES.ADMINISTRADOR }));
+      mockRolRepository.findById.mockResolvedValue(
+        buildRol({ nombre: ROLES.ADMINISTRADOR }),
+      );
 
       await expect(
         service.updatePermiso(
@@ -351,7 +419,9 @@ describe('RolService', () => {
     });
 
     it('lanza ForbiddenException si un Gerente intenta editar los permisos del rol Gerente', async () => {
-      mockRolRepository.findById.mockResolvedValue(buildRol({ nombre: ROLES.GERENTE }));
+      mockRolRepository.findById.mockResolvedValue(
+        buildRol({ nombre: ROLES.GERENTE }),
+      );
 
       await expect(
         service.updatePermiso(
@@ -366,7 +436,12 @@ describe('RolService', () => {
 
     it('permite a un Gerente editar los permisos de un rol de empleado (no Administrador ni Gerente)', async () => {
       const rol = buildRol({ nombre: 'Operario de línea' });
-      const permisoExistente = { id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false };
+      const permisoExistente = {
+        id: 7,
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: false,
+      };
       mockRolRepository.findById.mockResolvedValue(rol);
       mockRolRepository.findPermiso.mockResolvedValue(permisoExistente);
 
@@ -376,12 +451,21 @@ describe('RolService', () => {
         tenantGerente,
       );
 
-      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(7, true, true);
+      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(
+        7,
+        true,
+        true,
+      );
     });
 
     it('permite a un Administrador editar los permisos de cualquier rol, incluido Gerente', async () => {
       const rol = buildRol({ nombre: ROLES.GERENTE });
-      const permisoExistente = { id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false };
+      const permisoExistente = {
+        id: 7,
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: false,
+      };
       mockRolRepository.findById.mockResolvedValue(rol);
       mockRolRepository.findPermiso.mockResolvedValue(permisoExistente);
 
@@ -391,7 +475,11 @@ describe('RolService', () => {
         tenantAdministrador,
       );
 
-      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(7, true, true);
+      expect(mockRolRepository.updatePermiso).toHaveBeenCalledWith(
+        7,
+        true,
+        true,
+      );
     });
   });
 });

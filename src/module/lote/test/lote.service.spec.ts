@@ -201,17 +201,17 @@ describe('LoteService', () => {
     it('cuando el tenant no especifica empresaId, debe lanzar BadRequestException', async () => {
       const tenantSinEmpresa = {} as TenantContext;
 
-      await expect(
-        service.create(createDto, tenantSinEmpresa),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto, tenantSinEmpresa)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('cuando el proveedor no existe para la empresa del tenant, debe lanzar NotFoundException', async () => {
       proveedorRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.create(createDto, mockTenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.create(createDto, mockTenant)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('cuando el proveedor está inactivo, debe lanzar BadRequestException', async () => {
@@ -221,9 +221,9 @@ describe('LoteService', () => {
         estado: 'INACTIVA' as EstadoProveedor,
       });
 
-      await expect(
-        service.create(createDto, mockTenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto, mockTenant)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('cuando ya existe un lote con el mismo código, debe lanzar ConflictException', async () => {
@@ -239,9 +239,9 @@ describe('LoteService', () => {
         codigo: 'LOTE-1-00001',
       });
 
-      await expect(
-        service.create(createDto, mockTenant),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.create(createDto, mockTenant)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('cuando los datos son válidos, debe registrar el lote, evaluar clasificación y retornar dto con warnings si los hay', async () => {
@@ -274,9 +274,10 @@ describe('LoteService', () => {
 
       const resultado = await service.create(createDto, mockTenant);
 
-      expect(
-        clasificacionLoteService.evaluarYClasificar,
-      ).toHaveBeenCalledWith(100, 1);
+      expect(clasificacionLoteService.evaluarYClasificar).toHaveBeenCalledWith(
+        100,
+        1,
+      );
 
       expect(sensorService.findAll).toHaveBeenCalledWith(
         {
@@ -411,9 +412,7 @@ describe('LoteService', () => {
 
       const resultado = await service.findAll({}, tenantGerente);
 
-      expect(
-        auditLogService.getTrazabilidadBatch,
-      ).toHaveBeenCalledWith(
+      expect(auditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
         'Lote',
         [1, 2],
         1,
@@ -442,9 +441,7 @@ describe('LoteService', () => {
 
       await service.findAll({}, mockTenant);
 
-      expect(
-        auditLogService.getTrazabilidadBatch,
-      ).not.toHaveBeenCalled();
+      expect(auditLogService.getTrazabilidadBatch).not.toHaveBeenCalled();
     });
   });
 
@@ -465,9 +462,9 @@ describe('LoteService', () => {
     it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
       loteRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.findOne(999, mockTenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(999, mockTenant)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('cuando el usuario es GERENTE, debe incluir la trazabilidad de auditoría', async () => {
@@ -499,9 +496,7 @@ describe('LoteService', () => {
 
       const resultado = await service.findAll({}, tenantGerente);
 
-      expect(
-        auditLogService.getTrazabilidadBatch,
-      ).toHaveBeenCalledWith(
+      expect(auditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
         'Lote',
         [1, 2],
         1,
@@ -525,9 +520,7 @@ describe('LoteService', () => {
 
       await service.findOne(10, mockTenant);
 
-      expect(
-        auditLogService.getTrazabilidad,
-      ).not.toHaveBeenCalled();
+      expect(auditLogService.getTrazabilidad).not.toHaveBeenCalled();
     });
   });
 
@@ -535,9 +528,9 @@ describe('LoteService', () => {
     it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
       loteRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.update(999, {}, mockTenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update(999, {}, mockTenant)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('debe actualizar los campos especificados y guardar el lote', async () => {
@@ -562,11 +555,7 @@ describe('LoteService', () => {
         fechaIngreso: '2026-07-31T00:00:00Z',
       };
 
-      const resultado = await service.update(
-        10,
-        updateDto,
-        mockTenant,
-      );
+      const resultado = await service.update(10, updateDto, mockTenant);
 
       expect(loteRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -620,15 +609,9 @@ describe('LoteService', () => {
         Promise.resolve(entidad),
       );
 
-      const resultado = await service.finalizar(
-        10,
-        {} as any,
-        mockTenant,
-      );
+      const resultado = await service.finalizar(10, {} as any, mockTenant);
 
-      expect(loteExistente.estado).toBe(
-        EstadoLote.FINALIZADO,
-      );
+      expect(loteExistente.estado).toBe(EstadoLote.FINALIZADO);
 
       expect(loteRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -660,14 +643,10 @@ describe('LoteService', () => {
 
       await service.finalizar(10, dto, mockTenant);
 
-      expect(loteExistente.estado).toBe(
-        EstadoLote.FINALIZADO,
-      );
+      expect(loteExistente.estado).toBe(EstadoLote.FINALIZADO);
 
       expect(loteExistente.rendimiento).toBe(85);
-      expect(loteExistente.unidadRendimiento).toBe(
-        'PORCENTAJE',
-      );
+      expect(loteExistente.unidadRendimiento).toBe('PORCENTAJE');
 
       expect(loteRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -698,503 +677,401 @@ describe('LoteService', () => {
 
       await service.finalizar(10, dto, mockTenant);
 
-      expect(loteExistente.estado).toBe(
-        EstadoLote.FINALIZADO,
-      );
+      expect(loteExistente.estado).toBe(EstadoLote.FINALIZADO);
 
       expect(loteExistente.rendimiento).toBe(80);
       expect(loteExistente.unidadRendimiento).toBeNull();
     });
 
-  describe('getMetricasCalidad — monitoreo de métricas', () => {
-    it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
-      loteRepository.findById.mockResolvedValue(null);
+    describe('getMetricasCalidad — monitoreo de métricas', () => {
+      it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
+        loteRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.getMetricasCalidad(100, mockTenant),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('cuando el lote no está EN_PROCESO, debe indicar enProceso: false', async () => {
-      loteRepository.findById.mockResolvedValue({
-        id: 100,
-        estado: EstadoLote.REGISTRADO,
+        await expect(
+          service.getMetricasCalidad(100, mockTenant),
+        ).rejects.toThrow(NotFoundException);
       });
 
-      const resultado = await service.getMetricasCalidad(
-        100,
-        mockTenant,
-      );
+      it('cuando el lote no está EN_PROCESO, debe indicar enProceso: false', async () => {
+        loteRepository.findById.mockResolvedValue({
+          id: 100,
+          estado: EstadoLote.REGISTRADO,
+        });
 
-      expect(resultado).toEqual({
-        enProceso: false,
-      });
-    });
+        const resultado = await service.getMetricasCalidad(100, mockTenant);
 
-    it('cuando el lote está EN_PROCESO, debe armar las métricas calculando fueras de rango', async () => {
-      loteRepository.findById.mockResolvedValue({
-        id: 100,
-        estado: EstadoLote.EN_PROCESO,
-        materiaPrima: 'LECHE_ENTERA',
+        expect(resultado).toEqual({
+          enProceso: false,
+        });
       });
 
-      const fecha = new Date();
+      it('cuando el lote está EN_PROCESO, debe armar las métricas calculando fueras de rango', async () => {
+        loteRepository.findById.mockResolvedValue({
+          id: 100,
+          estado: EstadoLote.EN_PROCESO,
+          materiaPrima: 'LECHE_ENTERA',
+        });
 
-      mockQueryBuilder.getMany.mockResolvedValue([
-        {
-          valor: 20,
-          timestampLectura: fecha,
-          sensor: {
-            parametro: 'HUMEDAD' as Parametro,
+        const fecha = new Date();
+
+        mockQueryBuilder.getMany.mockResolvedValue([
+          {
+            valor: 20,
+            timestampLectura: fecha,
+            sensor: {
+              parametro: 'HUMEDAD' as Parametro,
+            },
           },
-        },
-      ]);
+        ]);
 
-      configParametroRepository.findOne.mockResolvedValue({
-        umbralMin: 10,
-        umbralMax: 15,
-      });
-
-      const resultado = await service.getMetricasCalidad(
-        100,
-        mockTenant,
-      );
-
-      expect(resultado.enProceso).toBe(true);
-      expect(resultado.parametros).toBeDefined();
-      expect(resultado.parametros).toHaveLength(1);
-      expect(
-        resultado.parametros?.[0]?.fueraDeRango,
-      ).toBe(true);
-    });
-
-    it('debe marcar fueraDeRango en false si el valor está dentro de los umbrales o si no hay configuración', async () => {
-      loteRepository.findById.mockResolvedValue({
-        id: 100,
-        estado: EstadoLote.EN_PROCESO,
-        materiaPrima: 'LECHE_ENTERA',
-      });
-
-      mockQueryBuilder.getMany.mockResolvedValue([
-        {
-          valor: 12,
-          timestampLectura: new Date(),
-          sensor: {
-            parametro: 'HUMEDAD' as Parametro,
-          },
-        },
-        {
-          valor: 5,
-          timestampLectura: new Date(),
-          sensor: {
-            parametro: 'GRASA' as Parametro,
-          },
-        },
-      ]);
-
-      configParametroRepository.findOne
-        .mockResolvedValueOnce({
+        configParametroRepository.findOne.mockResolvedValue({
           umbralMin: 10,
           umbralMax: 15,
-        })
-        .mockResolvedValueOnce(null);
+        });
 
-      const resultado = await service.getMetricasCalidad(
-        100,
-        mockTenant,
-      );
+        const resultado = await service.getMetricasCalidad(100, mockTenant);
 
-      expect(
-        resultado.parametros?.[0]?.fueraDeRango,
-      ).toBe(false);
-
-      expect(
-        resultado.parametros?.[1]?.fueraDeRango,
-      ).toBe(false);
-
-      expect(
-        resultado.parametros?.[1]?.umbralMin,
-      ).toBeNull();
-    });
-  });
-
-  describe('getHistorialClasificaciones — historial de clasificaciones', () => {
-    it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
-      loteRepository.findById.mockResolvedValue(null);
-
-      await expect(
-        service.getHistorialClasificaciones(999, mockTenant),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('cuando el lote existe, debe delegar al ClasificacionLoteService', async () => {
-      loteRepository.findById.mockResolvedValue({
-        id: 10,
+        expect(resultado.enProceso).toBe(true);
+        expect(resultado.parametros).toBeDefined();
+        expect(resultado.parametros).toHaveLength(1);
+        expect(resultado.parametros?.[0]?.fueraDeRango).toBe(true);
       });
 
-      clasificacionLoteService.historialDeLote.mockResolvedValue([
-        { id: 1 },
-      ] as any);
+      it('debe marcar fueraDeRango en false si el valor está dentro de los umbrales o si no hay configuración', async () => {
+        loteRepository.findById.mockResolvedValue({
+          id: 100,
+          estado: EstadoLote.EN_PROCESO,
+          materiaPrima: 'LECHE_ENTERA',
+        });
 
-      const resultado =
-        await service.getHistorialClasificaciones(
+        mockQueryBuilder.getMany.mockResolvedValue([
+          {
+            valor: 12,
+            timestampLectura: new Date(),
+            sensor: {
+              parametro: 'HUMEDAD' as Parametro,
+            },
+          },
+          {
+            valor: 5,
+            timestampLectura: new Date(),
+            sensor: {
+              parametro: 'GRASA' as Parametro,
+            },
+          },
+        ]);
+
+        configParametroRepository.findOne
+          .mockResolvedValueOnce({
+            umbralMin: 10,
+            umbralMax: 15,
+          })
+          .mockResolvedValueOnce(null);
+
+        const resultado = await service.getMetricasCalidad(100, mockTenant);
+
+        expect(resultado.parametros?.[0]?.fueraDeRango).toBe(false);
+
+        expect(resultado.parametros?.[1]?.fueraDeRango).toBe(false);
+
+        expect(resultado.parametros?.[1]?.umbralMin).toBeNull();
+      });
+    });
+
+    describe('getHistorialClasificaciones — historial de clasificaciones', () => {
+      it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
+        loteRepository.findById.mockResolvedValue(null);
+
+        await expect(
+          service.getHistorialClasificaciones(999, mockTenant),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('cuando el lote existe, debe delegar al ClasificacionLoteService', async () => {
+        loteRepository.findById.mockResolvedValue({
+          id: 10,
+        });
+
+        clasificacionLoteService.historialDeLote.mockResolvedValue([
+          { id: 1 },
+        ] as any);
+
+        const resultado = await service.getHistorialClasificaciones(
           10,
           mockTenant,
         );
 
-      expect(
-        clasificacionLoteService.historialDeLote,
-      ).toHaveBeenCalledWith(10, 1);
+        expect(clasificacionLoteService.historialDeLote).toHaveBeenCalledWith(
+          10,
+          1,
+        );
 
-      expect(resultado).toHaveLength(1);
+        expect(resultado).toHaveLength(1);
+      });
     });
-  });
 
-  describe('findNoAptos — listado de lotes no aptos', () => {
-    it('debe obtener lotes no aptos sin revisión vigente y mapearlos', async () => {
-      const mockLotes = [
-        {
-          id: 1,
+    describe('findNoAptos — listado de lotes no aptos', () => {
+      it('debe obtener lotes no aptos sin revisión vigente y mapearlos', async () => {
+        const mockLotes = [
+          {
+            id: 1,
+            fechaIngreso: new Date(),
+            parametros: [],
+          },
+        ] as any;
+
+        loteRepository.findNoAptosSinRevisionVigente.mockResolvedValue(
+          mockLotes,
+        );
+
+        const resultado = await service.findNoAptos(mockTenant);
+
+        expect(
+          loteRepository.findNoAptosSinRevisionVigente,
+        ).toHaveBeenCalledWith(1);
+
+        expect(resultado).toHaveLength(1);
+      });
+    });
+
+    describe('revisarLote — gestión de calidad y revisiones', () => {
+      const revisarDto = {
+        decision: DecisionRevision.APROBADO,
+        justificacion: 'Aprobado bajo supervisión de calidad',
+      };
+
+      it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
+        loteRepository.findById.mockResolvedValue(null);
+
+        await expect(
+          service.revisarLote(999, revisarDto, mockTenant, 5),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('cuando el lote no está en clasificación NO_APTO, debe lanzar BadRequestException', async () => {
+        loteRepository.findById.mockResolvedValue({
+          id: 100,
+          clasificacion: ClasificacionLote.APTO,
+        });
+
+        await expect(
+          service.revisarLote(100, revisarDto, mockTenant, 5),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('cuando el lote ya tiene una revisión vigente posterior a la clasificación, debe lanzar ConflictException', async () => {
+        const fechaClasificacion = new Date('2026-07-31T10:00:00Z');
+
+        const fechaRevisionAnterior = new Date('2026-07-31T10:05:00Z');
+
+        loteRepository.findById.mockResolvedValue({
+          id: 100,
+          clasificacion: ClasificacionLote.NO_APTO,
+        });
+
+        clasificacionLoteService.historialDeLote.mockResolvedValue([
+          {
+            createdAt: fechaClasificacion,
+          } as any,
+        ]);
+
+        loteRevisionRepository.findOne.mockResolvedValue({
+          createdAt: fechaRevisionAnterior,
+        } as any);
+
+        await expect(
+          service.revisarLote(100, revisarDto, mockTenant, 5),
+        ).rejects.toThrow(ConflictException);
+      });
+
+      it('cuando existe una revisión pero NO hay historial de clasificación previa, debe considerar la revisión vigente y lanzar ConflictException', async () => {
+        loteRepository.findById.mockResolvedValue({
+          id: 100,
+          clasificacion: ClasificacionLote.NO_APTO,
+        });
+
+        clasificacionLoteService.historialDeLote.mockResolvedValue([]);
+
+        loteRevisionRepository.findOne.mockResolvedValue({
+          createdAt: new Date(),
+        } as any);
+
+        await expect(
+          service.revisarLote(100, revisarDto, mockTenant, 5),
+        ).rejects.toThrow(ConflictException);
+      });
+
+      it('cuando la clasificación es posterior a la última revisión, debe permitir la nueva revisión', async () => {
+        const fechaRevisionAnterior = new Date('2026-07-31T09:00:00Z');
+
+        const fechaClasificacionNuevas = new Date('2026-07-31T10:00:00Z');
+
+        const lote = {
+          id: 100,
+          clasificacion: ClasificacionLote.NO_APTO,
+          estado: EstadoLote.EN_PROCESO,
           fechaIngreso: new Date(),
           parametros: [],
-        },
-      ] as any;
+        };
 
-      loteRepository.findNoAptosSinRevisionVigente.mockResolvedValue(
-        mockLotes,
-      );
+        loteRepository.findById.mockResolvedValue(lote);
 
-      const resultado = await service.findNoAptos(mockTenant);
+        clasificacionLoteService.historialDeLote.mockResolvedValue([
+          {
+            createdAt: fechaClasificacionNuevas,
+          } as any,
+        ]);
 
-      expect(
-        loteRepository.findNoAptosSinRevisionVigente,
-      ).toHaveBeenCalledWith(1);
+        loteRevisionRepository.findOne.mockResolvedValue({
+          createdAt: fechaRevisionAnterior,
+        } as any);
 
-      expect(resultado).toHaveLength(1);
-    });
-  });
+        loteRevisionRepository.create.mockImplementation((dto) => dto);
 
-  describe('revisarLote — gestión de calidad y revisiones', () => {
-    const revisarDto = {
-      decision: DecisionRevision.APROBADO,
-      justificacion: 'Aprobado bajo supervisión de calidad',
-    };
-
-    it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
-      loteRepository.findById.mockResolvedValue(null);
-
-      await expect(
-        service.revisarLote(
-          999,
-          revisarDto,
-          mockTenant,
-          5,
-        ),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('cuando el lote no está en clasificación NO_APTO, debe lanzar BadRequestException', async () => {
-      loteRepository.findById.mockResolvedValue({
-        id: 100,
-        clasificacion: ClasificacionLote.APTO,
-      });
-
-      await expect(
-        service.revisarLote(
-          100,
-          revisarDto,
-          mockTenant,
-          5,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('cuando el lote ya tiene una revisión vigente posterior a la clasificación, debe lanzar ConflictException', async () => {
-      const fechaClasificacion = new Date(
-        '2026-07-31T10:00:00Z',
-      );
-
-      const fechaRevisionAnterior = new Date(
-        '2026-07-31T10:05:00Z',
-      );
-
-      loteRepository.findById.mockResolvedValue({
-        id: 100,
-        clasificacion: ClasificacionLote.NO_APTO,
-      });
-
-      clasificacionLoteService.historialDeLote.mockResolvedValue([
-        {
-          createdAt: fechaClasificacion,
-        } as any,
-      ]);
-
-      loteRevisionRepository.findOne.mockResolvedValue({
-        createdAt: fechaRevisionAnterior,
-      } as any);
-
-      await expect(
-        service.revisarLote(
-          100,
-          revisarDto,
-          mockTenant,
-          5,
-        ),
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('cuando existe una revisión pero NO hay historial de clasificación previa, debe considerar la revisión vigente y lanzar ConflictException', async () => {
-      loteRepository.findById.mockResolvedValue({
-        id: 100,
-        clasificacion: ClasificacionLote.NO_APTO,
-      });
-
-      clasificacionLoteService.historialDeLote.mockResolvedValue([]);
-
-      loteRevisionRepository.findOne.mockResolvedValue({
-        createdAt: new Date(),
-      } as any);
-
-      await expect(
-        service.revisarLote(
-          100,
-          revisarDto,
-          mockTenant,
-          5,
-        ),
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('cuando la clasificación es posterior a la última revisión, debe permitir la nueva revisión', async () => {
-      const fechaRevisionAnterior = new Date(
-        '2026-07-31T09:00:00Z',
-      );
-
-      const fechaClasificacionNuevas = new Date(
-        '2026-07-31T10:00:00Z',
-      );
-
-      const lote = {
-        id: 100,
-        clasificacion: ClasificacionLote.NO_APTO,
-        estado: EstadoLote.EN_PROCESO,
-        fechaIngreso: new Date(),
-        parametros: [],
-      };
-
-      loteRepository.findById.mockResolvedValue(lote);
-
-      clasificacionLoteService.historialDeLote.mockResolvedValue([
-        {
-          createdAt: fechaClasificacionNuevas,
-        } as any,
-      ]);
-
-      loteRevisionRepository.findOne.mockResolvedValue({
-        createdAt: fechaRevisionAnterior,
-      } as any);
-
-      loteRevisionRepository.create.mockImplementation(
-        (dto) => dto,
-      );
-
-      loteRepository.save.mockImplementation((entity) =>
-        Promise.resolve(entity),
-      );
-
-      await service.revisarLote(
-        100,
-        revisarDto,
-        mockTenant,
-        5,
-      );
-
-      expect(lote.clasificacion).toBe(
-        ClasificacionLote.APTO,
-      );
-    });
-
-    it('cuando la decisión es APROBADO, el lote debe pasar a clasificación APTO', async () => {
-      const lote = {
-        id: 100,
-        clasificacion: ClasificacionLote.NO_APTO,
-        estado: EstadoLote.EN_PROCESO,
-        fechaIngreso: new Date(),
-        parametros: [],
-      };
-
-      loteRepository.findById.mockResolvedValue(lote);
-
-      clasificacionLoteService.historialDeLote.mockResolvedValue([]);
-
-      loteRevisionRepository.findOne.mockResolvedValue(null);
-
-      loteRevisionRepository.create.mockImplementation(
-        (dto) => dto,
-      );
-
-      loteRevisionRepository.save.mockResolvedValue(
-        undefined,
-      );
-
-      loteRepository.save.mockImplementation((entity) =>
-        Promise.resolve(entity),
-      );
-
-      await service.revisarLote(
-        100,
-        revisarDto,
-        mockTenant,
-        5,
-      );
-
-      expect(lote.clasificacion).toBe(
-        ClasificacionLote.APTO,
-      );
-
-      expect(
-        loteRevisionRepository.save,
-      ).toHaveBeenCalled();
-    });
-
-    it('cuando la decisión es RECHAZADO, el lote debe pasar a estado RECHAZADO', async () => {
-      const lote = {
-        id: 100,
-        clasificacion: ClasificacionLote.NO_APTO,
-        estado: EstadoLote.EN_PROCESO,
-        fechaIngreso: new Date(),
-        parametros: [],
-      };
-
-      const revisarRechazadoDto = {
-        decision: DecisionRevision.RECHAZADO,
-        justificacion:
-          'Parámetros fuera de norma irreversibles',
-      };
-
-      loteRepository.findById.mockResolvedValue(lote);
-
-      clasificacionLoteService.historialDeLote.mockResolvedValue([]);
-
-      loteRevisionRepository.findOne.mockResolvedValue(null);
-
-      loteRevisionRepository.create.mockImplementation(
-        (dto) => dto,
-      );
-
-      loteRevisionRepository.save.mockResolvedValue(
-        undefined,
-      );
-
-      loteRepository.save.mockImplementation((entity) =>
-        Promise.resolve(entity),
-      );
-
-      await service.revisarLote(
-        100,
-        revisarRechazadoDto,
-        mockTenant,
-        5,
-      );
-
-      expect(lote.estado).toBe(
-        EstadoLote.RECHAZADO,
-      );
-
-      expect(
-        loteRevisionRepository.save,
-      ).toHaveBeenCalled();
-    });
-  });
-
-  describe('getHistorialRevisiones — historial de revisiones', () => {
-    it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
-      loteRepository.findById.mockResolvedValue(null);
-
-      await expect(
-        service.getHistorialRevisiones(
-          999,
-          mockTenant,
-        ),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('cuando el lote existe, debe retornar sus revisiones ordenadas descendentemente', async () => {
-      loteRepository.findById.mockResolvedValue({
-        id: 10,
-      });
-
-      loteRevisionRepository.find.mockResolvedValue([
-        {
-          id: 1,
-        },
-      ] as any);
-
-      const resultado =
-        await service.getHistorialRevisiones(
-          10,
-          mockTenant,
+        loteRepository.save.mockImplementation((entity) =>
+          Promise.resolve(entity),
         );
 
-      expect(
-        loteRevisionRepository.find,
-      ).toHaveBeenCalledWith({
-        where: {
-          loteId: 10,
-          empresaId: 1,
-        },
-        order: {
-          createdAt: 'DESC',
-        },
+        await service.revisarLote(100, revisarDto, mockTenant, 5);
+
+        expect(lote.clasificacion).toBe(ClasificacionLote.APTO);
       });
 
-      expect(resultado).toHaveLength(1);
+      it('cuando la decisión es APROBADO, el lote debe pasar a clasificación APTO', async () => {
+        const lote = {
+          id: 100,
+          clasificacion: ClasificacionLote.NO_APTO,
+          estado: EstadoLote.EN_PROCESO,
+          fechaIngreso: new Date(),
+          parametros: [],
+        };
+
+        loteRepository.findById.mockResolvedValue(lote);
+
+        clasificacionLoteService.historialDeLote.mockResolvedValue([]);
+
+        loteRevisionRepository.findOne.mockResolvedValue(null);
+
+        loteRevisionRepository.create.mockImplementation((dto) => dto);
+
+        loteRevisionRepository.save.mockResolvedValue(undefined);
+
+        loteRepository.save.mockImplementation((entity) =>
+          Promise.resolve(entity),
+        );
+
+        await service.revisarLote(100, revisarDto, mockTenant, 5);
+
+        expect(lote.clasificacion).toBe(ClasificacionLote.APTO);
+
+        expect(loteRevisionRepository.save).toHaveBeenCalled();
+      });
+
+      it('cuando la decisión es RECHAZADO, el lote debe pasar a estado RECHAZADO', async () => {
+        const lote = {
+          id: 100,
+          clasificacion: ClasificacionLote.NO_APTO,
+          estado: EstadoLote.EN_PROCESO,
+          fechaIngreso: new Date(),
+          parametros: [],
+        };
+
+        const revisarRechazadoDto = {
+          decision: DecisionRevision.RECHAZADO,
+          justificacion: 'Parámetros fuera de norma irreversibles',
+        };
+
+        loteRepository.findById.mockResolvedValue(lote);
+
+        clasificacionLoteService.historialDeLote.mockResolvedValue([]);
+
+        loteRevisionRepository.findOne.mockResolvedValue(null);
+
+        loteRevisionRepository.create.mockImplementation((dto) => dto);
+
+        loteRevisionRepository.save.mockResolvedValue(undefined);
+
+        loteRepository.save.mockImplementation((entity) =>
+          Promise.resolve(entity),
+        );
+
+        await service.revisarLote(100, revisarRechazadoDto, mockTenant, 5);
+
+        expect(lote.estado).toBe(EstadoLote.RECHAZADO);
+
+        expect(loteRevisionRepository.save).toHaveBeenCalled();
+      });
     });
-  });
 
-  describe('compararConHistorico — comparación de tendencias', () => {
-    it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
-      loteRepository.findById.mockResolvedValue(null);
+    describe('getHistorialRevisiones — historial de revisiones', () => {
+      it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
+        loteRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.compararConHistorico(
-          999,
-          mockTenant,
-        ),
-      ).rejects.toThrow(NotFoundException);
+        await expect(
+          service.getHistorialRevisiones(999, mockTenant),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('cuando el lote existe, debe retornar sus revisiones ordenadas descendentemente', async () => {
+        loteRepository.findById.mockResolvedValue({
+          id: 10,
+        });
+
+        loteRevisionRepository.find.mockResolvedValue([
+          {
+            id: 1,
+          },
+        ] as any);
+
+        const resultado = await service.getHistorialRevisiones(10, mockTenant);
+
+        expect(loteRevisionRepository.find).toHaveBeenCalledWith({
+          where: {
+            loteId: 10,
+            empresaId: 1,
+          },
+          order: {
+            createdAt: 'DESC',
+          },
+        });
+
+        expect(resultado).toHaveLength(1);
+      });
     });
 
-    it('debe obtener la configuración histórica y consultar únicamente los últimos lotes aptos excluyendo el lote actual', async () => {
-      const loteActual = {
-        id: 100,
-        materiaPrima: 'LECHE_ENTERA',
-        parametros: [],
-      };
+    describe('compararConHistorico — comparación de tendencias', () => {
+      it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
+        loteRepository.findById.mockResolvedValue(null);
 
-      loteRepository.findById.mockResolvedValue(
-        loteActual,
-      );
+        await expect(
+          service.compararConHistorico(999, mockTenant),
+        ).rejects.toThrow(NotFoundException);
+      });
 
-      loteRepository.findUltimosAptos.mockResolvedValue([]);
+      it('debe obtener la configuración histórica y consultar únicamente los últimos lotes aptos excluyendo el lote actual', async () => {
+        const loteActual = {
+          id: 100,
+          materiaPrima: 'LECHE_ENTERA',
+          parametros: [],
+        };
 
-      await service.compararConHistorico(
-        100,
-        mockTenant,
-      );
+        loteRepository.findById.mockResolvedValue(loteActual);
 
-      expect(
-        configuracionComparacionHistoricaService.getConfig,
-      ).toHaveBeenCalledWith(1);
+        loteRepository.findUltimosAptos.mockResolvedValue([]);
 
-      expect(
-        loteRepository.findUltimosAptos,
-      ).toHaveBeenCalledWith(
-        1,
-        'LECHE_ENTERA',
-        5,
-        100,
-      );
+        await service.compararConHistorico(100, mockTenant);
+
+        expect(
+          configuracionComparacionHistoricaService.getConfig,
+        ).toHaveBeenCalledWith(1);
+
+        expect(loteRepository.findUltimosAptos).toHaveBeenCalledWith(
+          1,
+          'LECHE_ENTERA',
+          5,
+          100,
+        );
+      });
     });
   });
 });
-})

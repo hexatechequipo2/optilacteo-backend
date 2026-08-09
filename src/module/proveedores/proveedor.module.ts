@@ -12,7 +12,7 @@ import { AuditLogModule } from '../audit/audit-log.module';
   imports: [
     // Registra la entidad en TypeORM para este módulo
     TypeOrmModule.forFeature([Proveedor]),
-    AuditLogModule
+    AuditLogModule,
   ],
   controllers: [ProveedoresController],
   providers: [

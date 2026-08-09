@@ -19,7 +19,9 @@ export class ConfiguracionComparacionHistoricaService {
     private readonly repository: IConfiguracionComparacionHistoricaRepository,
   ) {}
 
-  async getConfig(empresaId: number): Promise<ConfiguracionComparacionHistoricaDto> {
+  async getConfig(
+    empresaId: number,
+  ): Promise<ConfiguracionComparacionHistoricaDto> {
     const config = await this.repository.findByEmpresa(empresaId);
     if (!config) {
       return {
@@ -28,7 +30,9 @@ export class ConfiguracionComparacionHistoricaService {
       };
     }
     return {
-      desvioSignificativoPorcentaje: Number(config.desvioSignificativoPorcentaje),
+      desvioSignificativoPorcentaje: Number(
+        config.desvioSignificativoPorcentaje,
+      ),
       cantidadRegistrosHistoricos: config.cantidadRegistrosHistoricos,
     };
   }
@@ -48,11 +52,13 @@ export class ConfiguracionComparacionHistoricaService {
         desvioSignificativoPorcentaje:
           dto.desvioSignificativoPorcentaje ?? DESVIO_SIGNIFICATIVO_DEFAULT,
         cantidadRegistrosHistoricos:
-          dto.cantidadRegistrosHistoricos ?? CANTIDAD_REGISTROS_HISTORICOS_DEFAULT,
+          dto.cantidadRegistrosHistoricos ??
+          CANTIDAD_REGISTROS_HISTORICOS_DEFAULT,
       });
     } else {
       if (dto.desvioSignificativoPorcentaje !== undefined) {
-        config.desvioSignificativoPorcentaje = dto.desvioSignificativoPorcentaje;
+        config.desvioSignificativoPorcentaje =
+          dto.desvioSignificativoPorcentaje;
       }
       if (dto.cantidadRegistrosHistoricos !== undefined) {
         config.cantidadRegistrosHistoricos = dto.cantidadRegistrosHistoricos;
@@ -61,7 +67,9 @@ export class ConfiguracionComparacionHistoricaService {
 
     const saved = await this.repository.save(config);
     return {
-      desvioSignificativoPorcentaje: Number(saved.desvioSignificativoPorcentaje),
+      desvioSignificativoPorcentaje: Number(
+        saved.desvioSignificativoPorcentaje,
+      ),
       cantidadRegistrosHistoricos: saved.cantidadRegistrosHistoricos,
     };
   }

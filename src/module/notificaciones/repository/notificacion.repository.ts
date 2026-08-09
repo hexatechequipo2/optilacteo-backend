@@ -37,8 +37,15 @@ export class NotificacionRepository implements INotificacionRepository {
     return this.repository.findOne({ where: { id, empresaId } });
   }
 
-  async markAsLeida(id: number, usuarioId: number, empresaId: number): Promise<Notificacion | null> {
-    const result = await this.repository.update({ id, usuarioId, empresaId }, { leida: true });
+  async markAsLeida(
+    id: number,
+    usuarioId: number,
+    empresaId: number,
+  ): Promise<Notificacion | null> {
+    const result = await this.repository.update(
+      { id, usuarioId, empresaId },
+      { leida: true },
+    );
     if (!result.affected) {
       return null;
     }

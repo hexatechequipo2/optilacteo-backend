@@ -48,7 +48,7 @@ export default new DataSource({
     SensorLectura,
     SensorEvento,
     Notificacion,
-    LoteClasificacionHistorial
+    LoteClasificacionHistorial,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,

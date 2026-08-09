@@ -6,8 +6,14 @@ import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
-const tenantEmpresaA: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-const tenantAdmin: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+const tenantEmpresaA: TenantContext = {
+  empresaId: 1,
+  rolNombre: ROLES.GERENTE,
+};
+const tenantAdmin: TenantContext = {
+  empresaId: null,
+  rolNombre: ROLES.ADMINISTRADOR,
+};
 
 function buildProveedor(overrides: Partial<Proveedor> = {}): Proveedor {
   return {
@@ -23,7 +29,7 @@ function buildProveedor(overrides: Partial<Proveedor> = {}): Proveedor {
     estado: EstadoProveedor.ACTIVA,
     empresaId: 1,
     empresa: undefined as never,
-    lotes: [], 
+    lotes: [],
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
     ...overrides,
@@ -64,9 +70,11 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       update: jest.fn(),
       countBy: jest.fn(),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
-    } as any; 
+    } as any;
 
-    repository = new ProveedorRepository(mockTypeormRepo as unknown as Repository<Proveedor>);
+    repository = new ProveedorRepository(
+      mockTypeormRepo as unknown as Repository<Proveedor>,
+    );
   });
 
   describe('findAll', () => {
@@ -103,7 +111,10 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       await repository.findAllPaginated(tenantEmpresaA, 20, 10);
 
       // 3. Verificamos la cadena de llamadas del QueryBuilder
-      expect(qb.andWhere).toHaveBeenCalledWith('proveedor.empresaId = :empresaId', { empresaId: 1 });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.empresaId = :empresaId',
+        { empresaId: 1 },
+      );
       expect(qb.skip).toHaveBeenCalledWith(20);
       expect(qb.take).toHaveBeenCalledWith(10);
       expect(qb.getManyAndCount).toHaveBeenCalled();
@@ -116,66 +127,67 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       await repository.findAllPaginated(tenantAdmin, 0, 20);
 
       // El admin no debe tener filtro de empresaId
-      expect(qb.andWhere).not.toHaveBeenCalledWith(expect.stringContaining('empresaId'), expect.anything());
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        expect.stringContaining('empresaId'),
+        expect.anything(),
+      );
       expect(qb.skip).toHaveBeenCalledWith(0);
       expect(qb.take).toHaveBeenCalledWith(20);
       expect(qb.getManyAndCount).toHaveBeenCalled();
     });
   });
 
-describe('findById', () => {
-  it('para no-admin agrega empresaId al WHERE (no puede leer un id de otra empresa)', async () => {
-    const qb = mockTypeormRepo.createQueryBuilder();
-    qb.getOne.mockResolvedValue(null);
+  describe('findById', () => {
+    it('para no-admin agrega empresaId al WHERE (no puede leer un id de otra empresa)', async () => {
+      const qb = mockTypeormRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue(null);
 
-    await repository.findById(99, tenantEmpresaA);
+      await repository.findById(99, tenantEmpresaA);
 
-    expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
-      'proveedor.empresa',
-      'empresa',
-    );
+      expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
+        'proveedor.empresa',
+        'empresa',
+      );
 
-    expect(qb.where).toHaveBeenCalledWith(
-      'proveedor.id = :id',
-      { id: 99 },
-    );
+      expect(qb.where).toHaveBeenCalledWith('proveedor.id = :id', { id: 99 });
 
-    expect(qb.andWhere).toHaveBeenCalledWith(
-      'proveedor.empresaId = :empresaId',
-      { empresaId: 1 },
-    );
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.empresaId = :empresaId',
+        { empresaId: 1 },
+      );
 
-    expect(qb.getOne).toHaveBeenCalled();
+      expect(qb.getOne).toHaveBeenCalled();
+    });
+
+    it('para admin NO agrega filtro de empresa', async () => {
+      const qb = mockTypeormRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue(null);
+
+      await repository.findById(99, tenantAdmin);
+
+      expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
+        'proveedor.empresa',
+        'empresa',
+      );
+
+      expect(qb.where).toHaveBeenCalledWith('proveedor.id = :id', { id: 99 });
+
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        expect.stringContaining('empresaId'),
+        expect.anything(),
+      );
+
+      expect(qb.getOne).toHaveBeenCalled();
+    });
   });
-
-  it('para admin NO agrega filtro de empresa', async () => {
-    const qb = mockTypeormRepo.createQueryBuilder();
-    qb.getOne.mockResolvedValue(null);
-
-    await repository.findById(99, tenantAdmin);
-
-    expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
-      'proveedor.empresa',
-      'empresa',
-    );
-
-    expect(qb.where).toHaveBeenCalledWith(
-      'proveedor.id = :id',
-      { id: 99 },
-    );
-
-    expect(qb.andWhere).not.toHaveBeenCalledWith(
-      expect.stringContaining('empresaId'),
-      expect.anything(),
-    );
-
-    expect(qb.getOne).toHaveBeenCalled();
-  });
-});
 
   describe('update - filtro atomico en la sentencia UPDATE (cierre de TOCTOU)', () => {
     it('para no-admin, la query UPDATE fisica lleva empresaId en el WHERE', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
       mockTypeormRepo.findOneBy.mockResolvedValue(buildProveedor());
 
       await repository.update(buildProveedor(), tenantEmpresaA);
@@ -187,7 +199,11 @@ describe('findById', () => {
     });
 
     it('para admin, la query UPDATE fisica NO lleva filtro de empresa', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
       mockTypeormRepo.findOneBy.mockResolvedValue(buildProveedor());
 
       await repository.update(buildProveedor(), tenantAdmin);
@@ -199,7 +215,11 @@ describe('findById', () => {
     });
 
     it('si affected es 0 (la fila ya no pertenece a esta empresa en el instante de la query), devuelve null en vez de asumir exito', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 0, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
 
       const result = await repository.update(buildProveedor(), tenantEmpresaA);
 
@@ -210,7 +230,11 @@ describe('findById', () => {
 
   describe('softDelete - cambia estado a SUSPENDIDA con filtro atomico (cierre de TOCTOU)', () => {
     it('para no-admin, la query UPDATE fisica lleva empresaId en el WHERE y fija estado SUSPENDIDA', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
 
       await repository.softDelete(10, tenantEmpresaA);
 
@@ -221,7 +245,11 @@ describe('findById', () => {
     });
 
     it('para admin, la query UPDATE fisica NO lleva filtro de empresa', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
 
       await repository.softDelete(10, tenantAdmin);
 
@@ -232,7 +260,11 @@ describe('findById', () => {
     });
 
     it('si affected es 0 (la fila ya no pertenece a esta empresa en el instante de la query), devuelve false en vez de asumir exito', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 0, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
 
       const result = await repository.softDelete(10, tenantEmpresaA);
 
@@ -242,9 +274,17 @@ describe('findById', () => {
 
   describe('setEstado - usado por softDelete y por activate, mismo filtro atomico', () => {
     it('para no-admin, fija el estado recibido y filtra por empresaId', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
 
-      const result = await repository.setEstado(10, EstadoProveedor.ACTIVA, tenantEmpresaA);
+      const result = await repository.setEstado(
+        10,
+        EstadoProveedor.ACTIVA,
+        tenantEmpresaA,
+      );
 
       expect(mockTypeormRepo.update).toHaveBeenCalledWith(
         { id: 10, empresaId: 1 },
@@ -254,7 +294,11 @@ describe('findById', () => {
     });
 
     it('para admin, NO agrega filtro de empresa', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
 
       await repository.setEstado(10, EstadoProveedor.ACTIVA, tenantAdmin);
 
@@ -265,9 +309,17 @@ describe('findById', () => {
     });
 
     it('si affected es 0, devuelve false en vez de asumir que actualizo algo', async () => {
-      mockTypeormRepo.update.mockResolvedValue({ affected: 0, raw: [], generatedMaps: [] });
+      mockTypeormRepo.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
 
-      const result = await repository.setEstado(10, EstadoProveedor.ACTIVA, tenantEmpresaA);
+      const result = await repository.setEstado(
+        10,
+        EstadoProveedor.ACTIVA,
+        tenantEmpresaA,
+      );
 
       expect(result).toBe(false);
     });
@@ -279,7 +331,9 @@ describe('findById', () => {
 
       await repository.findByCuit('20-12345678-9');
 
-      expect(mockTypeormRepo.findOneBy).toHaveBeenCalledWith({ cuit: '20-12345678-9' });
+      expect(mockTypeormRepo.findOneBy).toHaveBeenCalledWith({
+        cuit: '20-12345678-9',
+      });
     });
   });
 

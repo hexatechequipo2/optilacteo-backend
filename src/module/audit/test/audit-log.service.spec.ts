@@ -135,7 +135,10 @@ describe('AuditLogService', () => {
     it('deberia devolver el resultado tal cual lo entrega el repositorio', async () => {
       const logs = [{ id: 1 }] as never;
       mockAuditLogRepository.findAllScoped.mockResolvedValue([logs, 1]);
-      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
 
       const result = await service.findAll(tenant, 1, 50);
 
@@ -148,7 +151,9 @@ describe('AuditLogService', () => {
       const result = await service.getTrazabilidadBatch('Lote', [], 1);
 
       expect(result).toEqual(new Map());
-      expect(mockAuditLogRepository.findPrimerosYUltimos).not.toHaveBeenCalled();
+      expect(
+        mockAuditLogRepository.findPrimerosYUltimos,
+      ).not.toHaveBeenCalled();
     });
 
     it('deberia delegar en el repositorio con entidad, entidadIds y empresaId', async () => {
@@ -176,7 +181,11 @@ describe('AuditLogService', () => {
       const result = await service.getTrazabilidadBatch('Lote', [1], 5);
 
       expect(result.get(1)).toEqual({
-        creadoPor: { userId: 7, userEmail: 'user@lacteo.com', fecha: log.createdAt },
+        creadoPor: {
+          userId: 7,
+          userEmail: 'user@lacteo.com',
+          fecha: log.createdAt,
+        },
         ultimaModificacion: undefined,
       });
     });
@@ -196,12 +205,19 @@ describe('AuditLogService', () => {
         userEmail: 'modificador@lacteo.com',
         createdAt: new Date('2026-02-01T10:00:00Z'),
       } as unknown as AuditLog;
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([primero, ultimo]);
+      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([
+        primero,
+        ultimo,
+      ]);
 
       const result = await service.getTrazabilidadBatch('Lote', [1], 5);
 
       expect(result.get(1)).toEqual({
-        creadoPor: { userId: 7, userEmail: 'creador@lacteo.com', fecha: primero.createdAt },
+        creadoPor: {
+          userId: 7,
+          userEmail: 'creador@lacteo.com',
+          fecha: primero.createdAt,
+        },
         ultimaModificacion: {
           userId: 9,
           userEmail: 'modificador@lacteo.com',
@@ -301,7 +317,11 @@ describe('AuditLogService', () => {
       const result = await service.getTrazabilidad('Lote', 1, 5);
 
       expect(result).toEqual({
-        creadoPor: { userId: 7, userEmail: 'user@lacteo.com', fecha: log.createdAt },
+        creadoPor: {
+          userId: 7,
+          userEmail: 'user@lacteo.com',
+          fecha: log.createdAt,
+        },
         ultimaModificacion: undefined,
       });
     });

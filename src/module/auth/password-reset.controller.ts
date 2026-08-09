@@ -24,7 +24,12 @@ export class PasswordResetController {
   @ApiResponse({
     status: 200,
     description: 'Email enviado (o silenciado si el correo no existe)',
-    schema: { example: { message: 'Si el email está registrado, recibirás un enlace de restablecimiento.' } },
+    schema: {
+      example: {
+        message:
+          'Si el email está registrado, recibirás un enlace de restablecimiento.',
+      },
+    },
   })
   @ApiResponse({ status: 400, description: 'Formato de email inválido' })
   async requestReset(
@@ -46,9 +51,18 @@ export class PasswordResetController {
   @ApiResponse({
     status: 200,
     description: 'Contraseña restablecida correctamente',
-    schema: { example: { message: 'Tu contraseña fue restablecida correctamente. Ya podés iniciar sesión.' } },
+    schema: {
+      example: {
+        message:
+          'Tu contraseña fue restablecida correctamente. Ya podés iniciar sesión.',
+      },
+    },
   })
-  @ApiResponse({ status: 400, description: 'Token inválido, expirado, ya utilizado o contraseñas no coinciden' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Token inválido, expirado, ya utilizado o contraseñas no coinciden',
+  })
   async resetPassword(
     @Body() dto: ResetPasswordDto,
   ): Promise<{ message: string }> {

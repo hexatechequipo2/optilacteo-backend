@@ -1,10 +1,10 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateConfiguracionComparacionHistorica1785354715121 implements MigrationInterface {
-    name = 'CreateConfiguracionComparacionHistorica1785354715121'
+  name = 'CreateConfiguracionComparacionHistorica1785354715121';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             CREATE TABLE "configuracion_comparacion_historica" (
                 "id" SERIAL PRIMARY KEY,
                 "empresa_id" integer NOT NULL,
@@ -17,9 +17,9 @@ export class CreateConfiguracionComparacionHistorica1785354715121 implements Mig
                     REFERENCES "empresas"("id") ON DELETE CASCADE ON UPDATE NO ACTION
             )
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE "configuracion_comparacion_historica"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE "configuracion_comparacion_historica"`);
+  }
 }

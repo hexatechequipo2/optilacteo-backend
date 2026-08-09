@@ -57,7 +57,9 @@ describe('NotificacionFilterQueryDto', () => {
 
     expect(errors.length).toBeGreaterThan(0);
 
-    const pageError = errors.find((e) => e.property === 'property' || e.property === 'page');
+    const pageError = errors.find(
+      (e) => e.property === 'property' || e.property === 'page',
+    );
     const limitError = errors.find((e) => e.property === 'limit');
 
     expect(pageError?.constraints).toHaveProperty('isInt');

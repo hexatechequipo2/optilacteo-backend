@@ -1,6 +1,10 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ThrottlerException, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import {
+  ThrottlerException,
+  ThrottlerGuard,
+  ThrottlerModule,
+} from '@nestjs/throttler';
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
 
@@ -56,7 +60,9 @@ describe('Rate limiting real de POST /auth/login', () => {
       await expect(guard.canActivate(context)).resolves.toBe(true);
     }
 
-    await expect(guard.canActivate(context)).rejects.toThrow(ThrottlerException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      ThrottlerException,
+    );
   });
 
   it('no mezcla el contador entre IPs distintas', async () => {
@@ -66,7 +72,9 @@ describe('Rate limiting real de POST /auth/login', () => {
     for (let intento = 1; intento <= 5; intento++) {
       await expect(guard.canActivate(contextIpA)).resolves.toBe(true);
     }
-    await expect(guard.canActivate(contextIpA)).rejects.toThrow(ThrottlerException);
+    await expect(guard.canActivate(contextIpA)).rejects.toThrow(
+      ThrottlerException,
+    );
 
     // La IP B arranca en cero pese a que la IP A ya esta bloqueada.
     await expect(guard.canActivate(contextIpB)).resolves.toBe(true);

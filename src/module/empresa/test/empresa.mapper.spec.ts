@@ -28,8 +28,18 @@ describe('EmpresaMapper', () => {
       const empresa = buildEmpresa({
         users: [{ id: 1 }, { id: 2 }, { id: 3 }] as Empresa['users'],
         modulos: [
-          { id: 1, modulo: ModuloSistema.DASHBOARD, isActive: true, empresa: undefined as never },
-          { id: 2, modulo: ModuloSistema.RECEPCION, isActive: false, empresa: undefined as never },
+          {
+            id: 1,
+            modulo: ModuloSistema.DASHBOARD,
+            isActive: true,
+            empresa: undefined as never,
+          },
+          {
+            id: 2,
+            modulo: ModuloSistema.RECEPCION,
+            isActive: false,
+            empresa: undefined as never,
+          },
         ],
       });
 
@@ -59,7 +69,12 @@ describe('EmpresaMapper', () => {
       // Arrange
       const empresa = buildEmpresa({
         modulos: [
-          { id: 99, modulo: ModuloSistema.SENSORES_IOT, isActive: true, empresa: undefined as never },
+          {
+            id: 99,
+            modulo: ModuloSistema.SENSORES_IOT,
+            isActive: true,
+            empresa: undefined as never,
+          },
         ],
       });
 
@@ -67,7 +82,10 @@ describe('EmpresaMapper', () => {
       const result = EmpresaMapper.toResponse(empresa);
 
       // Assert
-      expect(result.modulos[0]).toEqual({ modulo: ModuloSistema.SENSORES_IOT, isActive: true });
+      expect(result.modulos[0]).toEqual({
+        modulo: ModuloSistema.SENSORES_IOT,
+        isActive: true,
+      });
       expect(result.modulos[0]).not.toHaveProperty('id');
     });
   });

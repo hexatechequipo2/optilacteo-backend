@@ -19,7 +19,9 @@ const token = process.argv[2];
 const url = process.argv[3] || 'http://localhost:3000';
 
 if (!token) {
-  console.error('Uso: npm run ws:test -- <JWT> [url base, default http://localhost:3000]');
+  console.error(
+    'Uso: npm run ws:test -- <JWT> [url base, default http://localhost:3000]',
+  );
   process.exit(1);
 }
 

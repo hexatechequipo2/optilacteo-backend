@@ -22,10 +22,9 @@ export class AuditInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const auditMeta = this.reflector.getAllAndOverride<AuditMetadata | undefined>(
-      AUDIT_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const auditMeta = this.reflector.getAllAndOverride<
+      AuditMetadata | undefined
+    >(AUDIT_KEY, [context.getHandler(), context.getClass()]);
 
     if (!auditMeta) {
       return next.handle();
@@ -36,13 +35,18 @@ export class AuditInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap((responseBody) => {
         // Registro de éxito
-        this.registerAudit(auditMeta, request, responseBody, 'SUCCESS').catch((err) =>
-          this.logger.error(`Fallo auditando éxito: ${err.message}`),
+        this.registerAudit(auditMeta, request, responseBody, 'SUCCESS').catch(
+          (err) => this.logger.error(`Fallo auditando éxito: ${err.message}`),
         );
       }),
       catchError((error) => {
         // Registro de error
-        this.registerAudit(auditMeta, request, { message: error.message }, 'FAILURE').catch((err) =>
+        this.registerAudit(
+          auditMeta,
+          request,
+          { message: error.message },
+          'FAILURE',
+        ).catch((err) =>
           this.logger.error(`Fallo auditando error: ${err.message}`),
         );
         return throwError(() => error);
@@ -68,7 +72,7 @@ export class AuditInterceptor implements NestInterceptor {
       userId,
       userEmail,
       empresaId,
-      accion: `${meta.accion}_${status}`, 
+      accion: `${meta.accion}_${status}`,
       entidad: meta.entidad,
       entidadId: this.resolveEntidadId(request, data),
       detalle: { status, data },

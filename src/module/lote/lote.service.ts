@@ -125,7 +125,10 @@ export class LoteService {
     let sensoresDisponibles: SensorResponseDto[] = [];
     if (actualizado!.ubicacionInicial) {
       sensoresDisponibles = await this.sensorService.findAll(
-        { ubicacion: actualizado!.ubicacionInicial, estado: EstadoSensor.ACTIVO },
+        {
+          ubicacion: actualizado!.ubicacionInicial,
+          estado: EstadoSensor.ACTIVO,
+        },
         tenant,
       );
     }
@@ -139,10 +142,7 @@ export class LoteService {
 
   async findAll(query: LoteFilterQueryDto, tenant: TenantContext) {
     const empresaId = this.resolveEmpresaId(tenant);
-    const [lotes, total] = await this.loteRepository.findAll(
-      query,
-      empresaId,
-    );
+    const [lotes, total] = await this.loteRepository.findAll(query, empresaId);
 
     let data = LoteMapper.toResponseDtoList(lotes);
 
@@ -152,7 +152,10 @@ export class LoteService {
         lotes.map((l) => l.id),
         empresaId,
       );
-      data = data.map((dto) => ({ ...dto, auditoria: trazabilidadMap.get(dto.id) }));
+      data = data.map((dto) => ({
+        ...dto,
+        auditoria: trazabilidadMap.get(dto.id),
+      }));
     }
 
     return {
@@ -173,7 +176,11 @@ export class LoteService {
     const dto = LoteMapper.toResponseDto(lote);
 
     if (this.puedeVerAuditoria(tenant)) {
-      dto.auditoria = await this.auditLogService.getTrazabilidad('Lote', id, empresaId);
+      dto.auditoria = await this.auditLogService.getTrazabilidad(
+        'Lote',
+        id,
+        empresaId,
+      );
     }
 
     return dto;
@@ -213,7 +220,9 @@ export class LoteService {
     }
 
     if (lote.estado === EstadoLote.FINALIZADO) {
-      throw new BadRequestException(`El lote ${id} ya está finalizado y no puede modificarse`);
+      throw new BadRequestException(
+        `El lote ${id} ya está finalizado y no puede modificarse`,
+      );
     }
 
     lote.estado = EstadoLote.FINALIZADO;
@@ -299,7 +308,11 @@ export class LoteService {
     const warnings: string[] = [];
     for (const p of dto.parametros) {
       const config = await this.configParametroRepository.findOne({
-        where: { empresaId, parametro: p.parametro, tipoMateriaPrima: dto.materiaPrima },
+        where: {
+          empresaId,
+          parametro: p.parametro,
+          tipoMateriaPrima: dto.materiaPrima,
+        },
       });
       if (!config) {
         warnings.push(
@@ -331,7 +344,8 @@ export class LoteService {
 
   async findNoAptos(tenant: TenantContext): Promise<LoteResponseDto[]> {
     const empresaId = this.resolveEmpresaId(tenant);
-    const lotes = await this.loteRepository.findNoAptosSinRevisionVigente(empresaId);
+    const lotes =
+      await this.loteRepository.findNoAptosSinRevisionVigente(empresaId);
     return LoteMapper.toResponseDtoList(lotes);
   }
 
@@ -379,8 +393,12 @@ export class LoteService {
     return LoteMapper.toResponseDto(saved);
   }
 
-  private async tieneRevisionVigente(loteId: number, empresaId: number): Promise<boolean> {
-    const ultimaClasificacion = await this.clasificacionLoteService.historialDeLote(loteId, empresaId);
+  private async tieneRevisionVigente(
+    loteId: number,
+    empresaId: number,
+  ): Promise<boolean> {
+    const ultimaClasificacion =
+      await this.clasificacionLoteService.historialDeLote(loteId, empresaId);
     const ultimaClasificacionFecha = ultimaClasificacion[0]?.createdAt;
 
     const ultimaRevision = await this.loteRevisionRepository.findOne({
@@ -415,7 +433,8 @@ export class LoteService {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
 
-    const config = await this.configuracionComparacionHistoricaService.getConfig(empresaId);
+    const config =
+      await this.configuracionComparacionHistoricaService.getConfig(empresaId);
 
     const historicos = await this.loteRepository.findUltimosAptos(
       empresaId,

@@ -63,11 +63,12 @@ export class NotificacionesService {
     empresaId: number,
     query: NotificacionFilterQueryDto,
   ): Promise<NotificacionPaginadaResponseDto> {
-    const [notificaciones, total] = await this.notificacionRepository.findByUsuario(
-      usuarioId,
-      empresaId,
-      query,
-    );
+    const [notificaciones, total] =
+      await this.notificacionRepository.findByUsuario(
+        usuarioId,
+        empresaId,
+        query,
+      );
     return NotificacionMapper.toPaginatedResponse(notificaciones, total, query);
   }
 
@@ -76,7 +77,11 @@ export class NotificacionesService {
     usuarioId: number,
     empresaId: number,
   ): Promise<NotificacionResponseDto> {
-    const actualizada = await this.notificacionRepository.markAsLeida(id, usuarioId, empresaId);
+    const actualizada = await this.notificacionRepository.markAsLeida(
+      id,
+      usuarioId,
+      empresaId,
+    );
     if (!actualizada) {
       throw new NotFoundException(`Notificación ${id} no encontrada`);
     }

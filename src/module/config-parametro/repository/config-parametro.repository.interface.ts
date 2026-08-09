@@ -5,17 +5,11 @@ import { TipoMateriaPrima } from '../enums/tipo-materia-prima-enum';
 export const CONFIG_PARAMETRO_REPOSITORY = 'CONFIG_PARAMETRO_REPOSITORY';
 
 export interface IConfigParametroRepository {
-  save(
-    config: ConfiguracionParametro,
-  ): Promise<ConfiguracionParametro>;
+  save(config: ConfiguracionParametro): Promise<ConfiguracionParametro>;
 
-  findById(
-    id: number,
-  ): Promise<ConfiguracionParametro | null>;
+  findById(id: number): Promise<ConfiguracionParametro | null>;
 
-  findByEmpresa(
-    empresaId: number,
-  ): Promise<ConfiguracionParametro[]>;
+  findByEmpresa(empresaId: number): Promise<ConfiguracionParametro[]>;
 
   findByParametroAndTipoMateriaPrima(
     empresaId: number,

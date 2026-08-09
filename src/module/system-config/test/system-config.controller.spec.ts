@@ -17,7 +17,9 @@ describe('SystemConfigController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SystemConfigController],
-      providers: [{ provide: SystemConfigService, useValue: mockSystemConfigService }],
+      providers: [
+        { provide: SystemConfigService, useValue: mockSystemConfigService },
+      ],
     }).compile();
 
     controller = module.get<SystemConfigController>(SystemConfigController);
@@ -38,11 +40,16 @@ describe('SystemConfigController', () => {
   describe('updateInactivityTimeout', () => {
     it('deberia delegar en systemConfigService.updateInactivityTimeout con el DTO recibido en el body', async () => {
       const dto = { inactivityTimeout: 60 };
-      mockSystemConfigService.updateInactivityTimeout.mockResolvedValue({ id: 1, ...dto });
+      mockSystemConfigService.updateInactivityTimeout.mockResolvedValue({
+        id: 1,
+        ...dto,
+      });
 
       await controller.updateInactivityTimeout(dto as never);
 
-      expect(mockSystemConfigService.updateInactivityTimeout).toHaveBeenCalledWith(dto);
+      expect(
+        mockSystemConfigService.updateInactivityTimeout,
+      ).toHaveBeenCalledWith(dto);
     });
   });
 });

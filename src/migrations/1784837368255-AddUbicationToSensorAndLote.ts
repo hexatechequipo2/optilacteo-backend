@@ -23,7 +23,9 @@ export class AddUbicacionToSensorAndLote1784837368255 implements MigrationInterf
       ALTER TABLE "sensores"
       ADD COLUMN "ubicacion" "ubicacion_enum" NOT NULL DEFAULT 'laboratorio';
     `);
-    await queryRunner.query(`ALTER TABLE "sensores" ALTER COLUMN "ubicacion" DROP DEFAULT;`);
+    await queryRunner.query(
+      `ALTER TABLE "sensores" ALTER COLUMN "ubicacion" DROP DEFAULT;`,
+    );
 
     // 3. Columna en lotes (opcional)
     await queryRunner.query(`
@@ -50,7 +52,9 @@ export class AddUbicacionToSensorAndLote1784837368255 implements MigrationInterf
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE "lote_ubicacion_historial";`);
-    await queryRunner.query(`ALTER TABLE "lotes" DROP COLUMN "ubicacionInicial";`);
+    await queryRunner.query(
+      `ALTER TABLE "lotes" DROP COLUMN "ubicacionInicial";`,
+    );
     await queryRunner.query(`ALTER TABLE "sensores" DROP COLUMN "ubicacion";`);
     await queryRunner.query(`DROP TYPE "ubicacion_enum";`);
   }

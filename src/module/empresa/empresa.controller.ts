@@ -1,4 +1,4 @@
-import 'multer'; 
+import 'multer';
 import {
   Controller,
   Get,
@@ -14,12 +14,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiBearerAuth,
-  ApiTags,
-  ApiConsumes,
-  ApiBody,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';

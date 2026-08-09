@@ -8,7 +8,6 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 
-
 @Entity('password_reset_tokens')
 export class PasswordResetTokenEntity {
   @PrimaryGeneratedColumn('uuid')

@@ -68,7 +68,7 @@ describe('LoteFilterQueryDto', () => {
       const errors = await validate(dto);
 
       expect(errors.length).toBeGreaterThan(0);
-      
+
       const errorProperties = errors.map((err) => err.property);
       expect(errorProperties).toContain('estado');
       expect(errorProperties).toContain('clasificacion');

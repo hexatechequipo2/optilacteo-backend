@@ -51,10 +51,10 @@ export class SensorInactividadTask {
       evento.sensorId = sensor.id;
       await this.eventoRepository.create(evento);
 
-     this.lecturasGateway.emitirSensorInactivo(
-      { sensorId: sensor.id, nombre: sensor.nombre },
-      sensor.empresaId,
-    );
+      this.lecturasGateway.emitirSensorInactivo(
+        { sensorId: sensor.id, nombre: sensor.nombre },
+        sensor.empresaId,
+      );
 
       this.logger.warn(
         `Sensor "${sensor.nombre}" (empresa ${sensor.empresaId}) marcado como falla por inactividad (> ${umbralMinutos} min sin reportar).`,

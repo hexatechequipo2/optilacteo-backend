@@ -7,7 +7,10 @@ import { User } from '../../user/entities/user.entity';
 import { ROLES } from '../../rol/constants/roles.constants';
 import { NotificacionesGateway } from '../gateway/notificaciones.gateway';
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
-import { NOTIFICACION_REPOSITORY, INotificacionRepository } from '../repository/notificacion.repository.interface';
+import {
+  NOTIFICACION_REPOSITORY,
+  INotificacionRepository,
+} from '../repository/notificacion.repository.interface';
 import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto';
 import { Notificacion } from '../entities/notificacion.entity';
 
@@ -24,10 +27,10 @@ describe('NotificacionesService', () => {
       findById: jest.fn(),
       markAsLeida: jest.fn(),
     };
-          tipo: 'INFO' as TipoNotificacion,
-    userRepositoryMock = {
-      find: jest.fn(),
-    } as unknown as jest.Mocked<Repository<User>>;
+    tipo: ('INFO' as TipoNotificacion,
+      (userRepositoryMock = {
+        find: jest.fn(),
+      } as unknown as jest.Mocked<Repository<User>>));
 
     gatewayMock = {
       emitirNotificacion: jest.fn(),
@@ -76,14 +79,22 @@ describe('NotificacionesService', () => {
 
       userRepositoryMock.find.mockResolvedValue(mockResponsables);
 
-      notificacionRepositoryMock.create.mockImplementation(async (entity) => ({
-        id: Math.floor(Math.random() * 1000) + 1,
-        ...entity,
-        leida: false,
-        createdAt: new Date(),
-      } as unknown as Notificacion));
+      notificacionRepositoryMock.create.mockImplementation(
+        async (entity) =>
+          ({
+            id: Math.floor(Math.random() * 1000) + 1,
+            ...entity,
+            leida: false,
+            createdAt: new Date(),
+          }) as unknown as Notificacion,
+      );
 
-      await service.notificarResponsablesCalidad(empresaId, tipo, mensaje, data);
+      await service.notificarResponsablesCalidad(
+        empresaId,
+        tipo,
+        mensaje,
+        data,
+      );
 
       expect(userRepositoryMock.find).toHaveBeenCalledWith({
         where: {
@@ -143,7 +154,12 @@ describe('NotificacionesService', () => {
     it('no debe guardar ni emitir notificaciones si no hay usuarios responsables de calidad activos', async () => {
       userRepositoryMock.find.mockResolvedValue([]);
 
-      await service.notificarResponsablesCalidad(empresaId, tipo, mensaje, data);
+      await service.notificarResponsablesCalidad(
+        empresaId,
+        tipo,
+        mensaje,
+        data,
+      );
 
       expect(userRepositoryMock.find).toHaveBeenCalled();
       expect(notificacionRepositoryMock.create).not.toHaveBeenCalled();
@@ -173,10 +189,17 @@ describe('NotificacionesService', () => {
           createdAt: new Date(),
         },
       ] as Notificacion[];
-      
-      notificacionRepositoryMock.findByUsuario.mockResolvedValue([mockEntities, 2]);
 
-      const result = await service.listarPorUsuario(usuarioId, empresaId, query);
+      notificacionRepositoryMock.findByUsuario.mockResolvedValue([
+        mockEntities,
+        2,
+      ]);
+
+      const result = await service.listarPorUsuario(
+        usuarioId,
+        empresaId,
+        query,
+      );
 
       expect(notificacionRepositoryMock.findByUsuario).toHaveBeenCalledWith(
         usuarioId,
@@ -208,7 +231,9 @@ describe('NotificacionesService', () => {
         createdAt: new Date(),
       } as unknown as Notificacion;
 
-      notificacionRepositoryMock.markAsLeida.mockResolvedValue(mockUpdatedEntity);
+      notificacionRepositoryMock.markAsLeida.mockResolvedValue(
+        mockUpdatedEntity,
+      );
 
       const result = await service.marcarLeida(id, usuarioId, empresaId);
 

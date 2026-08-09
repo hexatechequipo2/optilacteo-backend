@@ -1,6 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
   Unique,
 } from 'typeorm';
 import { Empresa } from '../../empresa/entities/empresa.entity';
@@ -18,7 +23,13 @@ export class ConfiguracionComparacionHistorica {
   @JoinColumn({ name: 'empresa_id' })
   empresa!: Empresa;
 
-  @Column({ name: 'desvio_significativo_porcentaje', type: 'decimal', precision: 5, scale: 2, default: 15 })
+  @Column({
+    name: 'desvio_significativo_porcentaje',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 15,
+  })
   desvioSignificativoPorcentaje!: number;
 
   @Column({ name: 'cantidad_registros_historicos', type: 'int', default: 20 })

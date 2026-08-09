@@ -19,14 +19,16 @@ function buildProveedor(overrides: Partial<Proveedor> = {}): Proveedor {
     estado: EstadoProveedor.ACTIVA,
     empresaId: 1,
     empresa: undefined as never,
-    lotes: [], 
+    lotes: [],
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
     ...overrides,
   };
 }
 
-function buildCreateDto(overrides: Partial<CreateProveedorDto> = {}): CreateProveedorDto {
+function buildCreateDto(
+  overrides: Partial<CreateProveedorDto> = {},
+): CreateProveedorDto {
   return {
     razonSocial: 'Tambo El Sol',
     cuit: '20-12345678-9',
@@ -118,7 +120,9 @@ describe('ProveedorMapper', () => {
   describe('applyUpdate - edicion', () => {
     it('deberia actualizar solo los campos presentes en el DTO y dejar el resto intacto', () => {
       const entity = buildProveedor();
-      const dto: UpdateProveedorDto = { razonSocial: 'Tambo El Sol (renombrado)' };
+      const dto: UpdateProveedorDto = {
+        razonSocial: 'Tambo El Sol (renombrado)',
+      };
 
       const result = mapper.applyUpdate(entity, dto);
 
@@ -198,7 +202,9 @@ describe('ProveedorMapper', () => {
     it('deberia actualizar el tipo cuando el DTO lo trae', () => {
       const entity = buildProveedor({ tipo: TipoProveedor.TAMBO });
 
-      const result = mapper.applyUpdate(entity, { tipo: TipoProveedor.INSUMOS });
+      const result = mapper.applyUpdate(entity, {
+        tipo: TipoProveedor.INSUMOS,
+      });
 
       expect(result.tipo).toBe(TipoProveedor.INSUMOS);
     });
@@ -206,7 +212,9 @@ describe('ProveedorMapper', () => {
     it('deberia permitir cambiar el estado (activar/desactivar) via applyUpdate', () => {
       const entity = buildProveedor({ estado: EstadoProveedor.ACTIVA });
 
-      const result = mapper.applyUpdate(entity, { estado: EstadoProveedor.SUSPENDIDA });
+      const result = mapper.applyUpdate(entity, {
+        estado: EstadoProveedor.SUSPENDIDA,
+      });
 
       expect(result.estado).toBe(EstadoProveedor.SUSPENDIDA);
     });
@@ -255,14 +263,21 @@ describe('ProveedorMapper', () => {
     it('deberia mapear cada proveedor de la lista preservando el orden', () => {
       const proveedores = [
         buildProveedor({ id: 1, razonSocial: 'Tambo El Sol' }),
-        buildProveedor({ id: 2, razonSocial: 'Transporte Rapido', tipo: TipoProveedor.TRANSPORTE }),
+        buildProveedor({
+          id: 2,
+          razonSocial: 'Transporte Rapido',
+          tipo: TipoProveedor.TRANSPORTE,
+        }),
       ];
 
       const result = mapper.toResponseDtoList(proveedores);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toMatchObject({ id: 1, razonSocial: 'Tambo El Sol' });
-      expect(result[1]).toMatchObject({ id: 2, razonSocial: 'Transporte Rapido' });
+      expect(result[1]).toMatchObject({
+        id: 2,
+        razonSocial: 'Transporte Rapido',
+      });
     });
 
     it('deberia devolver un array vacio cuando no hay proveedores', () => {

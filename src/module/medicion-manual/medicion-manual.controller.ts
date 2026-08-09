@@ -1,5 +1,14 @@
 // medicion-manual/medicion-manual.controller.ts
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
@@ -24,7 +33,10 @@ export class MedicionManualController {
   // AC13: solo Operario de línea puede registrar (matriz de permisos).
   @Post()
   @Roles(ROLES.OPERARIO_LINEA)
-  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS], 'canWrite')
+  @Permissions(
+    [ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS],
+    'canWrite',
+  )
   @AuditLog('MEDICION_MANUAL_LOTE_REGISTRAR', 'MedicionManualLote')
   registrar(
     @Param('id') id: string,
@@ -37,13 +49,21 @@ export class MedicionManualController {
   }
 
   @Get()
-  @Roles(ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions([ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Roles(
+    ROLES.OPERARIO_LINEA,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions(
+    [ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD],
+    'canRead',
+  )
   historial(
     @Param('id') id: string,
     @Query() query: HistorialMedicionManualFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
-    ) {
-        return this.medicionManualService.historial(+id, query, tenant);
-    }
+  ) {
+    return this.medicionManualService.historial(+id, query, tenant);
+  }
 }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayNotEmpty, ArrayUnique} from 'class-validator';
+import { ArrayNotEmpty, ArrayUnique } from 'class-validator';
 
 export class AsociarLoteDto {
   @ApiProperty({ type: [Number] })

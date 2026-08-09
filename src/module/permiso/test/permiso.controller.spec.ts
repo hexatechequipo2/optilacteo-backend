@@ -64,7 +64,11 @@ describe('PermisoController', () => {
 
   describe('update', () => {
     it('deberia convertir el id a number y delegar en permisoService.update con el body', async () => {
-      const dto = { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true };
+      const dto = {
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: true,
+      };
       mockPermisoService.update.mockResolvedValue({ id: 1, ...dto });
 
       await controller.update('1', dto as never);

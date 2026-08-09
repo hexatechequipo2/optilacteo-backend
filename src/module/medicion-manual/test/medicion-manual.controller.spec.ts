@@ -91,7 +91,7 @@ describe('MedicionManualController', () => {
         action: 'canWrite',
       });
 
-  // Auditoría (Corregido: 'entidad' en lugar de 'recurso')
+      // Auditoría (Corregido: 'entidad' en lugar de 'recurso')
       const auditLog = Reflect.getMetadata(
         AUDIT_KEY,
         MedicionManualController.prototype.registrar,

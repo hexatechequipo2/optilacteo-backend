@@ -50,7 +50,10 @@ describe('NotificacionesController', () => {
 
   describe('Configuración de Guards', () => {
     it('debe tener configurados los guards RolesGuard y PermissionsGuard', () => {
-      const guards = Reflect.getMetadata(GUARDS_METADATA, NotificacionesController);
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        NotificacionesController,
+      );
 
       expect(guards).toBeDefined();
       expect(guards).toContain(RolesGuard);
@@ -78,7 +81,7 @@ describe('NotificacionesController', () => {
 
       expect(notificacionesServiceMock.listarPorUsuario).toHaveBeenCalledWith(
         42, // req.user.sub
-        5,  // tenant.empresaId
+        5, // tenant.empresaId
         queryDto,
       );
       expect(result).toBe(expectedResponse);
@@ -102,8 +105,8 @@ describe('NotificacionesController', () => {
 
       expect(notificacionesServiceMock.marcarLeida).toHaveBeenCalledWith(
         123, // ID transformado con +id
-        42,  // req.user.sub
-        5,   // tenant.empresaId
+        42, // req.user.sub
+        5, // tenant.empresaId
       );
       expect(result).toBe(expectedResponse);
     });

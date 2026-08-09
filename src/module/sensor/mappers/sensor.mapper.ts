@@ -19,7 +19,10 @@ export class SensorMapper {
   }
 
   // loteActualId se pasa aparte porque no vive en la entity Sensor.
-  static toResponseDto(sensor: Sensor, loteActualId: number | null = null): SensorResponseDto {
+  static toResponseDto(
+    sensor: Sensor,
+    loteActualId: number | null = null,
+  ): SensorResponseDto {
     return {
       id: sensor.id,
       nombre: sensor.nombre,
@@ -38,7 +41,9 @@ export class SensorMapper {
     };
   }
 
-  static historialToResponseDto(h: SensorLoteHistorial): SensorLoteHistorialResponseDto {
+  static historialToResponseDto(
+    h: SensorLoteHistorial,
+  ): SensorLoteHistorialResponseDto {
     return {
       id: h.id,
       sensorId: h.sensorId,

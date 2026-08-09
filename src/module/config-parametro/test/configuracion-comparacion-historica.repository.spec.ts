@@ -7,7 +7,9 @@ import { ConfiguracionComparacionHistorica } from '../entities/configuracion-com
 
 describe('ConfiguracionComparacionHistoricaRepository', () => {
   let repository: ConfiguracionComparacionHistoricaRepository;
-  let typeOrmRepository: jest.Mocked<Repository<ConfiguracionComparacionHistorica>>;
+  let typeOrmRepository: jest.Mocked<
+    Repository<ConfiguracionComparacionHistorica>
+  >;
 
   const repositoryMock = {
     findOne: jest.fn(),

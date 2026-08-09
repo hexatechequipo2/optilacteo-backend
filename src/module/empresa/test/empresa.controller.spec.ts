@@ -11,7 +11,10 @@ import type { TenantContext } from '../../../common/types/tenant-context.type';
 // Este archivo se enfoca en que cada metodo del controller delegue en
 // EmpresaService con los parametros correctos (conversion de id, body, query).
 
-const tenantAdmin: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+const tenantAdmin: TenantContext = {
+  empresaId: null,
+  rolNombre: ROLES.ADMINISTRADOR,
+};
 
 describe('EmpresaController', () => {
   let controller: EmpresaController;
@@ -115,7 +118,11 @@ describe('EmpresaController', () => {
       await controller.update('3', dto as never, tenantAdmin);
 
       // Assert
-      expect(mockEmpresaService.update).toHaveBeenCalledWith(3, dto, tenantAdmin);
+      expect(mockEmpresaService.update).toHaveBeenCalledWith(
+        3,
+        dto,
+        tenantAdmin,
+      );
     });
   });
 
@@ -133,13 +140,19 @@ describe('EmpresaController', () => {
 
     it('deactivate deberia delegar en empresaService.deactivate con id numerico y tenant', async () => {
       // Arrange
-      mockEmpresaService.deactivate.mockResolvedValue({ id: 4, isActive: false });
+      mockEmpresaService.deactivate.mockResolvedValue({
+        id: 4,
+        isActive: false,
+      });
 
       // Act
       await controller.deactivate('4', tenantAdmin);
 
       // Assert
-      expect(mockEmpresaService.deactivate).toHaveBeenCalledWith(4, tenantAdmin);
+      expect(mockEmpresaService.deactivate).toHaveBeenCalledWith(
+        4,
+        tenantAdmin,
+      );
     });
   });
 
@@ -147,25 +160,39 @@ describe('EmpresaController', () => {
     it('activarModulo deberia delegar en empresaService.activarModulo con id numerico, dto y tenant', async () => {
       // Arrange
       const dto = { modulo: ModuloSistema.SENSORES_IOT };
-      mockEmpresaService.activarModulo.mockResolvedValue({ modulo: dto.modulo, isActive: true });
+      mockEmpresaService.activarModulo.mockResolvedValue({
+        modulo: dto.modulo,
+        isActive: true,
+      });
 
       // Act
       await controller.activarModulo('5', dto as never, tenantAdmin);
 
       // Assert
-      expect(mockEmpresaService.activarModulo).toHaveBeenCalledWith(5, dto, tenantAdmin);
+      expect(mockEmpresaService.activarModulo).toHaveBeenCalledWith(
+        5,
+        dto,
+        tenantAdmin,
+      );
     });
 
     it('desactivarModulo deberia delegar en empresaService.desactivarModulo con id numerico, dto y tenant', async () => {
       // Arrange
       const dto = { modulo: ModuloSistema.SENSORES_IOT };
-      mockEmpresaService.desactivarModulo.mockResolvedValue({ modulo: dto.modulo, isActive: false });
+      mockEmpresaService.desactivarModulo.mockResolvedValue({
+        modulo: dto.modulo,
+        isActive: false,
+      });
 
       // Act
       await controller.desactivarModulo('5', dto as never, tenantAdmin);
 
       // Assert
-      expect(mockEmpresaService.desactivarModulo).toHaveBeenCalledWith(5, dto, tenantAdmin);
+      expect(mockEmpresaService.desactivarModulo).toHaveBeenCalledWith(
+        5,
+        dto,
+        tenantAdmin,
+      );
     });
   });
 

@@ -72,8 +72,20 @@ describe('RolMapper', () => {
     it('deberia mapear los permisos asignados con su granularidad canRead/canWrite', () => {
       const rol = buildRol({
         permisos: [
-          { id: 1, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false, rol: undefined as never },
-          { id: 2, modulo: ModuloSistema.RECEPCION, canRead: true, canWrite: true, rol: undefined as never },
+          {
+            id: 1,
+            modulo: ModuloSistema.DASHBOARD,
+            canRead: true,
+            canWrite: false,
+            rol: undefined as never,
+          },
+          {
+            id: 2,
+            modulo: ModuloSistema.RECEPCION,
+            canRead: true,
+            canWrite: true,
+            rol: undefined as never,
+          },
         ],
       });
 
@@ -102,7 +114,9 @@ describe('RolMapper', () => {
     });
 
     it('deberia devolver permisos como array vacio cuando la relacion no fue cargada (undefined)', () => {
-      const rol = buildRol({ permisos: undefined as unknown as Rol['permisos'] });
+      const rol = buildRol({
+        permisos: undefined as unknown as Rol['permisos'],
+      });
 
       const result = RolMapper.toResponse(rol);
 

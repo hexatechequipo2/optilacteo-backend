@@ -35,7 +35,9 @@ describe('SystemConfigRepository', () => {
 
       await repository.findConfig();
 
-      expect(mockTypeormRepo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockTypeormRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
 
     it('deberia devolver null si la fila de configuracion no existe', async () => {
@@ -50,12 +52,18 @@ describe('SystemConfigRepository', () => {
   describe('updateConfig - actualizacion global (misma fila id:1 para todos)', () => {
     it('deberia actualizar siempre la fila id 1 y devolver la configuracion recargada', async () => {
       mockTypeormRepo.update.mockResolvedValue({ affected: 1 });
-      mockTypeormRepo.findOne.mockResolvedValue(buildConfig({ inactivityTimeout: 60 }));
+      mockTypeormRepo.findOne.mockResolvedValue(
+        buildConfig({ inactivityTimeout: 60 }),
+      );
 
       const result = await repository.updateConfig({ inactivityTimeout: 60 });
 
-      expect(mockTypeormRepo.update).toHaveBeenCalledWith(1, { inactivityTimeout: 60 });
-      expect(mockTypeormRepo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockTypeormRepo.update).toHaveBeenCalledWith(1, {
+        inactivityTimeout: 60,
+      });
+      expect(mockTypeormRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
       expect(result.inactivityTimeout).toBe(60);
     });
   });

@@ -15,7 +15,8 @@ export class FinalizarLoteDto {
   rendimiento?: number;
 
   @ApiPropertyOptional({
-    description: 'Unidad del rendimiento. Obligatoria si se informa rendimiento.',
+    description:
+      'Unidad del rendimiento. Obligatoria si se informa rendimiento.',
     enum: UnidadRendimiento,
     example: UnidadRendimiento.PORCENTAJE,
   })

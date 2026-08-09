@@ -7,9 +7,13 @@ export class RevisarLoteDto {
   @IsEnum(DecisionRevision)
   decision!: DecisionRevision;
 
-  @ApiProperty({ example: 'Parámetros dentro de tolerancia aceptable según norma X' })
+  @ApiProperty({
+    example: 'Parámetros dentro de tolerancia aceptable según norma X',
+  })
   @IsString()
   @IsNotEmpty({ message: 'La justificación es obligatoria' })
-  @MinLength(10, { message: 'La justificación debe ser suficientemente descriptiva' })
+  @MinLength(10, {
+    message: 'La justificación debe ser suficientemente descriptiva',
+  })
   justificacion!: string;
 }

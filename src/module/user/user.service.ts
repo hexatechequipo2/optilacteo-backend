@@ -1,6 +1,11 @@
 import {
-  Injectable, Logger, NotFoundException, BadRequestException,
-  ForbiddenException, Inject, ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,7 +22,10 @@ import { EmpresaService } from '../empresa/empresa.service';
 import { ROLES } from '../rol/constants/roles.constants';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { UserFilterQueryDto } from './dto/user-filter-query.dto';
-import { buildPaginatedResponse, PaginatedResponse } from '../../common/dto/paginated-response.dto';
+import {
+  buildPaginatedResponse,
+  PaginatedResponse,
+} from '../../common/dto/paginated-response.dto';
 
 const SALT_ROUNDS = 10;
 
@@ -27,14 +35,18 @@ export class UserService {
 
   constructor(
     @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
-    @InjectRepository(Empresa) private readonly empresaRepository: Repository<Empresa>,
+    @InjectRepository(Empresa)
+    private readonly empresaRepository: Repository<Empresa>,
     @InjectRepository(Rol) private readonly rolRepository: Repository<Rol>,
     private readonly empresaService: EmpresaService,
   ) {}
 
   // Validación de seguridad para aislamiento (CP-08/CP-09)
   private assertOwnEmpresa(user: User, tenant: TenantContext) {
-    if (tenant.rolNombre !== ROLES.ADMINISTRADOR && user.empresa!.id !== tenant.empresaId) {
+    if (
+      tenant.rolNombre !== ROLES.ADMINISTRADOR &&
+      user.empresa!.id !== tenant.empresaId
+    ) {
       throw new NotFoundException('Usuario no encontrado'); // 404 para ocultar existencia
     }
   }
@@ -52,8 +64,10 @@ export class UserService {
         message: 'Ya existe un usuario registrado con ese email.',
       });
     }
-    const limiteUsuarios = await this.empresaService.getLimiteUsuarios(empresaId);
-    const usuariosActuales = await this.userRepository.countByEmpresa(empresaId);
+    const limiteUsuarios =
+      await this.empresaService.getLimiteUsuarios(empresaId);
+    const usuariosActuales =
+      await this.userRepository.countByEmpresa(empresaId);
 
     if (usuariosActuales >= limiteUsuarios) {
       throw new BadRequestException(`La empresa alcanzó el límite de usuarios`);
@@ -78,13 +92,18 @@ export class UserService {
       limit,
       filters,
     );
-    return buildPaginatedResponse(UserMapper.toResponseList(users), page, limit, total);
+    return buildPaginatedResponse(
+      UserMapper.toResponseList(users),
+      page,
+      limit,
+      total,
+    );
   }
 
   async findOne(id: number, tenant: TenantContext) {
     const user = await this.userRepository.findById(id);
     if (!user) throw new NotFoundException('Usuario no encontrado');
-    
+
     this.assertOwnEmpresa(user, tenant);
     return UserMapper.toResponse(user);
   }
@@ -95,26 +114,28 @@ export class UserService {
     this.assertOwnEmpresa(user, tenant);
 
     if (dto.email && dto.email !== user.email) {
-    const usuarioPorEmail = await this.userRepository.findByEmail(dto.email);
+      const usuarioPorEmail = await this.userRepository.findByEmail(dto.email);
 
-    if (usuarioPorEmail) {
-      throw new ConflictException({
-        field: 'email',
-        message: 'Ya existe un usuario registrado con ese email.',
-      });
+      if (usuarioPorEmail) {
+        throw new ConflictException({
+          field: 'email',
+          message: 'Ya existe un usuario registrado con ese email.',
+        });
+      }
     }
-  }
 
     const update: Partial<User> = {};
     if (dto.name !== undefined) update.name = dto.name;
     if (dto.email !== undefined) update.email = dto.email;
-    if (dto.password) update.password = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    if (dto.password)
+      update.password = await bcrypt.hash(dto.password, SALT_ROUNDS);
     if (dto.rolId) {
       const rol = await this.findRolOrFail(dto.rolId);
       this.guardAsignacionDeRol(rol, tenant);
       update.rol = rol;
     }
-    if (dto.empresaId) update.empresa = await this.findEmpresaOrFail(dto.empresaId);
+    if (dto.empresaId)
+      update.empresa = await this.findEmpresaOrFail(dto.empresaId);
 
     const updated = await this.userRepository.updateUser(id, update);
     return UserMapper.toResponse(updated);
@@ -125,7 +146,9 @@ export class UserService {
     if (!user) throw new NotFoundException('Usuario no encontrado');
     this.assertOwnEmpresa(user, tenant);
 
-    const updated = await this.userRepository.updateUser(id, { isActive: false });
+    const updated = await this.userRepository.updateUser(id, {
+      isActive: false,
+    });
     return UserMapper.toResponse(updated);
   }
 
@@ -134,7 +157,9 @@ export class UserService {
     if (!user) throw new NotFoundException('Usuario no encontrado');
     this.assertOwnEmpresa(user, tenant);
 
-    const updated = await this.userRepository.updateUser(id, { isActive: true });
+    const updated = await this.userRepository.updateUser(id, {
+      isActive: true,
+    });
     return UserMapper.toResponse(updated);
   }
 
@@ -160,14 +185,21 @@ export class UserService {
     return rol;
   }
 
-  private resolveEmpresaId(bodyEmpresaId: number, tenant: TenantContext): number {
+  private resolveEmpresaId(
+    bodyEmpresaId: number,
+    tenant: TenantContext,
+  ): number {
     if (tenant.rolNombre === ROLES.ADMINISTRADOR) return bodyEmpresaId;
-    if (tenant.empresaId === null) throw new ForbiddenException('Sin empresa asociada');
+    if (tenant.empresaId === null)
+      throw new ForbiddenException('Sin empresa asociada');
     return tenant.empresaId;
   }
 
   private guardAsignacionDeRol(rol: Rol, tenant: TenantContext) {
-    if (tenant.rolNombre === ROLES.GERENTE && rol.nombre === ROLES.ADMINISTRADOR) {
+    if (
+      tenant.rolNombre === ROLES.GERENTE &&
+      rol.nombre === ROLES.ADMINISTRADOR
+    ) {
       throw new ForbiddenException('No puede asignar rol Administrador');
     }
   }

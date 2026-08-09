@@ -15,7 +15,10 @@ export class LoteUbicacionHistorialRepository implements ILoteUbicacionHistorial
     return this.repo.save(registro);
   }
 
-  findUltimoPorLote(loteId: number, empresaId: number): Promise<LoteUbicacionHistorial | null> {
+  findUltimoPorLote(
+    loteId: number,
+    empresaId: number,
+  ): Promise<LoteUbicacionHistorial | null> {
     return this.repo.findOne({
       where: { loteId, empresaId },
       order: { fecha: 'DESC' },

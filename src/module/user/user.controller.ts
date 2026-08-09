@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -42,7 +50,11 @@ export class UserController {
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
   @AuditLog('USUARIO_ACTUALIZAR', 'Usuario')
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @CurrentEmpresa() tenant: TenantContext) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
     return this.userService.update(+id, dto, tenant);
   }
 
@@ -52,7 +64,7 @@ export class UserController {
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.activate(+id, tenant);
   }
-  
+
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desactivar')
   @AuditLog('USUARIO_DESACTIVAR', 'Usuario')

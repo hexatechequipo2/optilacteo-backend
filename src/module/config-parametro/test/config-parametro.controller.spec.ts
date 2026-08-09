@@ -19,16 +19,18 @@ describe('ConfigParametroController', () => {
       providers: [{ provide: ConfigParametroService, useValue: mockService }],
     }).compile();
 
-    controller = module.get<ConfigParametroController>(ConfigParametroController);
+    controller = module.get<ConfigParametroController>(
+      ConfigParametroController,
+    );
   });
 
   afterEach(() => jest.clearAllMocks());
 
   describe('crear', () => {
     it('cuando el usuario no tiene empresa asociada, debe lanzar ForbiddenException', () => {
-      expect(() => controller.crear({ empresaId: null } as any, {} as any)).toThrow(
-        ForbiddenException,
-      );
+      expect(() =>
+        controller.crear({ empresaId: null } as any, {} as any),
+      ).toThrow(ForbiddenException);
       expect(mockService.crear).not.toHaveBeenCalled();
     });
 
@@ -45,9 +47,9 @@ describe('ConfigParametroController', () => {
 
   describe('editar', () => {
     it('cuando el usuario no tiene empresa asociada, debe lanzar ForbiddenException', () => {
-      expect(() => controller.editar({ empresaId: null } as any, 1, {} as any)).toThrow(
-        ForbiddenException,
-      );
+      expect(() =>
+        controller.editar({ empresaId: null } as any, 1, {} as any),
+      ).toThrow(ForbiddenException);
       expect(mockService.editar).not.toHaveBeenCalled();
     });
 
@@ -64,7 +66,9 @@ describe('ConfigParametroController', () => {
 
   describe('listar', () => {
     it('cuando el usuario no tiene empresa asociada, debe lanzar ForbiddenException', () => {
-      expect(() => controller.listar({ empresaId: null } as any)).toThrow(ForbiddenException);
+      expect(() => controller.listar({ empresaId: null } as any)).toThrow(
+        ForbiddenException,
+      );
       expect(mockService.listarPorEmpresa).not.toHaveBeenCalled();
     });
 
@@ -81,7 +85,9 @@ describe('ConfigParametroController', () => {
 
   describe('eliminar', () => {
     it('cuando el usuario no tiene empresa asociada, debe lanzar ForbiddenException', () => {
-      expect(() => controller.eliminar({ empresaId: null } as any, 1)).toThrow(ForbiddenException);
+      expect(() => controller.eliminar({ empresaId: null } as any, 1)).toThrow(
+        ForbiddenException,
+      );
       expect(mockService.eliminar).not.toHaveBeenCalled();
     });
 

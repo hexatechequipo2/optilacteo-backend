@@ -26,7 +26,9 @@ function allowedOrigins(): string[] {
   namespace: '/notificaciones',
   cors: { origin: allowedOrigins(), credentials: true },
 })
-export class NotificacionesGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificacionesGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   private readonly server!: Server;
 
@@ -48,7 +50,9 @@ export class NotificacionesGateway implements OnGatewayConnection, OnGatewayDisc
       }
       client.data.empresaId = payload.empresaId;
       client.data.userId = payload.sub;
-      await client.join(this.room(payload.empresaId, payload.sub as unknown as number));
+      await client.join(
+        this.room(payload.empresaId, payload.sub as unknown as number),
+      );
     } catch {
       this.logger.warn(`Conexión WS rechazada (token inválido): ${client.id}`);
       client.disconnect(true);
@@ -57,8 +61,14 @@ export class NotificacionesGateway implements OnGatewayConnection, OnGatewayDisc
 
   handleDisconnect(): void {}
 
-  emitirNotificacion(notificacion: NotificacionResponseDto, empresaId: number, usuarioId: number): void {
-    this.server.to(this.room(empresaId, usuarioId)).emit('notificacion:nueva', notificacion);
+  emitirNotificacion(
+    notificacion: NotificacionResponseDto,
+    empresaId: number,
+    usuarioId: number,
+  ): void {
+    this.server
+      .to(this.room(empresaId, usuarioId))
+      .emit('notificacion:nueva', notificacion);
   }
 
   private room(empresaId: number, usuarioId: number): string {

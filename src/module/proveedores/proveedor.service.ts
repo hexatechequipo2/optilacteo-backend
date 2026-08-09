@@ -7,7 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { TenantContext } from '../../common/types/tenant-context.type';
-import { PROVEEDOR_REPOSITORY, type IProveedorRepository } from './repository/proveedor-interface.repository';
+import {
+  PROVEEDOR_REPOSITORY,
+  type IProveedorRepository,
+} from './repository/proveedor-interface.repository';
 import { ProveedorMapper } from './mappers/proveedor.mapper';
 import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
@@ -35,7 +38,10 @@ export class ProveedoresService {
     if (!proveedor || !proveedor.empresa?.id) {
       throw new NotFoundException('Proveedor no encontrado');
     }
-    if (tenant.rolNombre !== ROLES.ADMINISTRADOR && proveedor.empresa.id !== tenant.empresaId) {
+    if (
+      tenant.rolNombre !== ROLES.ADMINISTRADOR &&
+      proveedor.empresa.id !== tenant.empresaId
+    ) {
       throw new NotFoundException('Proveedor no encontrado');
     }
   }
@@ -51,12 +57,13 @@ export class ProveedoresService {
   ): Promise<PaginatedResponse<ProveedorResponseDto>> {
     const { page, limit, ...filters } = query;
     const skip = (page - 1) * limit;
-    const [proveedores, total] = await this.proveedorRepository.findAllPaginated(
-      tenant,
-      skip,
-      limit,
-      filters,
-    );
+    const [proveedores, total] =
+      await this.proveedorRepository.findAllPaginated(
+        tenant,
+        skip,
+        limit,
+        filters,
+      );
 
     let data = this.mapper.toResponseDtoList(proveedores);
 
@@ -66,13 +73,19 @@ export class ProveedoresService {
         proveedores.map((p) => p.id),
         tenant.empresaId,
       );
-      data = data.map((dto) => ({ ...dto, auditoria: trazabilidadMap.get(dto.id) }));
+      data = data.map((dto) => ({
+        ...dto,
+        auditoria: trazabilidadMap.get(dto.id),
+      }));
     }
 
     return buildPaginatedResponse(data, page, limit, total);
   }
 
-  async findOne(id: number, tenant: TenantContext): Promise<ProveedorResponseDto> {
+  async findOne(
+    id: number,
+    tenant: TenantContext,
+  ): Promise<ProveedorResponseDto> {
     const proveedor = await this.proveedorRepository.findById(id, tenant);
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
@@ -92,10 +105,14 @@ export class ProveedoresService {
     return dto;
   }
 
-  async create(dto: CreateProveedorDto, tenant: TenantContext): Promise<ProveedorResponseDto> {
+  async create(
+    dto: CreateProveedorDto,
+    tenant: TenantContext,
+  ): Promise<ProveedorResponseDto> {
     const empresaId = this.resolveEmpresaId(dto.empresaId, tenant);
-    const proveedorPorCuit =
-      await this.proveedorRepository.findByCuit(dto.cuit);
+    const proveedorPorCuit = await this.proveedorRepository.findByCuit(
+      dto.cuit,
+    );
 
     if (proveedorPorCuit) {
       throw new ConflictException({
@@ -131,18 +148,16 @@ export class ProveedoresService {
     if (dto.cuit && dto.cuit !== proveedor.cuit) {
       const cuitEnUso = await this.proveedorRepository.findByCuit(dto.cuit);
       if (cuitEnUso) {
-        throw new ConflictException(`El CUIT ${dto.cuit} ya está en uso por otro proveedor`);
+        throw new ConflictException(
+          `El CUIT ${dto.cuit} ya está en uso por otro proveedor`,
+        );
       }
     }
 
-    if (
-      dto.razonSocial &&
-      dto.razonSocial.trim() !== proveedor.razonSocial
-    ) {
-      const razonSocialEnUso =
-        await this.proveedorRepository.findByRazonSocial(
-          dto.razonSocial,
-        );
+    if (dto.razonSocial && dto.razonSocial.trim() !== proveedor.razonSocial) {
+      const razonSocialEnUso = await this.proveedorRepository.findByRazonSocial(
+        dto.razonSocial,
+      );
 
       if (razonSocialEnUso) {
         throw new ConflictException({
@@ -152,7 +167,10 @@ export class ProveedoresService {
       }
     }
 
-    const empresaId = dto.empresaId !== undefined ? this.resolveEmpresaId(dto.empresaId, tenant) : undefined;
+    const empresaId =
+      dto.empresaId !== undefined
+        ? this.resolveEmpresaId(dto.empresaId, tenant)
+        : undefined;
     const updated = this.mapper.applyUpdate(proveedor, dto, empresaId);
     const saved = await this.proveedorRepository.update(updated, tenant);
 
@@ -175,25 +193,40 @@ export class ProveedoresService {
     }
   }
 
-  async activate(id: number, tenant: TenantContext): Promise<ProveedorResponseDto> {
+  async activate(
+    id: number,
+    tenant: TenantContext,
+  ): Promise<ProveedorResponseDto> {
     const proveedor = await this.proveedorRepository.findById(id, tenant);
     if (!proveedor) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
     this.assertOwnEmpresa(proveedor, tenant);
 
-    const updated = await this.proveedorRepository.setEstado(id, EstadoProveedor.ACTIVA, tenant);
+    const updated = await this.proveedorRepository.setEstado(
+      id,
+      EstadoProveedor.ACTIVA,
+      tenant,
+    );
     if (!updated) {
       throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
     }
-    const proveedorActualizado = await this.proveedorRepository.findById(id, tenant);
+    const proveedorActualizado = await this.proveedorRepository.findById(
+      id,
+      tenant,
+    );
     return this.mapper.toResponseDto(proveedorActualizado!);
   }
 
-  private resolveEmpresaId(bodyEmpresaId: number | undefined, tenant: TenantContext): number {
+  private resolveEmpresaId(
+    bodyEmpresaId: number | undefined,
+    tenant: TenantContext,
+  ): number {
     if (tenant.rolNombre === ROLES.ADMINISTRADOR) {
       if (bodyEmpresaId === undefined) {
-        throw new BadRequestException('El id de empresa es obligatorio para el rol admin');
+        throw new BadRequestException(
+          'El id de empresa es obligatorio para el rol admin',
+        );
       }
       return bodyEmpresaId;
     }

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddOrigenLecturaSensorLecturas1784988337674
-  implements MigrationInterface
-{
+export class AddOrigenLecturaSensorLecturas1784988337674 implements MigrationInterface {
   name = 'AddOrigenLecturaSensorLecturas1784988337674';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

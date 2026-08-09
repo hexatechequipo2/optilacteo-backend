@@ -11,8 +11,15 @@ export interface IRolRepository {
   deleteRol(id: number): Promise<void>;
   hasActiveUsers(id: number): Promise<boolean>;
   createPermisos(permisos: Partial<PermisoModulo>[]): Promise<PermisoModulo[]>;
-  findPermiso(rolId: number, modulo: ModuloSistema): Promise<PermisoModulo | null>;
-  updatePermiso(id: number, canRead: boolean, canWrite: boolean): Promise<PermisoModulo>;
+  findPermiso(
+    rolId: number,
+    modulo: ModuloSistema,
+  ): Promise<PermisoModulo | null>;
+  updatePermiso(
+    id: number,
+    canRead: boolean,
+    canWrite: boolean,
+  ): Promise<PermisoModulo>;
 }
 
 export const ROL_REPOSITORY = 'ROL_REPOSITORY';

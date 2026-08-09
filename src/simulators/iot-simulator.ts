@@ -92,7 +92,6 @@ async function login(
   return { token: body.access_token, empresaId: body.user.empresaId };
 }
 
-
 async function obtenerSensoresAsociados(
   url: string,
   token: string,

@@ -41,8 +41,15 @@ export class AuthController {
     description: 'Login exitoso. Retorna access_token JWT y datos del usuario.',
   })
   @ApiResponse({ status: 401, description: 'Credenciales incorrectas.' })
-  @ApiResponse({ status: 403, description: 'Usuario inactivo o cuenta bloqueada por intentos fallidos.' })
-  @ApiResponse({ status: 429, description: 'Demasiados intentos de login. Intente nuevamente en unos minutos.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Usuario inactivo o cuenta bloqueada por intentos fallidos.',
+  })
+  @ApiResponse({
+    status: 429,
+    description:
+      'Demasiados intentos de login. Intente nuevamente en unos minutos.',
+  })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
@@ -75,7 +82,8 @@ export class AuthController {
   @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({
     status: 200,
-    description: 'Renovación exitosa. Retorna un nuevo access_token y refresh_token (rotado).',
+    description:
+      'Renovación exitosa. Retorna un nuevo access_token y refresh_token (rotado).',
   })
   @ApiResponse({
     status: 401,

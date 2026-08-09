@@ -20,7 +20,9 @@ describe('LoteRevisionResponseDto', () => {
     expect(dto.id).toBe(1);
     expect(dto.loteId).toBe(100);
     expect(dto.decision).toBe(DecisionRevision.APROBADO);
-    expect(dto.justificacion).toBe('Aprobado tras verificar parámetros dentro de norma');
+    expect(dto.justificacion).toBe(
+      'Aprobado tras verificar parámetros dentro de norma',
+    );
     expect(dto.usuarioId).toBe(5);
     expect(dto.createdAt).toBe(fechaCreacion);
   });

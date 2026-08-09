@@ -56,6 +56,11 @@ import { AuditLogModule } from '../audit/audit-log.module';
       useClass: LoteUbicacionHistorialRepository,
     },
   ],
-  exports: [LoteService, LOTE_REPOSITORY, LOTE_UBICACION_HISTORIAL_REPOSITORY, ClasificacionLoteService],
+  exports: [
+    LoteService,
+    LOTE_REPOSITORY,
+    LOTE_UBICACION_HISTORIAL_REPOSITORY,
+    ClasificacionLoteService,
+  ],
 })
 export class LoteModule {}

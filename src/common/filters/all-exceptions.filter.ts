@@ -30,7 +30,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
             ? exceptionResponse
             : (exceptionResponse as any).message;
 
-        if (exceptionMessage?.includes('permiso') || exceptionMessage?.includes('Rol')) {
+        if (
+          exceptionMessage?.includes('permiso') ||
+          exceptionMessage?.includes('Rol')
+        ) {
           response.status(HttpStatus.FORBIDDEN).json({
             statusCode: HttpStatus.FORBIDDEN,
             message: exceptionMessage || 'Acceso denegado',

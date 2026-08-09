@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiExcludeController, ApiTags } from '@nestjs/swagger';
 import { RolService } from './rol.service';
 import { CreateRolDto } from './dto/create-rol.dto';

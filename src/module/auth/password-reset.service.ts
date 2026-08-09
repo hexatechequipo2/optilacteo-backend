@@ -30,7 +30,9 @@ export class PasswordResetService {
     private readonly mailService: MailService,
   ) {}
 
-  async requestReset(dto: RequestPasswordResetDto): Promise<{ message: string }> {
+  async requestReset(
+    dto: RequestPasswordResetDto,
+  ): Promise<{ message: string }> {
     const user = await this.userRepository.findByEmail(dto.email);
 
     if (!user) {
@@ -59,7 +61,9 @@ export class PasswordResetService {
 
     try {
       await this.mailService.sendPasswordResetEmail(user.email, token);
-      this.logger.log(`Token de reset generado y enviado para usuario ${user.id}`);
+      this.logger.log(
+        `Token de reset generado y enviado para usuario ${user.id}`,
+      );
     } catch (error) {
       this.logger.error(
         `Fallo al enviar email de reset para usuario ${user.id}`,
@@ -67,7 +71,10 @@ export class PasswordResetService {
       );
     }
 
-    return { message: 'Si el email está registrado, recibirás un enlace de restablecimiento.' };
+    return {
+      message:
+        'Si el email está registrado, recibirás un enlace de restablecimiento.',
+    };
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
@@ -78,12 +85,16 @@ export class PasswordResetService {
     const tokenEntity = await this.tokenRepository.findByToken(dto.token);
 
     if (!tokenEntity || tokenEntity.used) {
-      throw new BadRequestException('El enlace de restablecimiento no es válido o ya fue utilizado');
+      throw new BadRequestException(
+        'El enlace de restablecimiento no es válido o ya fue utilizado',
+      );
     }
 
     const now = new Date();
     if (now > tokenEntity.expiresAt) {
-      throw new BadRequestException('El enlace de restablecimiento ha expirado. Solicitá uno nuevo.');
+      throw new BadRequestException(
+        'El enlace de restablecimiento ha expirado. Solicitá uno nuevo.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 10);
@@ -91,8 +102,13 @@ export class PasswordResetService {
 
     await this.tokenRepository.markAsUsed(tokenEntity.id);
 
-    this.logger.log(`Contraseña restablecida para usuario ${tokenEntity.userId}`);
+    this.logger.log(
+      `Contraseña restablecida para usuario ${tokenEntity.userId}`,
+    );
 
-    return { message: 'Tu contraseña fue restablecida correctamente. Ya podés iniciar sesión.' };
+    return {
+      message:
+        'Tu contraseña fue restablecida correctamente. Ya podés iniciar sesión.',
+    };
   }
 }

@@ -47,10 +47,11 @@ describe('SensorInactividadRepository', () => {
 
       const result = await repository.findSensoresInactivos(cutoff);
 
-      expect(managerMock.query).toHaveBeenCalledWith(
-        expect.any(String),
-        [EstadoSensor.ACTIVO, EstadoLote.EN_PROCESO, cutoff],
-      );
+      expect(managerMock.query).toHaveBeenCalledWith(expect.any(String), [
+        EstadoSensor.ACTIVO,
+        EstadoLote.EN_PROCESO,
+        cutoff,
+      ]);
 
       expect(repoMock.findBy).not.toHaveBeenCalled();
       expect(result).toEqual([]);
@@ -59,17 +60,9 @@ describe('SensorInactividadRepository', () => {
     it('debe buscar y devolver los sensores encontrados', async () => {
       const cutoff = new Date();
 
-      managerMock.query.mockResolvedValue([
-        { id: 1 },
-        { id: 5 },
-        { id: 8 },
-      ]);
+      managerMock.query.mockResolvedValue([{ id: 1 }, { id: 5 }, { id: 8 }]);
 
-      const sensores = [
-        { id: 1 },
-        { id: 5 },
-        { id: 8 },
-      ];
+      const sensores = [{ id: 1 }, { id: 5 }, { id: 8 }];
 
       repoMock.findBy.mockResolvedValue(sensores);
 
@@ -89,9 +82,9 @@ describe('SensorInactividadRepository', () => {
 
       managerMock.query.mockRejectedValue(new Error('DB Error'));
 
-      await expect(
-        repository.findSensoresInactivos(cutoff),
-      ).rejects.toThrow('DB Error');
+      await expect(repository.findSensoresInactivos(cutoff)).rejects.toThrow(
+        'DB Error',
+      );
 
       expect(repoMock.findBy).not.toHaveBeenCalled();
     });
@@ -103,9 +96,9 @@ describe('SensorInactividadRepository', () => {
 
       repoMock.findBy.mockRejectedValue(new Error('Find Error'));
 
-      await expect(
-        repository.findSensoresInactivos(cutoff),
-      ).rejects.toThrow('Find Error');
+      await expect(repository.findSensoresInactivos(cutoff)).rejects.toThrow(
+        'Find Error',
+      );
 
       expect(repoMock.findBy).toHaveBeenCalledWith({
         id: In([10]),

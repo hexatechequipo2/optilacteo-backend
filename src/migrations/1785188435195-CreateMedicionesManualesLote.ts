@@ -1,10 +1,10 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateMedicionesManualesLote1785188435195 implements MigrationInterface {
-    name = 'CreateMedicionesManualesLote1785188435195'
+  name = 'CreateMedicionesManualesLote1785188435195';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             CREATE TABLE "mediciones_manuales_lote" (
                 "id" SERIAL PRIMARY KEY,
                 "loteId" integer NOT NULL,
@@ -23,19 +23,21 @@ export class CreateMedicionesManualesLote1785188435195 implements MigrationInter
             )
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             CREATE INDEX "IDX_mml_empresa" ON "mediciones_manuales_lote" ("empresaId")
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             CREATE INDEX "IDX_mml_empresa_lote_created"
             ON "mediciones_manuales_lote" ("empresaId", "loteId", "createdAt")
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP INDEX "public"."IDX_mml_empresa_lote_created"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_mml_empresa"`);
-        await queryRunner.query(`DROP TABLE "mediciones_manuales_lote"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_mml_empresa_lote_created"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_mml_empresa"`);
+    await queryRunner.query(`DROP TABLE "mediciones_manuales_lote"`);
+  }
 }

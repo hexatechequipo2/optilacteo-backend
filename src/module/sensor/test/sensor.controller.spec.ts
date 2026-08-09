@@ -135,16 +135,24 @@ describe('SensorController', () => {
       const idStr = '8';
       const expectedResult = [{ id: 101, valor: 25.4 }];
 
-      sensorServiceMock.historialPorSensor.mockResolvedValue(expectedResult as any);
+      sensorServiceMock.historialPorSensor.mockResolvedValue(
+        expectedResult as any,
+      );
 
       const result = await controller.historialPorSensor(idStr, mockTenant);
 
-      expect(sensorServiceMock.historialPorSensor).toHaveBeenCalledWith(8, mockTenant);
+      expect(sensorServiceMock.historialPorSensor).toHaveBeenCalledWith(
+        8,
+        mockTenant,
+      );
       expect(result).toBe(expectedResult);
     });
 
     it('debe tener configurados los roles adecuados', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, controller.historialPorSensor);
+      const roles = Reflect.getMetadata(
+        ROLES_KEY,
+        controller.historialPorSensor,
+      );
       expect(roles).toEqual([
         ROLES.RESPONSABLE_PRODUCCION,
         ROLES.OPERARIO_LINEA,
@@ -204,10 +212,7 @@ describe('SensorController', () => {
 
     it('debe tener configurados los roles adecuados', () => {
       const roles = Reflect.getMetadata(ROLES_KEY, controller.asociarALote);
-      expect(roles).toEqual([
-        ROLES.OPERARIO_LINEA,
-        ROLES.RESPONSABLE_CALIDAD,
-      ]);
+      expect(roles).toEqual([ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_CALIDAD]);
     });
   });
 

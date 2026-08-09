@@ -69,11 +69,11 @@ export class Lote {
   // se completa recién al cierre, por eso nullable y no se toca en create().
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   rendimiento?: number | null;
-  
+
   // HU-62 (extensión): unidad del valor de rendimiento cargado.
   @Column({ type: 'enum', enum: UnidadRendimiento, nullable: true })
   unidadRendimiento?: UnidadRendimiento | null;
-  
+
   @CreateDateColumn()
   createdAt!: Date;
 

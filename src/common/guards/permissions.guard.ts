@@ -12,10 +12,10 @@ export class PermissionsGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const required = this.reflector.get<{ modulo: string | string[]; action: 'canRead' | 'canWrite' }>(
-      PERMISSIONS_KEY,
-      context.getHandler(),
-    );
+    const required = this.reflector.get<{
+      modulo: string | string[];
+      action: 'canRead' | 'canWrite';
+    }>(PERMISSIONS_KEY, context.getHandler());
     if (!required) return true;
 
     const request = context.switchToHttp().getRequest();
@@ -31,8 +31,10 @@ export class PermissionsGuard implements CanActivate {
       : [required.modulo];
 
     // Validar que tenga permiso en al menos uno de los módulos
-    const tienePermiso = requiredModulos.some(mod =>
-      user.permisos.find((p: any) => p.modulo === mod && p[required.action] === true),
+    const tienePermiso = requiredModulos.some((mod) =>
+      user.permisos.find(
+        (p: any) => p.modulo === mod && p[required.action] === true,
+      ),
     );
 
     if (!tienePermiso) {

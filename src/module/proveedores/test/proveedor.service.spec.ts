@@ -27,9 +27,7 @@ const tenantAdmin: TenantContext = {
   rolNombre: ROLES.ADMINISTRADOR,
 };
 
-function buildProveedor(
-  overrides: Partial<Proveedor> = {},
-): Proveedor {
+function buildProveedor(overrides: Partial<Proveedor> = {}): Proveedor {
   return {
     id: 10,
     razonSocial: 'Tambo El Sol',
@@ -98,30 +96,25 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
     mockAuditLogService = {
       getTrazabilidad: jest.fn().mockResolvedValue(undefined),
-      getTrazabilidadBatch: jest
-        .fn()
-        .mockResolvedValue(new Map()),
+      getTrazabilidadBatch: jest.fn().mockResolvedValue(new Map()),
     };
 
-    const module: TestingModule =
-      await Test.createTestingModule({
-        providers: [
-          ProveedoresService,
-          ProveedorMapper,
-          {
-            provide: PROVEEDOR_REPOSITORY,
-            useValue: mockRepo,
-          },
-          {
-            provide: AuditLogService,
-            useValue: mockAuditLogService,
-          },
-        ],
-      }).compile();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ProveedoresService,
+        ProveedorMapper,
+        {
+          provide: PROVEEDOR_REPOSITORY,
+          useValue: mockRepo,
+        },
+        {
+          provide: AuditLogService,
+          useValue: mockAuditLogService,
+        },
+      ],
+    }).compile();
 
-    service = module.get<ProveedoresService>(
-      ProveedoresService,
-    );
+    service = module.get<ProveedoresService>(ProveedoresService);
   });
 
   afterEach(() => {
@@ -130,22 +123,14 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
   describe('findAll - paginacion', () => {
     it('usa page=1 y limit=20 por defecto y calcula skip=0', async () => {
-      mockRepo.findAllPaginated.mockResolvedValue([
-        [buildProveedor()],
-        1,
-      ]);
+      mockRepo.findAllPaginated.mockResolvedValue([[buildProveedor()], 1]);
 
-      const result = await service.findAll(
-        tenantEmpresaA,
-        {
-          page: 1,
-          limit: 20,
-        },
-      );
+      const result = await service.findAll(tenantEmpresaA, {
+        page: 1,
+        limit: 20,
+      });
 
-      expect(
-        mockRepo.findAllPaginated,
-      ).toHaveBeenCalledWith(
+      expect(mockRepo.findAllPaginated).toHaveBeenCalledWith(
         tenantEmpresaA,
         0,
         20,
@@ -164,9 +149,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
       expect(result.data).toHaveLength(1);
 
-      expect(
-        mockAuditLogService.getTrazabilidadBatch,
-      ).toHaveBeenCalledWith(
+      expect(mockAuditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
         'Proveedor',
         [10],
         1,
@@ -174,22 +157,14 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     });
 
     it('calcula el skip correctamente para paginas mayores a 1', async () => {
-      mockRepo.findAllPaginated.mockResolvedValue([
-        [],
-        45,
-      ]);
+      mockRepo.findAllPaginated.mockResolvedValue([[], 45]);
 
-      const result = await service.findAll(
-        tenantEmpresaA,
-        {
-          page: 3,
-          limit: 10,
-        },
-      );
+      const result = await service.findAll(tenantEmpresaA, {
+        page: 3,
+        limit: 10,
+      });
 
-      expect(
-        mockRepo.findAllPaginated,
-      ).toHaveBeenCalledWith(
+      expect(mockRepo.findAllPaginated).toHaveBeenCalledWith(
         tenantEmpresaA,
         20,
         10,
@@ -206,9 +181,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         totalPages: 5,
       });
 
-      expect(
-        mockAuditLogService.getTrazabilidadBatch,
-      ).toHaveBeenCalledWith(
+      expect(mockAuditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
         'Proveedor',
         [],
         1,
@@ -220,20 +193,13 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     it('propaga NotFoundException cuando el repo no encuentra el proveedor para este tenant (id de otra empresa)', async () => {
       mockRepo.findById.mockResolvedValue(null);
 
-      await expect(
-        service.findOne(99, tenantEmpresaA),
-      ).rejects.toThrow(NotFoundException);
-
-      expect(
-        mockRepo.findById,
-      ).toHaveBeenCalledWith(
-        99,
-        tenantEmpresaA,
+      await expect(service.findOne(99, tenantEmpresaA)).rejects.toThrow(
+        NotFoundException,
       );
 
-      expect(
-        mockAuditLogService.getTrazabilidad,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.findById).toHaveBeenCalledWith(99, tenantEmpresaA);
+
+      expect(mockAuditLogService.getTrazabilidad).not.toHaveBeenCalled();
     });
 
     it('devuelve el proveedor mapeado cuando el repo lo encuentra', async () => {
@@ -241,23 +207,14 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         empresa: { id: 1 } as any,
       });
 
-      mockRepo.findById.mockResolvedValue(
-        proveedorMock,
-      );
+      mockRepo.findById.mockResolvedValue(proveedorMock);
 
-      const result = await service.findOne(
-        10,
-        tenantEmpresaA,
-      );
+      const result = await service.findOne(10, tenantEmpresaA);
 
       expect(result.id).toBe(10);
-      expect(result.razonSocial).toBe(
-        'Tambo El Sol',
-      );
+      expect(result.razonSocial).toBe('Tambo El Sol');
 
-      expect(
-        mockAuditLogService.getTrazabilidad,
-      ).toHaveBeenCalledWith(
+      expect(mockAuditLogService.getTrazabilidad).toHaveBeenCalledWith(
         'Proveedor',
         10,
         1,
@@ -272,19 +229,13 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
       });
 
       mockRepo.findByCuit.mockResolvedValue(null);
-      mockRepo.findByRazonSocial.mockResolvedValue(
-        null,
+      mockRepo.findByRazonSocial.mockResolvedValue(null);
+
+      mockRepo.save.mockImplementation((entity: Proveedor) =>
+        Promise.resolve(entity),
       );
 
-      mockRepo.save.mockImplementation(
-        (entity: Proveedor) =>
-          Promise.resolve(entity),
-      );
-
-      const result = await service.create(
-        dto,
-        tenantEmpresaA,
-      );
+      const result = await service.create(dto, tenantEmpresaA);
 
       expect(result.empresaId).toBe(1);
 
@@ -299,19 +250,13 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
       const dto = buildCreateDto();
 
       mockRepo.findByCuit.mockResolvedValue(null);
-      mockRepo.findByRazonSocial.mockResolvedValue(
-        null,
+      mockRepo.findByRazonSocial.mockResolvedValue(null);
+
+      mockRepo.save.mockImplementation((entity: Proveedor) =>
+        Promise.resolve(entity),
       );
 
-      mockRepo.save.mockImplementation(
-        (entity: Proveedor) =>
-          Promise.resolve(entity),
-      );
-
-      const result = await service.create(
-        dto,
-        tenantEmpresaA,
-      );
+      const result = await service.create(dto, tenantEmpresaA);
 
       expect(result.empresaId).toBe(1);
 
@@ -325,13 +270,11 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     it('para admin, exige empresaId explicito en el body', async () => {
       const dto = buildCreateDto();
 
-      await expect(
-        service.create(dto, tenantAdmin),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create(dto, tenantAdmin)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      expect(
-        mockRepo.save,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.save).not.toHaveBeenCalled();
     });
 
     it('para admin, usa el empresaId que mando explicito en el body', async () => {
@@ -340,19 +283,13 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
       });
 
       mockRepo.findByCuit.mockResolvedValue(null);
-      mockRepo.findByRazonSocial.mockResolvedValue(
-        null,
+      mockRepo.findByRazonSocial.mockResolvedValue(null);
+
+      mockRepo.save.mockImplementation((entity: Proveedor) =>
+        Promise.resolve(entity),
       );
 
-      mockRepo.save.mockImplementation(
-        (entity: Proveedor) =>
-          Promise.resolve(entity),
-      );
-
-      const result = await service.create(
-        dto,
-        tenantAdmin,
-      );
+      const result = await service.create(dto, tenantAdmin);
 
       expect(result.empresaId).toBe(5);
 
@@ -366,21 +303,15 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     it('lanza ConflictException si el CUIT ya esta registrado por otro proveedor', async () => {
       const dto = buildCreateDto();
 
-      mockRepo.findByCuit.mockResolvedValue(
-        buildProveedor(),
+      mockRepo.findByCuit.mockResolvedValue(buildProveedor());
+
+      await expect(service.create(dto, tenantEmpresaA)).rejects.toThrow(
+        ConflictException,
       );
 
-      await expect(
-        service.create(dto, tenantEmpresaA),
-      ).rejects.toThrow(ConflictException);
+      expect(mockRepo.save).not.toHaveBeenCalled();
 
-      expect(
-        mockRepo.save,
-      ).not.toHaveBeenCalled();
-
-      expect(
-        mockRepo.findByRazonSocial,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.findByRazonSocial).not.toHaveBeenCalled();
     });
   });
 
@@ -392,9 +323,8 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         }),
       );
 
-      mockRepo.update.mockImplementation(
-        (entity: Proveedor) =>
-          Promise.resolve(entity),
+      mockRepo.update.mockImplementation((entity: Proveedor) =>
+        Promise.resolve(entity),
       );
 
       const result = await service.update(
@@ -428,9 +358,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         ),
       ).rejects.toThrow(NotFoundException);
 
-      expect(
-        mockRepo.update,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.update).not.toHaveBeenCalled();
     });
 
     it('propaga NotFoundException si la query fisica de UPDATE no afecto filas (TOCTOU: la fila cambio de empresa entre el check y el write)', async () => {
@@ -452,9 +380,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         ),
       ).rejects.toThrow(NotFoundException);
 
-      expect(
-        mockRepo.update,
-      ).toHaveBeenCalled();
+      expect(mockRepo.update).toHaveBeenCalled();
     });
 
     it('lanza ConflictException si intenta cambiar el CUIT a uno ya usado por otro proveedor', async () => {
@@ -482,9 +408,7 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         ),
       ).rejects.toThrow(ConflictException);
 
-      expect(
-        mockRepo.update,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.update).not.toHaveBeenCalled();
     });
 
     it('no valida el CUIT contra si mismo cuando el DTO manda el mismo CUIT que ya tiene', async () => {
@@ -492,13 +416,10 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         empresa: { id: 1 } as any,
       });
 
-      mockRepo.findById.mockResolvedValue(
-        proveedor,
-      );
+      mockRepo.findById.mockResolvedValue(proveedor);
 
-      mockRepo.update.mockImplementation(
-        (entity: Proveedor) =>
-          Promise.resolve(entity),
+      mockRepo.update.mockImplementation((entity: Proveedor) =>
+        Promise.resolve(entity),
       );
 
       await service.update(
@@ -509,13 +430,9 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         tenantEmpresaA,
       );
 
-      expect(
-        mockRepo.findByCuit,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.findByCuit).not.toHaveBeenCalled();
 
-      expect(
-        mockRepo.update,
-      ).toHaveBeenCalled();
+      expect(mockRepo.update).toHaveBeenCalled();
     });
   });
 
@@ -523,13 +440,11 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     it('propaga NotFoundException si el id no pertenece a este tenant', async () => {
       mockRepo.findById.mockResolvedValue(null);
 
-      await expect(
-        service.remove(10, tenantEmpresaA),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.remove(10, tenantEmpresaA)).rejects.toThrow(
+        NotFoundException,
+      );
 
-      expect(
-        mockRepo.softDelete,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.softDelete).not.toHaveBeenCalled();
     });
 
     it('propaga NotFoundException si la query fisica de UPDATE (softDelete) no afecto filas (TOCTOU)', async () => {
@@ -541,16 +456,11 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
       mockRepo.softDelete.mockResolvedValue(false);
 
-      await expect(
-        service.remove(10, tenantEmpresaA),
-      ).rejects.toThrow(NotFoundException);
-
-      expect(
-        mockRepo.softDelete,
-      ).toHaveBeenCalledWith(
-        10,
-        tenantEmpresaA,
+      await expect(service.remove(10, tenantEmpresaA)).rejects.toThrow(
+        NotFoundException,
       );
+
+      expect(mockRepo.softDelete).toHaveBeenCalledWith(10, tenantEmpresaA);
     });
 
     it('resuelve sin error cuando el proveedor existe para este tenant y pasa a SUSPENDIDA', async () => {
@@ -562,16 +472,9 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
       mockRepo.softDelete.mockResolvedValue(true);
 
-      await expect(
-        service.remove(10, tenantEmpresaA),
-      ).resolves.toBeUndefined();
+      await expect(service.remove(10, tenantEmpresaA)).resolves.toBeUndefined();
 
-      expect(
-        mockRepo.softDelete,
-      ).toHaveBeenCalledWith(
-        10,
-        tenantEmpresaA,
-      );
+      expect(mockRepo.softDelete).toHaveBeenCalledWith(10, tenantEmpresaA);
     });
   });
 
@@ -579,13 +482,11 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     it('propaga NotFoundException si el id no pertenece a este tenant', async () => {
       mockRepo.findById.mockResolvedValue(null);
 
-      await expect(
-        service.activate(10, tenantEmpresaA),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.activate(10, tenantEmpresaA)).rejects.toThrow(
+        NotFoundException,
+      );
 
-      expect(
-        mockRepo.setEstado,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.setEstado).not.toHaveBeenCalled();
     });
 
     it('propaga NotFoundException si la query fisica de setEstado no afecto filas (TOCTOU)', async () => {
@@ -598,13 +499,11 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
       mockRepo.setEstado.mockResolvedValue(false);
 
-      await expect(
-        service.activate(10, tenantEmpresaA),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.activate(10, tenantEmpresaA)).rejects.toThrow(
+        NotFoundException,
+      );
 
-      expect(
-        mockRepo.setEstado,
-      ).toHaveBeenCalledWith(
+      expect(mockRepo.setEstado).toHaveBeenCalledWith(
         10,
         EstadoProveedor.ACTIVA,
         tenantEmpresaA,
@@ -615,41 +514,30 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
       mockRepo.findById
         .mockResolvedValueOnce(
           buildProveedor({
-            estado:
-              EstadoProveedor.SUSPENDIDA,
+            estado: EstadoProveedor.SUSPENDIDA,
             empresa: { id: 1 } as any,
           }),
         )
         .mockResolvedValueOnce(
           buildProveedor({
-            estado:
-              EstadoProveedor.ACTIVA,
+            estado: EstadoProveedor.ACTIVA,
             empresa: { id: 1 } as any,
           }),
         );
 
       mockRepo.setEstado.mockResolvedValue(true);
 
-      const result = await service.activate(
-        10,
-        tenantEmpresaA,
-      );
+      const result = await service.activate(10, tenantEmpresaA);
 
-      expect(
-        mockRepo.setEstado,
-      ).toHaveBeenCalledWith(
+      expect(mockRepo.setEstado).toHaveBeenCalledWith(
         10,
         EstadoProveedor.ACTIVA,
         tenantEmpresaA,
       );
 
-      expect(result.estado).toBe(
-        EstadoProveedor.ACTIVA,
-      );
+      expect(result.estado).toBe(EstadoProveedor.ACTIVA);
 
-      expect(mockRepo.findById).toHaveBeenCalledTimes(
-        2,
-      );
+      expect(mockRepo.findById).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -662,20 +550,13 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
 
       const dto = buildCreateDto();
 
-      await expect(
-        service.create(
-          dto,
-          tenantSinEmpresa,
-        ),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.create(dto, tenantSinEmpresa)).rejects.toThrow(
+        ForbiddenException,
+      );
 
-      expect(
-        mockRepo.findByCuit,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.findByCuit).not.toHaveBeenCalled();
 
-      expect(
-        mockRepo.save,
-      ).not.toHaveBeenCalled();
+      expect(mockRepo.save).not.toHaveBeenCalled();
     });
   });
 });

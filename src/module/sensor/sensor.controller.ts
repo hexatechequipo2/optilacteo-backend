@@ -28,7 +28,6 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 @ApiBearerAuth()
 @Controller('sensores')
 @UseGuards(RolesGuard, PermissionsGuard)
-
 export class SensorController {
   constructor(private readonly sensorService: SensorService) {}
 
@@ -45,7 +44,13 @@ export class SensorController {
 
   //HU-65 El Gerente quiere mantener un listado de todos los sensores con su ubicación, marca y tipo, es por eso que el @Roles está en el GET.
   @Get()
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.OPERARIO_LINEA,
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
   findAll(
     @Query() query: SensorFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -54,14 +59,29 @@ export class SensorController {
   }
 
   @Get(':id')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.OPERARIO_LINEA,
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
   findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.sensorService.findOne(+id, tenant);
   }
 
   @Get(':id/historial')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  historialPorSensor(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
+  @Roles(
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.OPERARIO_LINEA,
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  historialPorSensor(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
     return this.sensorService.historialPorSensor(+id, tenant);
   }
 
@@ -87,7 +107,12 @@ export class SensorController {
     @Req() req: any, // TODO: reemplazar por tu @CurrentUser() real
   ) {
     const usuarioId = req.user.sub;
-    return this.sensorService.asociarALote(+loteId, dto.sensorIds, usuarioId, tenant);
+    return this.sensorService.asociarALote(
+      +loteId,
+      dto.sensorIds,
+      usuarioId,
+      tenant,
+    );
   }
 
   // Soft-delete: pasa el sensor a estado INACTIVO en vez de borrarlo físicamente.

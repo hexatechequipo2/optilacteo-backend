@@ -72,14 +72,16 @@ export class LoteRepository implements ILoteRepository {
       .andWhere('lote.clasificacion = :clasificacion', {
         clasificacion: 'no_apto',
       })
-      .andWhere(`NOT EXISTS (
+      .andWhere(
+        `NOT EXISTS (
         SELECT 1 FROM lote_revision_calidad rev
         WHERE rev."loteId" = lote.id
         AND rev."createdAt" > COALESCE((
           SELECT MAX(hist."createdAt") FROM lote_clasificacion_historial hist
           WHERE hist."loteId" = lote.id AND hist.clasificacion = 'no_apto'
         ), rev."createdAt" - INTERVAL '1 second')
-      )`)
+      )`,
+      )
       .orderBy('lote.createdAt', 'DESC')
       .getMany();
   }
@@ -102,5 +104,4 @@ export class LoteRepository implements ILoteRepository {
       take: cantidad,
     });
   }
-
-} 
+}

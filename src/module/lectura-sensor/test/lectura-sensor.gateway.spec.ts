@@ -38,9 +38,7 @@ describe('LecturasGateway', () => {
 
   describe('handleConnection', () => {
     it('debe desconectar cuando no recibe token', async () => {
-      const warnSpy = jest
-        .spyOn(Logger.prototype, 'warn')
-        .mockImplementation();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
       const client: any = {
         id: 'socket1',
@@ -104,9 +102,7 @@ describe('LecturasGateway', () => {
     });
 
     it('debe desconectar cuando el token es inválido', async () => {
-      const warnSpy = jest
-        .spyOn(Logger.prototype, 'warn')
-        .mockImplementation();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
       jwtServiceMock.verifyAsync.mockRejectedValue(new Error());
 
@@ -165,10 +161,7 @@ describe('LecturasGateway', () => {
       gateway.emitirLectura(payload as any, 3);
 
       expect(serverMock.to).toHaveBeenCalledWith('empresa:3');
-      expect(serverMock.emit).toHaveBeenCalledWith(
-        'lectura:nueva',
-        payload,
-      );
+      expect(serverMock.emit).toHaveBeenCalledWith('lectura:nueva', payload);
     });
   });
 
@@ -179,10 +172,7 @@ describe('LecturasGateway', () => {
       gateway.emitirSensorInactivo(payload, 8);
 
       expect(serverMock.to).toHaveBeenCalledWith('empresa:8');
-      expect(serverMock.emit).toHaveBeenCalledWith(
-        'sensor:inactivo',
-        payload,
-      );
+      expect(serverMock.emit).toHaveBeenCalledWith('sensor:inactivo', payload);
     });
   });
 
@@ -193,10 +183,7 @@ describe('LecturasGateway', () => {
       gateway.emitirSensorFalla(payload, 9);
 
       expect(serverMock.to).toHaveBeenCalledWith('empresa:9');
-      expect(serverMock.emit).toHaveBeenCalledWith(
-        'sensor:falla',
-        payload,
-      );
+      expect(serverMock.emit).toHaveBeenCalledWith('sensor:falla', payload);
     });
   });
 

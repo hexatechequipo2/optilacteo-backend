@@ -1,6 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class HistorialLecturaFilterQueryDto {
   @ApiPropertyOptional({ description: 'Fecha de inicio del rango (ISO 8601)' })

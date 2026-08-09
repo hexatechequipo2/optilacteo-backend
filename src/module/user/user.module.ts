@@ -12,7 +12,7 @@ import { RolModule } from '../rol/rol.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Empresa, Rol]), 
+    TypeOrmModule.forFeature([User, Empresa, Rol]),
     EmpresaModule,
     RolModule,
   ],

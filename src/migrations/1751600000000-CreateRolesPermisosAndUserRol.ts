@@ -2,9 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 import { ROLES } from '../module/rol/constants/roles.constants';
 import { PERMISOS_POR_ROL } from '../module/rol/config/roles-permisos.config';
 
-export class CreateRolesPermisosAndUserRol1751600000000
-  implements MigrationInterface
-{
+export class CreateRolesPermisosAndUserRol1751600000000 implements MigrationInterface {
   name = 'CreateRolesPermisosAndUserRol1751600000000';
 
   private enumToRolNombre: Record<string, string> = {

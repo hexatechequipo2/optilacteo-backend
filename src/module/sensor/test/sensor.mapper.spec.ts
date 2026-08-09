@@ -50,7 +50,10 @@ describe('SensorMapper', () => {
     it('debe mapear la entidad Sensor a SensorResponseDto con loteActualId asignado', () => {
       const loteActualId = 55;
 
-      const responseDto = SensorMapper.toResponseDto(sensorEntity, loteActualId);
+      const responseDto = SensorMapper.toResponseDto(
+        sensorEntity,
+        loteActualId,
+      );
 
       expect(responseDto).toEqual({
         id: sensorEntity.id,

@@ -3,7 +3,10 @@ import { CreateConfigParametroDto } from '../dto/create-config-parametro.dto';
 import { ConfigParametroResponseDto } from '../dto/config-parametro-response.dto';
 
 export class ConfigParametroMapper {
-  static toEntity(dto: CreateConfigParametroDto, empresaId: number): ConfiguracionParametro {
+  static toEntity(
+    dto: CreateConfigParametroDto,
+    empresaId: number,
+  ): ConfiguracionParametro {
     const entity = new ConfiguracionParametro();
     entity.empresaId = empresaId;
     entity.parametro = dto.parametro;
@@ -13,7 +16,9 @@ export class ConfigParametroMapper {
     return entity;
   }
 
-  static toResponse(entity: ConfiguracionParametro): ConfigParametroResponseDto {
+  static toResponse(
+    entity: ConfiguracionParametro,
+  ): ConfigParametroResponseDto {
     const dto = new ConfigParametroResponseDto();
     dto.id = entity.id;
     dto.empresaId = entity.empresaId;

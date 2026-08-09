@@ -53,7 +53,9 @@ export class EmpresaService {
   async create(dto: CreateEmpresaDto) {
     const cuitEnUso = await this.empresaRepository.findByCuit(dto.cuit);
     if (cuitEnUso) {
-      throw new ConflictException(`Ya existe una empresa con el CUIT ${dto.cuit}`);
+      throw new ConflictException(
+        `Ya existe una empresa con el CUIT ${dto.cuit}`,
+      );
     }
 
     const empresaToCreate = EmpresaMapper.toEntity(dto);
@@ -77,7 +79,11 @@ export class EmpresaService {
   ): Promise<PaginatedResponse<ReturnType<typeof EmpresaMapper.toResponse>>> {
     const { page, limit, ...filters } = query;
     const skip = (page - 1) * limit;
-    const [empresas, total] = await this.empresaRepository.findAllPaginated(skip, limit, filters);
+    const [empresas, total] = await this.empresaRepository.findAllPaginated(
+      skip,
+      limit,
+      filters,
+    );
     return buildPaginatedResponse(
       EmpresaMapper.toResponseList(empresas, this.storageService),
       page,
@@ -97,7 +103,9 @@ export class EmpresaService {
 
   async findMine(tenant: TenantContext) {
     if (tenant.empresaId === null) {
-      throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
+      throw new NotFoundException(
+        'Los usuarios admin no tienen una empresa asociada',
+      );
     }
     return this.findOne(tenant.empresaId, tenant);
   }
@@ -112,7 +120,9 @@ export class EmpresaService {
     if (dto.cuit !== undefined && dto.cuit !== empresaActual.cuit) {
       const cuitEnUso = await this.empresaRepository.findByCuit(dto.cuit);
       if (cuitEnUso) {
-        throw new ConflictException(`El CUIT ${dto.cuit} ya está en uso por otra empresa`);
+        throw new ConflictException(
+          `El CUIT ${dto.cuit} ya está en uso por otra empresa`,
+        );
       }
     }
 
@@ -125,7 +135,10 @@ export class EmpresaService {
       ...(dto.plan !== undefined && { plan: dto.plan }),
     };
 
-    const updated = await this.empresaRepository.updateEmpresa(id, empresaToUpdate);
+    const updated = await this.empresaRepository.updateEmpresa(
+      id,
+      empresaToUpdate,
+    );
 
     if (dto.plan !== undefined && dto.plan !== empresaActual.plan) {
       const modulosNuevoPlan = DETALLE_POR_PLAN[dto.plan].modulos;
@@ -140,27 +153,40 @@ export class EmpresaService {
   // tocar cuit/plan/email (eso sigue siendo de Administrador vía update()).
   async updateIdentidad(dto: UpdateIdentidadEmpresaDto, tenant: TenantContext) {
     if (tenant.empresaId === null) {
-      throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
+      throw new NotFoundException(
+        'Los usuarios admin no tienen una empresa asociada',
+      );
     }
-    const empresaActual = await this.empresaRepository.findById(tenant.empresaId);
+    const empresaActual = await this.empresaRepository.findById(
+      tenant.empresaId,
+    );
     if (!empresaActual) {
-      throw new NotFoundException(`Empresa con id ${tenant.empresaId} no encontrada`);
+      throw new NotFoundException(
+        `Empresa con id ${tenant.empresaId} no encontrada`,
+      );
     }
 
-    const updated = await this.empresaRepository.updateEmpresa(tenant.empresaId, {
-      name: dto.name,
-    });
+    const updated = await this.empresaRepository.updateEmpresa(
+      tenant.empresaId,
+      {
+        name: dto.name,
+      },
+    );
     return EmpresaMapper.toResponse(updated, this.storageService);
   }
 
   // HU-12: sube el logo a R2 y guarda solo el key en logoPath.
   async uploadLogo(file: Express.Multer.File, tenant: TenantContext) {
     if (tenant.empresaId === null) {
-      throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
+      throw new NotFoundException(
+        'Los usuarios admin no tienen una empresa asociada',
+      );
     }
     const empresa = await this.empresaRepository.findById(tenant.empresaId);
     if (!empresa) {
-      throw new NotFoundException(`Empresa con id ${tenant.empresaId} no encontrada`);
+      throw new NotFoundException(
+        `Empresa con id ${tenant.empresaId} no encontrada`,
+      );
     }
 
     // Reemplazo: borrar el logo anterior del bucket antes de subir el nuevo.
@@ -172,29 +198,39 @@ export class EmpresaService {
     const key = `logos/empresa-${tenant.empresaId}-${Date.now()}.${ext}`;
     await this.storageService.upload(key, file.buffer, file.mimetype);
 
-    const updated = await this.empresaRepository.updateEmpresa(tenant.empresaId, {
-      logoPath: key,
-    });
+    const updated = await this.empresaRepository.updateEmpresa(
+      tenant.empresaId,
+      {
+        logoPath: key,
+      },
+    );
     return EmpresaMapper.toResponse(updated, this.storageService);
   }
 
   // HU-12: borra el logo de R2 y limpia logoPath.
   async deleteLogo(tenant: TenantContext) {
     if (tenant.empresaId === null) {
-      throw new NotFoundException('Los usuarios admin no tienen una empresa asociada');
+      throw new NotFoundException(
+        'Los usuarios admin no tienen una empresa asociada',
+      );
     }
     const empresa = await this.empresaRepository.findById(tenant.empresaId);
     if (!empresa) {
-      throw new NotFoundException(`Empresa con id ${tenant.empresaId} no encontrada`);
+      throw new NotFoundException(
+        `Empresa con id ${tenant.empresaId} no encontrada`,
+      );
     }
 
     if (empresa.logoPath) {
       await this.storageService.delete(empresa.logoPath).catch(() => undefined);
     }
 
-    const updated = await this.empresaRepository.updateEmpresa(tenant.empresaId, {
-      logoPath: null,
-    });
+    const updated = await this.empresaRepository.updateEmpresa(
+      tenant.empresaId,
+      {
+        logoPath: null,
+      },
+    );
     return EmpresaMapper.toResponse(updated, this.storageService);
   }
 
@@ -202,21 +238,26 @@ export class EmpresaService {
     this.assertOwnEmpresa(id, tenant);
     await this.findOne(id, tenant);
 
-    const tieneUsuariosActivos = await this.empresaRepository.hasActiveUsers(id);
+    const tieneUsuariosActivos =
+      await this.empresaRepository.hasActiveUsers(id);
     if (tieneUsuariosActivos) {
       throw new ConflictException(
         'No se puede desactivar una empresa que tiene usuarios activos asociados',
       );
     }
 
-    const updated = await this.empresaRepository.updateEmpresa(id, { isActive: false });
+    const updated = await this.empresaRepository.updateEmpresa(id, {
+      isActive: false,
+    });
     return EmpresaMapper.toResponse(updated, this.storageService);
   }
 
   async activate(id: number, tenant: TenantContext) {
     this.assertOwnEmpresa(id, tenant);
     await this.findOne(id, tenant);
-    const updated = await this.empresaRepository.updateEmpresa(id, { isActive: true });
+    const updated = await this.empresaRepository.updateEmpresa(id, {
+      isActive: true,
+    });
     return EmpresaMapper.toResponse(updated, this.storageService);
   }
 
@@ -224,12 +265,20 @@ export class EmpresaService {
     return this.deactivate(id, tenant);
   }
 
-  async activarModulo(empresaId: number, dto: ToggleModuloDto, tenant: TenantContext) {
+  async activarModulo(
+    empresaId: number,
+    dto: ToggleModuloDto,
+    tenant: TenantContext,
+  ) {
     this.assertOwnEmpresa(empresaId, tenant);
     return this.toggleModulo(empresaId, dto.modulo, true);
   }
 
-  async desactivarModulo(empresaId: number, dto: ToggleModuloDto, tenant: TenantContext) {
+  async desactivarModulo(
+    empresaId: number,
+    dto: ToggleModuloDto,
+    tenant: TenantContext,
+  ) {
     this.assertOwnEmpresa(empresaId, tenant);
     return this.toggleModulo(empresaId, dto.modulo, false);
   }
@@ -264,13 +313,20 @@ export class EmpresaService {
         precio: detalle.precioMensual,
         maxUsuarios: detalle.maxUsuarios,
         maxSensores: detalle.maxSensores,
-        modulos: detalle.modulos.map((m) => ({ nombre: MODULO_NOMBRES[m], codigo: m })),
+        modulos: detalle.modulos.map((m) => ({
+          nombre: MODULO_NOMBRES[m],
+          codigo: m,
+        })),
         empresasAsignadas: count,
       };
     });
   }
 
-  private async toggleModulo(empresaId: number, modulo: ModuloSistema, activar: boolean) {
+  private async toggleModulo(
+    empresaId: number,
+    modulo: ModuloSistema,
+    activar: boolean,
+  ) {
     const empresa = await this.empresaRepository.findById(empresaId);
     if (!empresa) {
       throw new NotFoundException(`Empresa con id ${empresaId} no encontrada`);
@@ -283,14 +339,20 @@ export class EmpresaService {
       );
     }
 
-    const empresaModulo = await this.empresaRepository.findModulo(empresaId, modulo);
+    const empresaModulo = await this.empresaRepository.findModulo(
+      empresaId,
+      modulo,
+    );
     if (!empresaModulo) {
       throw new NotFoundException(
         `El módulo "${modulo}" no está asignado a la empresa con id ${empresaId}`,
       );
     }
 
-    const updated = await this.empresaRepository.updateModulo(empresaModulo.id, activar);
+    const updated = await this.empresaRepository.updateModulo(
+      empresaModulo.id,
+      activar,
+    );
     return { modulo: updated.modulo, isActive: updated.isActive };
   }
 }

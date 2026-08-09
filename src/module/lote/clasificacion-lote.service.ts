@@ -19,7 +19,7 @@ const EPSILON_CONFLICTO = 0.001; // tolerancia para comparar decimales
 interface ValorVigente {
   parametro: Parametro;
   valor: number;
-  origen: 'sensor' | 'manual' ;
+  origen: 'sensor' | 'manual';
   timestamp: Date;
   sensorId?: number;
   enRevisionPorConflicto: boolean;
@@ -46,10 +46,15 @@ export class ClasificacionLoteService {
   ) {}
 
   async evaluarYClasificar(loteId: number, empresaId: number): Promise<void> {
-    const lote = await this.loteRepository.findOne({ where: { id: loteId, empresaId }, relations: { parametros: true } });
+    const lote = await this.loteRepository.findOne({
+      where: { id: loteId, empresaId },
+      relations: { parametros: true },
+    });
     console.log('>>> evaluarYClasificar llamado', { loteId, empresaId });
     if (!lote) {
-      this.logger.warn(`evaluarYClasificar: lote ${loteId} no encontrado (empresa ${empresaId})`);
+      this.logger.warn(
+        `evaluarYClasificar: lote ${loteId} no encontrado (empresa ${empresaId})`,
+      );
       return;
     }
 
@@ -69,16 +74,18 @@ export class ClasificacionLoteService {
     );
     console.log('>>> valoresVigentes', Array.from(valoresVigentes.entries()));
 
-
-    const faltantes = configs.map((c) => c.parametro).filter((p) => !valoresVigentes.has(p));
+    const faltantes = configs
+      .map((c) => c.parametro)
+      .filter((p) => !valoresVigentes.has(p));
     if (valoresVigentes.size === 0) {
-        this.logger.warn(`No hay valores vigentes para lote ${loteId}`);
-        return;
+      this.logger.warn(`No hay valores vigentes para lote ${loteId}`);
+      return;
     }
     const ahora = new Date();
     let enRevision = false;
     let noApto = false;
-    const parametrosUtilizados: LoteClasificacionHistorial['parametrosUtilizados'] = [];
+    const parametrosUtilizados: LoteClasificacionHistorial['parametrosUtilizados'] =
+      [];
 
     for (const [parametro, valor] of valoresVigentes) {
       parametrosUtilizados.push({
@@ -87,22 +94,31 @@ export class ClasificacionLoteService {
       });
 
       if (valor.enRevisionPorConflicto) enRevision = true;
-      if (ahora.getTime() - valor.timestamp.getTime() > VENTANA_DATO_DESACTUALIZADO_MS) enRevision = true;
+      if (
+        ahora.getTime() - valor.timestamp.getTime() >
+        VENTANA_DATO_DESACTUALIZADO_MS
+      )
+        enRevision = true;
 
       if (valor.origen === 'sensor' && valor.sensorId) {
-        const sensor = await this.sensorRepository.findOne({ where: { id: valor.sensorId } });
+        const sensor = await this.sensorRepository.findOne({
+          where: { id: valor.sensorId },
+        });
         if (sensor?.estado === EstadoSensor.INACTIVO) enRevision = true;
       }
 
       const config = mapaConfig.get(parametro);
-      if (config && (valor.valor < config.umbralMin || valor.valor > config.umbralMax)) {
+      if (
+        config &&
+        (valor.valor < config.umbralMin || valor.valor > config.umbralMax)
+      ) {
         noApto = true;
       }
     }
 
     const clasificacion = noApto
-    ? ClasificacionLote.NO_APTO
-    : ClasificacionLote.APTO;
+      ? ClasificacionLote.NO_APTO
+      : ClasificacionLote.APTO;
 
     lote.clasificacion = clasificacion;
     await this.loteRepository.save(lote);
@@ -114,13 +130,22 @@ export class ClasificacionLoteService {
         order: { createdAt: 'DESC' },
       });
 
-      if (ultimoHistorial && ultimoHistorial.parametrosUtilizados.length === 0) {
-        console.log('>>> actualizando historial vacío con parámetros', parametrosUtilizados);
+      if (
+        ultimoHistorial &&
+        ultimoHistorial.parametrosUtilizados.length === 0
+      ) {
+        console.log(
+          '>>> actualizando historial vacío con parámetros',
+          parametrosUtilizados,
+        );
         ultimoHistorial.parametrosUtilizados = parametrosUtilizados;
         ultimoHistorial.clasificacion = clasificacion;
         await this.historialRepository.save(ultimoHistorial);
       } else {
-        console.log('>>> creando historial nuevo con parámetros', parametrosUtilizados);
+        console.log(
+          '>>> creando historial nuevo con parámetros',
+          parametrosUtilizados,
+        );
         const historial = this.historialRepository.create({
           loteId,
           empresaId,
@@ -139,7 +164,6 @@ export class ClasificacionLoteService {
         { loteId: lote.id, loteCodigo: lote.codigo, clasificacion },
       );
     }
-
   }
 
   historialDeLote(loteId: number, empresaId: number) {
@@ -158,9 +182,8 @@ export class ClasificacionLoteService {
     const resultado = new Map<Parametro, ValorVigente>();
 
     for (const parametro of parametros) {
-        console.log('>>> procesando parametro', parametro);
-        console.log('>>> fallback a inicial', parametro);
-
+      console.log('>>> procesando parametro', parametro);
+      console.log('>>> fallback a inicial', parametro);
 
       const ultimaLectura = await this.sensorLecturaRepository
         .createQueryBuilder('lectura')
@@ -178,7 +201,9 @@ export class ClasificacionLoteService {
       });
 
       if (!ultimaLectura && !ultimaManual) {
-        const paramInicial = parametrosIniciales.find(p => p.parametro === parametro);
+        const paramInicial = parametrosIniciales.find(
+          (p) => p.parametro === parametro,
+        );
         if (paramInicial) {
           resultado.set(parametro, {
             parametro,
@@ -193,12 +218,15 @@ export class ClasificacionLoteService {
 
       let conflicto = false;
       if (ultimaLectura && ultimaManual) {
-        conflicto = Math.abs(Number(ultimaLectura.valor) - Number(ultimaManual.valor)) > EPSILON_CONFLICTO;
+        conflicto =
+          Math.abs(Number(ultimaLectura.valor) - Number(ultimaManual.valor)) >
+          EPSILON_CONFLICTO;
       }
 
       const usarSensor =
         !!ultimaLectura &&
-        (!ultimaManual || ultimaLectura.timestampLectura >= ultimaManual.createdAt);
+        (!ultimaManual ||
+          ultimaLectura.timestampLectura >= ultimaManual.createdAt);
 
       resultado.set(
         parametro,

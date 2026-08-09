@@ -48,7 +48,10 @@ describe('DashboardController', () => {
 
       dashboardServiceMock.getDashboard.mockResolvedValue(dashboard);
 
-      const result = await controller.findAll(tenant, GranularidadHistorico.DIA);
+      const result = await controller.findAll(
+        tenant,
+        GranularidadHistorico.DIA,
+      );
 
       expect(dashboardServiceMock.getDashboard).toHaveBeenCalledWith(
         tenant,
@@ -63,7 +66,10 @@ describe('DashboardController', () => {
 
       dashboardServiceMock.getDashboard.mockResolvedValue(dashboard);
 
-      const result = await controller.findAll(tenant, GranularidadHistorico.SEMANA);
+      const result = await controller.findAll(
+        tenant,
+        GranularidadHistorico.SEMANA,
+      );
 
       expect(dashboardServiceMock.getDashboard).toHaveBeenCalledWith(
         tenant,
@@ -78,7 +84,10 @@ describe('DashboardController', () => {
 
       dashboardServiceMock.getDashboard.mockResolvedValue(dashboard);
 
-      const result = await controller.findAll(tenant, GranularidadHistorico.MES);
+      const result = await controller.findAll(
+        tenant,
+        GranularidadHistorico.MES,
+      );
 
       expect(dashboardServiceMock.getDashboard).toHaveBeenCalledWith(
         tenant,
@@ -92,12 +101,12 @@ describe('DashboardController', () => {
         empresaId: null,
       } as any;
 
-      expect(() => controller.findAll(tenant, GranularidadHistorico.DIA)).toThrow(
-        ForbiddenException,
-      );
-      expect(() => controller.findAll(tenant, GranularidadHistorico.DIA)).toThrow(
-        'El usuario no tiene una empresa asociada.',
-      );
+      expect(() =>
+        controller.findAll(tenant, GranularidadHistorico.DIA),
+      ).toThrow(ForbiddenException);
+      expect(() =>
+        controller.findAll(tenant, GranularidadHistorico.DIA),
+      ).toThrow('El usuario no tiene una empresa asociada.');
       expect(dashboardServiceMock.getDashboard).not.toHaveBeenCalled();
     });
   });
@@ -114,7 +123,9 @@ describe('DashboardController', () => {
         puntos: [],
       };
 
-      dashboardServiceMock.getHistoricoLotesProcesados.mockResolvedValue(historico);
+      dashboardServiceMock.getHistoricoLotesProcesados.mockResolvedValue(
+        historico,
+      );
 
       const result = await controller.getHistorico(
         tenant,
@@ -122,11 +133,9 @@ describe('DashboardController', () => {
         7,
       );
 
-      expect(dashboardServiceMock.getHistoricoLotesProcesados).toHaveBeenCalledWith(
-        tenant,
-        GranularidadHistorico.DIA,
-        7,
-      );
+      expect(
+        dashboardServiceMock.getHistoricoLotesProcesados,
+      ).toHaveBeenCalledWith(tenant, GranularidadHistorico.DIA, 7);
       expect(result).toBe(historico);
     });
 
@@ -138,7 +147,9 @@ describe('DashboardController', () => {
         puntos: [],
       };
 
-      dashboardServiceMock.getHistoricoLotesProcesados.mockResolvedValue(historico);
+      dashboardServiceMock.getHistoricoLotesProcesados.mockResolvedValue(
+        historico,
+      );
 
       const result = await controller.getHistorico(
         tenant,
@@ -146,11 +157,9 @@ describe('DashboardController', () => {
         12,
       );
 
-      expect(dashboardServiceMock.getHistoricoLotesProcesados).toHaveBeenCalledWith(
-        tenant,
-        GranularidadHistorico.SEMANA,
-        12,
-      );
+      expect(
+        dashboardServiceMock.getHistoricoLotesProcesados,
+      ).toHaveBeenCalledWith(tenant, GranularidadHistorico.SEMANA, 12);
       expect(result).toBe(historico);
     });
 
@@ -162,7 +171,9 @@ describe('DashboardController', () => {
         puntos: [],
       };
 
-      dashboardServiceMock.getHistoricoLotesProcesados.mockResolvedValue(historico);
+      dashboardServiceMock.getHistoricoLotesProcesados.mockResolvedValue(
+        historico,
+      );
 
       const result = await controller.getHistorico(
         tenant,
@@ -170,11 +181,9 @@ describe('DashboardController', () => {
         6,
       );
 
-      expect(dashboardServiceMock.getHistoricoLotesProcesados).toHaveBeenCalledWith(
-        tenant,
-        GranularidadHistorico.MES,
-        6,
-      );
+      expect(
+        dashboardServiceMock.getHistoricoLotesProcesados,
+      ).toHaveBeenCalledWith(tenant, GranularidadHistorico.MES, 6);
       expect(result).toBe(historico);
     });
 

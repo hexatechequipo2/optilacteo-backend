@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  ManyToOne,
+} from 'typeorm';
 import { PermisoModulo } from '../../permiso/entities/permiso-modulo.entity';
 import { Empresa } from '../../empresa/entities/empresa.entity';
 

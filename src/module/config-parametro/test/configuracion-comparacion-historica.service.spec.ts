@@ -19,7 +19,10 @@ describe('ConfiguracionComparacionHistoricaService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConfiguracionComparacionHistoricaService,
-        { provide: CONFIGURACION_COMPARACION_HISTORICA_REPOSITORY, useValue: mockRepository },
+        {
+          provide: CONFIGURACION_COMPARACION_HISTORICA_REPOSITORY,
+          useValue: mockRepository,
+        },
       ],
     }).compile();
 
@@ -91,7 +94,9 @@ describe('ConfiguracionComparacionHistoricaService', () => {
         desvioSignificativoPorcentaje: DESVIO_SIGNIFICATIVO_DEFAULT,
         cantidadRegistrosHistoricos: CANTIDAD_REGISTROS_HISTORICOS_DEFAULT,
       });
-      expect(resultado.desvioSignificativoPorcentaje).toBe(DESVIO_SIGNIFICATIVO_DEFAULT);
+      expect(resultado.desvioSignificativoPorcentaje).toBe(
+        DESVIO_SIGNIFICATIVO_DEFAULT,
+      );
     });
 
     it('cuando ya existe configuración y solo envía un campo, debe actualizar ese campo y conservar el otro', async () => {
@@ -103,7 +108,9 @@ describe('ConfiguracionComparacionHistoricaService', () => {
       mockRepository.findByEmpresa.mockResolvedValue(configExistente);
       mockRepository.save.mockImplementation(async (c) => c);
 
-      const resultado = await service.update(1, { desvioSignificativoPorcentaje: 40 });
+      const resultado = await service.update(1, {
+        desvioSignificativoPorcentaje: 40,
+      });
 
       expect(mockRepository.create).not.toHaveBeenCalled();
       expect(resultado).toEqual({

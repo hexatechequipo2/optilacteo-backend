@@ -222,7 +222,7 @@ describe('LoteRepository', () => {
 
       const resultado = await repository.findUltimosAptos(
         5,
-        ('leche_entera' as unknown as TipoMateriaPrima),
+        'leche_entera' as unknown as TipoMateriaPrima,
         3,
         100, // excluirLoteId
       );
@@ -230,7 +230,7 @@ describe('LoteRepository', () => {
       expect(typeormRepoMock.find).toHaveBeenCalledWith({
         where: {
           empresaId: 5,
-          materiaPrima: ('leche_entera' as TipoMateriaPrima),
+          materiaPrima: 'leche_entera' as TipoMateriaPrima,
           clasificacion: ClasificacionLote.APTO,
           id: Not(100),
         },

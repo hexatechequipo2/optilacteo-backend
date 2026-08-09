@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Patch, UseGuards, ForbiddenException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -34,7 +41,10 @@ export class ConfiguracionComparacionHistoricaController {
   @Patch()
   @Roles(ROLES.GERENTE)
   @Permissions(ModuloSistema.TRAZABILIDAD, 'canWrite')
-  @AuditLog('CONFIG_COMPARACION_HISTORICA_ACTUALIZAR', 'ConfiguracionComparacionHistorica')
+  @AuditLog(
+    'CONFIG_COMPARACION_HISTORICA_ACTUALIZAR',
+    'ConfiguracionComparacionHistorica',
+  )
   update(
     @CurrentEmpresa() tenant: TenantContext,
     @Body() dto: UpdateConfiguracionComparacionHistoricaDto,

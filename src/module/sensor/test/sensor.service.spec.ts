@@ -149,10 +149,7 @@ describe('SensorService', () => {
   describe('resolveEmpresaId', () => {
     it('debe lanzar BadRequestException si el tenant no tiene empresaId', async () => {
       await expect(
-        service.findAll(
-          {} as SensorFilterQueryDto,
-          invalidTenant,
-        ),
+        service.findAll({} as SensorFilterQueryDto, invalidTenant),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -183,9 +180,7 @@ describe('SensorService', () => {
       sensorRepoMock.findByNombre.mockResolvedValue(null);
       sensorRepoMock.create.mockResolvedValue(mappedEntity);
 
-      jest
-        .spyOn(SensorMapper, 'toEntity')
-        .mockReturnValue(mappedEntity);
+      jest.spyOn(SensorMapper, 'toEntity').mockReturnValue(mappedEntity);
 
       jest
         .spyOn(SensorMapper, 'toResponseDto')
@@ -193,14 +188,9 @@ describe('SensorService', () => {
 
       const result = await service.create(dto, validTenant);
 
-      expect(sensorRepoMock.findByNombre).toHaveBeenCalledWith(
-        dto.nombre,
-        10,
-      );
+      expect(sensorRepoMock.findByNombre).toHaveBeenCalledWith(dto.nombre, 10);
 
-      expect(sensorRepoMock.create).toHaveBeenCalledWith(
-        mappedEntity,
-      );
+      expect(sensorRepoMock.create).toHaveBeenCalledWith(mappedEntity);
 
       expect(result).toEqual(responseDto);
     });
@@ -212,9 +202,9 @@ describe('SensorService', () => {
         rangoMaxFavor: 10,
       } as CreateSensorDto;
 
-      await expect(
-        service.create(invalidDto, validTenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create(invalidDto, validTenant)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(sensorRepoMock.findByNombre).not.toHaveBeenCalled();
     });
@@ -225,9 +215,9 @@ describe('SensorService', () => {
         nombre: dto.nombre,
       });
 
-      await expect(
-        service.create(dto, validTenant),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.create(dto, validTenant)).rejects.toThrow(
+        ConflictException,
+      );
 
       expect(sensorRepoMock.create).not.toHaveBeenCalled();
     });
@@ -269,43 +259,30 @@ describe('SensorService', () => {
       ]);
 
       sensorRepoMock.findAll.mockResolvedValue(sensores);
-      historialRepoMock.findUltimosPorSensores.mockResolvedValue(
-        historiales,
-      );
+      historialRepoMock.findUltimosPorSensores.mockResolvedValue(historiales);
 
-      auditLogServiceMock.getTrazabilidadBatch.mockResolvedValue(
-        auditoria,
-      );
+      auditLogServiceMock.getTrazabilidadBatch.mockResolvedValue(auditoria);
 
       jest
         .spyOn(SensorMapper, 'toResponseDto')
-        .mockImplementation(
-          (sensor: Sensor, loteId?: number | null) => {
-            return {
-              id: sensor.id,
-              nombre: sensor.nombre,
-              loteId: loteId ?? null,
-            } as any;
-          },
-        );
+        .mockImplementation((sensor: Sensor, loteId?: number | null) => {
+          return {
+            id: sensor.id,
+            nombre: sensor.nombre,
+            loteId: loteId ?? null,
+          } as any;
+        });
 
-      const result = await service.findAll(
-        filter,
-        gerenteTenant,
-      );
+      const result = await service.findAll(filter, gerenteTenant);
 
-      expect(sensorRepoMock.findAll).toHaveBeenCalledWith(
-        filter,
+      expect(sensorRepoMock.findAll).toHaveBeenCalledWith(filter, 10);
+
+      expect(historialRepoMock.findUltimosPorSensores).toHaveBeenCalledWith(
+        [1, 2],
         10,
       );
 
-      expect(
-        historialRepoMock.findUltimosPorSensores,
-      ).toHaveBeenCalledWith([1, 2], 10);
-
-      expect(
-        auditLogServiceMock.getTrazabilidadBatch,
-      ).toHaveBeenCalledWith(
+      expect(auditLogServiceMock.getTrazabilidadBatch).toHaveBeenCalledWith(
         'Sensor',
         [1, 2],
         10,
@@ -355,35 +332,21 @@ describe('SensorService', () => {
         loteIdNuevo: 50,
       });
 
-      auditLogServiceMock.getTrazabilidad.mockResolvedValue(
-        auditoria,
-      );
+      auditLogServiceMock.getTrazabilidad.mockResolvedValue(auditoria);
 
-      jest
-        .spyOn(SensorMapper, 'toResponseDto')
-        .mockReturnValue({
-          id: 1,
-          nombre: 'Sensor 1',
-          loteId: 50,
-        } as any);
+      jest.spyOn(SensorMapper, 'toResponseDto').mockReturnValue({
+        id: 1,
+        nombre: 'Sensor 1',
+        loteId: 50,
+      } as any);
 
-      const result = await service.findOne(
-        1,
-        gerenteTenant,
-      );
+      const result = await service.findOne(1, gerenteTenant);
 
-      expect(sensorRepoMock.findOne).toHaveBeenCalledWith(
-        1,
-        10,
-      );
+      expect(sensorRepoMock.findOne).toHaveBeenCalledWith(1, 10);
 
-      expect(
-        historialRepoMock.findUltimoPorSensor,
-      ).toHaveBeenCalledWith(1, 10);
+      expect(historialRepoMock.findUltimoPorSensor).toHaveBeenCalledWith(1, 10);
 
-      expect(
-        auditLogServiceMock.getTrazabilidad,
-      ).toHaveBeenCalledWith(
+      expect(auditLogServiceMock.getTrazabilidad).toHaveBeenCalledWith(
         'Sensor',
         1,
         10,
@@ -401,13 +364,11 @@ describe('SensorService', () => {
     it('debe lanzar NotFoundException si el sensor no existe', async () => {
       sensorRepoMock.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.findOne(99, validTenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(99, validTenant)).rejects.toThrow(
+        NotFoundException,
+      );
 
-      expect(
-        historialRepoMock.findUltimoPorSensor,
-      ).not.toHaveBeenCalled();
+      expect(historialRepoMock.findUltimoPorSensor).not.toHaveBeenCalled();
     });
   });
 
@@ -443,29 +404,17 @@ describe('SensorService', () => {
         loteIdNuevo: 20,
       });
 
-      jest
-        .spyOn(SensorMapper, 'toResponseDto')
-        .mockReturnValue({
-          id: 1,
-          nombre: 'Nuevo Nombre',
-          loteId: 20,
-        } as any);
+      jest.spyOn(SensorMapper, 'toResponseDto').mockReturnValue({
+        id: 1,
+        nombre: 'Nuevo Nombre',
+        loteId: 20,
+      } as any);
 
-      const result = await service.update(
-        1,
-        dto,
-        validTenant,
-      );
+      const result = await service.update(1, dto, validTenant);
 
-      expect(sensorRepoMock.findOne).toHaveBeenCalledWith(
-        1,
-        10,
-      );
+      expect(sensorRepoMock.findOne).toHaveBeenCalledWith(1, 10);
 
-      expect(sensorRepoMock.findByNombre).toHaveBeenCalledWith(
-        dto.nombre,
-        10,
-      );
+      expect(sensorRepoMock.findByNombre).toHaveBeenCalledWith(dto.nombre, 10);
 
       expect(sensorRepoMock.save).toHaveBeenCalledWith(sensor);
 
@@ -480,9 +429,9 @@ describe('SensorService', () => {
     it('debe lanzar NotFoundException si el sensor no existe', async () => {
       sensorRepoMock.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.update(99, dto, validTenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update(99, dto, validTenant)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(sensorRepoMock.save).not.toHaveBeenCalled();
     });
@@ -502,9 +451,9 @@ describe('SensorService', () => {
         nombre: dto.nombre,
       });
 
-      await expect(
-        service.update(1, dto, validTenant),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.update(1, dto, validTenant)).rejects.toThrow(
+        ConflictException,
+      );
 
       expect(sensorRepoMock.save).not.toHaveBeenCalled();
     });
@@ -529,33 +478,22 @@ describe('SensorService', () => {
 
       sensorRepoMock.findOne.mockResolvedValue(sensor);
 
-      historialRepoMock.findUltimoPorSensor.mockResolvedValue(
-        null,
-      );
+      historialRepoMock.findUltimoPorSensor.mockResolvedValue(null);
 
       sensorRepoMock.save.mockResolvedValue(actualizado);
 
-      jest
-        .spyOn(SensorMapper, 'toResponseDto')
-        .mockReturnValue({
-          id: 1,
-          nombre: 'Sensor 1',
-          estado: EstadoSensor.INACTIVO,
-          loteId: null,
-        } as any);
+      jest.spyOn(SensorMapper, 'toResponseDto').mockReturnValue({
+        id: 1,
+        nombre: 'Sensor 1',
+        estado: EstadoSensor.INACTIVO,
+        loteId: null,
+      } as any);
 
-      const result = await service.remove(
-        1,
-        validTenant,
-      );
+      const result = await service.remove(1, validTenant);
 
-      expect(sensor.estado).toBe(
-        EstadoSensor.INACTIVO,
-      );
+      expect(sensor.estado).toBe(EstadoSensor.INACTIVO);
 
-      expect(sensorRepoMock.save).toHaveBeenCalledWith(
-        sensor,
-      );
+      expect(sensorRepoMock.save).toHaveBeenCalledWith(sensor);
 
       expect(result).toEqual(
         expect.objectContaining({
@@ -573,13 +511,11 @@ describe('SensorService', () => {
 
       sensorRepoMock.findOne.mockResolvedValue(sensor);
 
-      await expect(
-        service.remove(1, validTenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.remove(1, validTenant)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      expect(
-        historialRepoMock.findUltimoPorSensor,
-      ).not.toHaveBeenCalled();
+      expect(historialRepoMock.findUltimoPorSensor).not.toHaveBeenCalled();
 
       expect(sensorRepoMock.save).not.toHaveBeenCalled();
     });
@@ -596,9 +532,9 @@ describe('SensorService', () => {
         loteIdNuevo: 100,
       });
 
-      await expect(
-        service.remove(1, validTenant),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.remove(1, validTenant)).rejects.toThrow(
+        ConflictException,
+      );
 
       expect(sensorRepoMock.save).not.toHaveBeenCalled();
     });
@@ -628,27 +564,18 @@ describe('SensorService', () => {
         loteIdNuevo: 50,
       });
 
-      jest
-        .spyOn(SensorMapper, 'toResponseDto')
-        .mockReturnValue({
-          id: 1,
-          nombre: 'Sensor 1',
-          estado: EstadoSensor.ACTIVO,
-          loteId: 50,
-        } as any);
+      jest.spyOn(SensorMapper, 'toResponseDto').mockReturnValue({
+        id: 1,
+        nombre: 'Sensor 1',
+        estado: EstadoSensor.ACTIVO,
+        loteId: 50,
+      } as any);
 
-      const result = await service.activar(
-        1,
-        validTenant,
-      );
+      const result = await service.activar(1, validTenant);
 
-      expect(sensor.estado).toBe(
-        EstadoSensor.ACTIVO,
-      );
+      expect(sensor.estado).toBe(EstadoSensor.ACTIVO);
 
-      expect(sensorRepoMock.save).toHaveBeenCalledWith(
-        sensor,
-      );
+      expect(sensorRepoMock.save).toHaveBeenCalledWith(sensor);
 
       expect(result).toEqual(
         expect.objectContaining({
@@ -666,9 +593,9 @@ describe('SensorService', () => {
 
       sensorRepoMock.findOne.mockResolvedValue(sensor);
 
-      await expect(
-        service.activar(1, validTenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.activar(1, validTenant)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(sensorRepoMock.save).not.toHaveBeenCalled();
     });
@@ -676,9 +603,9 @@ describe('SensorService', () => {
     it('debe lanzar NotFoundException si el sensor no existe', async () => {
       sensorRepoMock.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.activar(99, validTenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.activar(99, validTenant)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(sensorRepoMock.save).not.toHaveBeenCalled();
     });
@@ -707,9 +634,7 @@ describe('SensorService', () => {
 
       loteRepoMock.findById.mockResolvedValue(lote);
 
-      sensorRepoMock.findOne.mockResolvedValue(
-        sensor,
-      );
+      sensorRepoMock.findOne.mockResolvedValue(sensor);
 
       historialRepoMock.findUltimoPorSensor.mockResolvedValue({
         loteIdNuevo: 2,
@@ -719,13 +644,11 @@ describe('SensorService', () => {
         ubicacionNueva: 'Bodega A',
       });
 
-      jest
-        .spyOn(SensorMapper, 'toResponseDto')
-        .mockReturnValue({
-          id: 1,
-          nombre: 'Sensor 1',
-          loteId: loteId,
-        } as any);
+      jest.spyOn(SensorMapper, 'toResponseDto').mockReturnValue({
+        id: 1,
+        nombre: 'Sensor 1',
+        loteId: loteId,
+      } as any);
 
       const result = await service.asociarALote(
         loteId,
@@ -734,23 +657,13 @@ describe('SensorService', () => {
         validTenant,
       );
 
-      expect(loteRepoMock.findById).toHaveBeenCalledWith(
-        loteId,
-        10,
-      );
+      expect(loteRepoMock.findById).toHaveBeenCalledWith(loteId, 10);
 
-      expect(sensorRepoMock.findOne).toHaveBeenCalledWith(
-        1,
-        10,
-      );
+      expect(sensorRepoMock.findOne).toHaveBeenCalledWith(1, 10);
 
-      expect(
-        historialRepoMock.create,
-      ).toHaveBeenCalledTimes(1);
+      expect(historialRepoMock.create).toHaveBeenCalledTimes(1);
 
-      expect(
-        loteUbicacionRepoMock.create,
-      ).toHaveBeenCalledTimes(1);
+      expect(loteUbicacionRepoMock.create).toHaveBeenCalledTimes(1);
 
       expect(result).toHaveLength(1);
 
@@ -766,21 +679,12 @@ describe('SensorService', () => {
       loteRepoMock.findById.mockResolvedValue(null);
 
       await expect(
-        service.asociarALote(
-          loteId,
-          [1],
-          usuarioId,
-          validTenant,
-        ),
+        service.asociarALote(loteId, [1], usuarioId, validTenant),
       ).rejects.toThrow(NotFoundException);
 
-      expect(
-        sensorRepoMock.findOne,
-      ).not.toHaveBeenCalled();
+      expect(sensorRepoMock.findOne).not.toHaveBeenCalled();
 
-      expect(
-        historialRepoMock.create,
-      ).not.toHaveBeenCalled();
+      expect(historialRepoMock.create).not.toHaveBeenCalled();
     });
   });
 
@@ -803,33 +707,22 @@ describe('SensorService', () => {
         },
       ];
 
-      historialRepoMock.findBySensor.mockResolvedValue(
-        historial,
+      historialRepoMock.findBySensor.mockResolvedValue(historial);
+
+      jest.spyOn(SensorMapper, 'historialToResponseDto').mockImplementation(
+        (item: any) =>
+          ({
+            id: item.id,
+            sensorId: item.sensorId,
+            loteIdNuevo: item.loteIdNuevo,
+          }) as any,
       );
 
-      jest
-        .spyOn(
-          SensorMapper,
-          'historialToResponseDto',
-        )
-        .mockImplementation((item: any) => ({
-          id: item.id,
-          sensorId: item.sensorId,
-          loteIdNuevo: item.loteIdNuevo,
-        }) as any);
+      const result = await service.historialPorSensor(1, validTenant);
 
-      const result = await service.historialPorSensor(
-        1,
-        validTenant,
-      );
+      expect(historialRepoMock.findBySensor).toHaveBeenCalledWith(1, 10);
 
-      expect(
-        historialRepoMock.findBySensor,
-      ).toHaveBeenCalledWith(1, 10);
-
-      expect(
-        SensorMapper.historialToResponseDto,
-      ).toHaveBeenCalledTimes(2);
+      expect(SensorMapper.historialToResponseDto).toHaveBeenCalledTimes(2);
 
       expect(result).toHaveLength(2);
 

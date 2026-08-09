@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserService } from '../user.service';
@@ -30,11 +34,18 @@ import * as bcrypt from 'bcrypt';
 const bcryptHash = bcrypt.hash as jest.Mock;
 
 function buildEmpresa(overrides: Partial<Empresa> = {}): Empresa {
-  return { id: 1, name: 'Lacteos Norte', plan: 'starter' } as Empresa & typeof overrides;
+  return { id: 1, name: 'Lacteos Norte', plan: 'starter' } as Empresa &
+    typeof overrides;
 }
 
 function buildRol(overrides: Partial<Rol> = {}): Rol {
-  return { id: 2, nombre: 'GERENTE', isActive: true, permisos: [], ...overrides } as Rol;
+  return {
+    id: 2,
+    nombre: 'GERENTE',
+    isActive: true,
+    permisos: [],
+    ...overrides,
+  } as Rol;
 }
 
 function buildUser(overrides: Partial<User> = {}): User {
@@ -109,7 +120,10 @@ describe('UserService', () => {
       providers: [
         UserService,
         { provide: USER_REPOSITORY, useValue: mockUserRepository },
-        { provide: getRepositoryToken(Empresa), useValue: mockEmpresaTypeormRepo },
+        {
+          provide: getRepositoryToken(Empresa),
+          useValue: mockEmpresaTypeormRepo,
+        },
         { provide: getRepositoryToken(Rol), useValue: mockRolTypeormRepo },
         { provide: EmpresaService, useValue: mockEmpresaService },
       ],
@@ -153,9 +167,9 @@ describe('UserService', () => {
     it('lanza NotFoundException si la empresa indicada no existe', async () => {
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(null);
 
-      await expect(service.create(buildCreateDto(), tenantAdministrador)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.create(buildCreateDto(), tenantAdministrador),
+      ).rejects.toThrow(NotFoundException);
       expect(mockUserRepository.createUser).not.toHaveBeenCalled();
     });
 
@@ -163,9 +177,9 @@ describe('UserService', () => {
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
       mockRolTypeormRepo.findOneBy.mockResolvedValue(null);
 
-      await expect(service.create(buildCreateDto(), tenantAdministrador)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.create(buildCreateDto(), tenantAdministrador),
+      ).rejects.toThrow(NotFoundException);
       expect(mockUserRepository.createUser).not.toHaveBeenCalled();
     });
 
@@ -175,9 +189,9 @@ describe('UserService', () => {
       mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
       mockUserRepository.countByEmpresa.mockResolvedValue(5);
 
-      await expect(service.create(buildCreateDto(), tenantAdministrador)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.create(buildCreateDto(), tenantAdministrador),
+      ).rejects.toThrow(BadRequestException);
       expect(mockUserRepository.createUser).not.toHaveBeenCalled();
     });
 
@@ -188,7 +202,9 @@ describe('UserService', () => {
       mockUserRepository.countByEmpresa.mockResolvedValue(4);
       mockUserRepository.createUser.mockResolvedValue(buildUser());
 
-      await expect(service.create(buildCreateDto(), tenantAdministrador)).resolves.toBeDefined();
+      await expect(
+        service.create(buildCreateDto(), tenantAdministrador),
+      ).resolves.toBeDefined();
       expect(mockUserRepository.createUser).toHaveBeenCalled();
     });
 
@@ -206,12 +222,16 @@ describe('UserService', () => {
 
     it('permite a un Gerente asignar un rol que no sea Administrador', async () => {
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol({ nombre: ROLES.GERENTE }));
+      mockRolTypeormRepo.findOneBy.mockResolvedValue(
+        buildRol({ nombre: ROLES.GERENTE }),
+      );
       mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
       mockUserRepository.countByEmpresa.mockResolvedValue(0);
       mockUserRepository.createUser.mockResolvedValue(buildUser());
 
-      await expect(service.create(buildCreateDto(), tenantGerente)).resolves.toBeDefined();
+      await expect(
+        service.create(buildCreateDto(), tenantGerente),
+      ).resolves.toBeDefined();
       expect(mockUserRepository.createUser).toHaveBeenCalled();
     });
 
@@ -227,21 +247,18 @@ describe('UserService', () => {
         buildUser({ rol: nuevoRol }),
       );
 
-      await service.update(
-        10,
-        { rolId: 3 },
-        tenantGerente,
-      );
+      await service.update(10, { rolId: 3 }, tenantGerente);
 
-      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(
-        10,
-        { rol: nuevoRol },
-      );
+      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
+        rol: nuevoRol,
+      });
     });
 
     it('ignora el empresaId del body y fuerza el de su propio tenant cuando quien crea es Gerente', async () => {
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol({ nombre: ROLES.GERENTE }));
+      mockRolTypeormRepo.findOneBy.mockResolvedValue(
+        buildRol({ nombre: ROLES.GERENTE }),
+      );
       mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
       mockUserRepository.countByEmpresa.mockResolvedValue(0);
       mockUserRepository.createUser.mockResolvedValue(buildUser());
@@ -255,13 +272,18 @@ describe('UserService', () => {
     });
 
     it('respeta el empresaId del body cuando quien crea es Administrador', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa({ id: 7 } as never));
+      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(
+        buildEmpresa({ id: 7 } as never),
+      );
       mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol());
       mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
       mockUserRepository.countByEmpresa.mockResolvedValue(0);
       mockUserRepository.createUser.mockResolvedValue(buildUser());
 
-      await service.create(buildCreateDto({ empresaId: 7 }), tenantAdministrador);
+      await service.create(
+        buildCreateDto({ empresaId: 7 }),
+        tenantAdministrador,
+      );
 
       expect(mockEmpresaTypeormRepo.findOneBy).toHaveBeenCalledWith({ id: 7 });
       expect(mockEmpresaService.getLimiteUsuarios).toHaveBeenCalledWith(7);
@@ -269,11 +291,14 @@ describe('UserService', () => {
     });
 
     it('lanza ForbiddenException si un tenant sin empresa asociada intenta crear un usuario', async () => {
-      const tenantSinEmpresa: TenantContext = { empresaId: null, rolNombre: ROLES.GERENTE };
+      const tenantSinEmpresa: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.GERENTE,
+      };
 
-      await expect(service.create(buildCreateDto(), tenantSinEmpresa)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.create(buildCreateDto(), tenantSinEmpresa),
+      ).rejects.toThrow(ForbiddenException);
       expect(mockUserRepository.createUser).not.toHaveBeenCalled();
     });
   });
@@ -293,10 +318,7 @@ describe('UserService', () => {
         2,
       ]);
 
-      const result = await service.findAll(
-        tenantAdministrador,
-        query,
-      );
+      const result = await service.findAll(tenantAdministrador, query);
 
       expect(mockUserRepository.findAllPaginated).toHaveBeenCalledWith(
         tenantAdministrador,
@@ -326,10 +348,7 @@ describe('UserService', () => {
 
       mockUserRepository.findAllPaginated.mockResolvedValue([[], 0]);
 
-      await service.findAll(
-        tenantGerente,
-        query,
-      );
+      await service.findAll(tenantGerente, query);
 
       expect(mockUserRepository.findAllPaginated).toHaveBeenCalledWith(
         tenantGerente,
@@ -340,14 +359,18 @@ describe('UserService', () => {
     });
   });
 
- describe('findOne', () => {
+  describe('findOne', () => {
     it('lanza NotFoundException si el usuario no existe', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
-      await expect(service.findOne(999, tenantGerente)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(999, tenantGerente)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('devuelve el usuario mapeado cuando existe y pertenece al tenant', async () => {
-      mockUserRepository.findById.mockResolvedValue(buildUser({ empresa: { id: 1 } as any }));
+      mockUserRepository.findById.mockResolvedValue(
+        buildUser({ empresa: { id: 1 } as any }),
+      );
       const result = await service.findOne(10, tenantGerente);
       expect(result.id).toBe(10);
     });
@@ -355,9 +378,13 @@ describe('UserService', () => {
     // TEST DE AISLAMIENTO (CP-08 / CP-09)
     it('lanza NotFoundException si el usuario existe pero pertenece a otra empresa', async () => {
       // El usuario encontrado es de la empresa 2, pero el tenant es de la empresa 1
-      mockUserRepository.findById.mockResolvedValue(buildUser({ empresa: { id: 2 } as any }));
-      
-      await expect(service.findOne(10, tenantGerente)).rejects.toThrow(NotFoundException);
+      mockUserRepository.findById.mockResolvedValue(
+        buildUser({ empresa: { id: 2 } as any }),
+      );
+
+      await expect(service.findOne(10, tenantGerente)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -365,15 +392,17 @@ describe('UserService', () => {
     it('lanza NotFoundException si el usuario no existe', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
 
-      await expect(service.update(999, { name: 'x' }, tenantAdministrador)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.update(999, { name: 'x' }, tenantAdministrador),
+      ).rejects.toThrow(NotFoundException);
       expect(mockUserRepository.updateUser).not.toHaveBeenCalled();
     });
 
     it('deberia actualizar nombre y email cuando vienen en el DTO', async () => {
       mockUserRepository.findById.mockResolvedValue(buildUser());
-      mockUserRepository.updateUser.mockResolvedValue(buildUser({ name: 'Nuevo nombre' }));
+      mockUserRepository.updateUser.mockResolvedValue(
+        buildUser({ name: 'Nuevo nombre' }),
+      );
 
       await service.update(
         10,
@@ -391,7 +420,11 @@ describe('UserService', () => {
       mockUserRepository.findById.mockResolvedValue(buildUser());
       mockUserRepository.updateUser.mockResolvedValue(buildUser());
 
-      await service.update(10, { password: 'nuevaPasswordSegura' }, tenantAdministrador);
+      await service.update(
+        10,
+        { password: 'nuevaPasswordSegura' },
+        tenantAdministrador,
+      );
 
       expect(bcryptHash).toHaveBeenCalledWith('nuevaPasswordSegura', 10);
       expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
@@ -406,19 +439,25 @@ describe('UserService', () => {
       await service.update(10, { name: 'Solo nombre' }, tenantAdministrador);
 
       expect(bcryptHash).not.toHaveBeenCalled();
-      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, { name: 'Solo nombre' });
+      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
+        name: 'Solo nombre',
+      });
     });
 
     it('deberia cambiar el rol del usuario resolviendolo por rolId', async () => {
       const nuevoRol = buildRol({ id: 3, nombre: ROLES.ADMINISTRADOR });
       mockUserRepository.findById.mockResolvedValue(buildUser());
       mockRolTypeormRepo.findOneBy.mockResolvedValue(nuevoRol);
-      mockUserRepository.updateUser.mockResolvedValue(buildUser({ rol: nuevoRol }));
+      mockUserRepository.updateUser.mockResolvedValue(
+        buildUser({ rol: nuevoRol }),
+      );
 
       await service.update(10, { rolId: 3 }, tenantAdministrador);
 
       expect(mockRolTypeormRepo.findOneBy).toHaveBeenCalledWith({ id: 3 });
-      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, { rol: nuevoRol });
+      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
+        rol: nuevoRol,
+      });
     });
 
     it('lanza NotFoundException si el nuevo rol no existe', async () => {
@@ -432,15 +471,22 @@ describe('UserService', () => {
     });
 
     it('deberia cambiar la empresa del usuario resolviendola por empresaId', async () => {
-      const nuevaEmpresa = buildEmpresa({ id: 2, name: 'Lacteos Sur' } as never);
+      const nuevaEmpresa = buildEmpresa({
+        id: 2,
+        name: 'Lacteos Sur',
+      } as never);
       mockUserRepository.findById.mockResolvedValue(buildUser());
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(nuevaEmpresa);
-      mockUserRepository.updateUser.mockResolvedValue(buildUser({ empresa: nuevaEmpresa }));
+      mockUserRepository.updateUser.mockResolvedValue(
+        buildUser({ empresa: nuevaEmpresa }),
+      );
 
       await service.update(10, { empresaId: 2 }, tenantAdministrador);
 
       expect(mockEmpresaTypeormRepo.findOneBy).toHaveBeenCalledWith({ id: 2 });
-      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, { empresa: nuevaEmpresa });
+      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
+        empresa: nuevaEmpresa,
+      });
     });
 
     it('lanza NotFoundException si la nueva empresa no existe', async () => {
@@ -467,42 +513,60 @@ describe('UserService', () => {
 
   describe('activate / deactivate - HU-07', () => {
     it('deactivate deberia togglear isActive a false', async () => {
-      mockUserRepository.findById.mockResolvedValue(buildUser({ isActive: true }));
-      mockUserRepository.updateUser.mockResolvedValue(buildUser({ isActive: false }));
+      mockUserRepository.findById.mockResolvedValue(
+        buildUser({ isActive: true }),
+      );
+      mockUserRepository.updateUser.mockResolvedValue(
+        buildUser({ isActive: false }),
+      );
 
       // Agregamos tenantGerente como segundo argumento
       const result = await service.deactivate(10, tenantGerente);
 
-      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, { isActive: false });
+      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
+        isActive: false,
+      });
       expect(result.isActive).toBe(false);
     });
 
     it('deactivate lanza NotFoundException si el usuario no existe', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
       // Agregamos tenantGerente
-      await expect(service.deactivate(999, tenantGerente)).rejects.toThrow(NotFoundException);
+      await expect(service.deactivate(999, tenantGerente)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('activate deberia togglear isActive a true', async () => {
-      mockUserRepository.findById.mockResolvedValue(buildUser({ isActive: false }));
-      mockUserRepository.updateUser.mockResolvedValue(buildUser({ isActive: true }));
+      mockUserRepository.findById.mockResolvedValue(
+        buildUser({ isActive: false }),
+      );
+      mockUserRepository.updateUser.mockResolvedValue(
+        buildUser({ isActive: true }),
+      );
 
       // Agregamos tenantGerente
       const result = await service.activate(10, tenantGerente);
 
-      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, { isActive: true });
+      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
+        isActive: true,
+      });
       expect(result.isActive).toBe(true);
     });
 
     it('activate lanza NotFoundException si el usuario no existe', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
       // Agregamos tenantGerente
-      await expect(service.activate(999, tenantGerente)).rejects.toThrow(NotFoundException);
+      await expect(service.activate(999, tenantGerente)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     describe('unlock', () => {
       it('deberia resetear los intentos fallidos y desbloquear al usuario', async () => {
-        mockUserRepository.findById.mockResolvedValue(buildUser({ failedLoginAttempts: 5 }));
+        mockUserRepository.findById.mockResolvedValue(
+          buildUser({ failedLoginAttempts: 5 }),
+        );
         mockUserRepository.resetFailedAttempts.mockResolvedValue(undefined);
 
         // Agregamos tenantGerente
@@ -514,7 +578,9 @@ describe('UserService', () => {
       it('lanza NotFoundException si el usuario no existe', async () => {
         mockUserRepository.findById.mockResolvedValue(null);
         // Agregamos tenantGerente
-        await expect(service.unlock(999, tenantGerente)).rejects.toThrow(NotFoundException);
+        await expect(service.unlock(999, tenantGerente)).rejects.toThrow(
+          NotFoundException,
+        );
       });
     });
   });

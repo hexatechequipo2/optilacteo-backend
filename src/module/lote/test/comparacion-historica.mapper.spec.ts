@@ -13,7 +13,7 @@ describe('ComparacionHistoricaMapper', () => {
       id: 10,
       parametros: [
         { parametro: 'HUMEDAD', valor: 15 }, // Promedio será 10 -> Desviación: +50% (supera 10%)
-        { parametro: 'GRASA', valor: 3.8 },  // Promedio será 4.0 -> Desviación: -5% (no supera)
+        { parametro: 'GRASA', valor: 3.8 }, // Promedio será 4.0 -> Desviación: -5% (no supera)
       ],
     } as unknown as Lote;
 

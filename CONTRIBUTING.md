@@ -78,13 +78,13 @@ Si algo no está claro, preguntame antes de asumir.
 
 ### Credenciales compartidas del equipo
 
-| Parámetro | Valor |
-|-----------|-------|
+| Parámetro     | Valor            |
+| ------------- | ---------------- |
 | Base de datos | `optilacteo_dev` |
-| Usuario | `hexatech` |
-| Contraseña | `hexatech2026` |
-| Puerto | `5432` |
-| Host | `localhost` |
+| Usuario       | `hexatech`       |
+| Contraseña    | `hexatech2026`   |
+| Puerto        | `5432`           |
+| Host          | `localhost`      |
 
 ### Paso 1 — Crear usuario y base de datos (una sola vez)
 
@@ -160,28 +160,28 @@ main          ← baseline oficial. Solo recibe merges desde develop al cierre d
 
 Respetá este orden para evitar bloqueos por dependencias:
 
-| # | Rama | Por qué va en este orden |
-|---|------|--------------------------|
-| 1 | `feature/saas-gestion-empresas` | Primero: define la entidad `Empresa` y el `tenant_id` base |
-| 2 | `feature/saas-aislamiento-datos` | Depende de `Empresa` — aplica `tenant_id` a todas las tablas |
-| 3 | `feature/auth-gestion-usuarios` | Depende de `Empresa` — el usuario pertenece a un tenant |
-| 4 | `feature/auth-roles-permisos` | Depende de `Usuario` |
-| 5 | `feature/auth-inicio-sesion` | Depende de `Usuario` + `Roles` |
-| 6 | `feature/auth-reset-password` | Depende de `Usuario` |
-| 7 | `feature/auth-cierre-sesion` | Depende de `auth-inicio-sesion` |
-| 8 | `feature/auth-cierre-inactividad` | Depende de `auth-cierre-sesion` |
-| 9 | `feature/auth-bloqueo-intentos` | Depende de `auth-inicio-sesion` |
+| #   | Rama                              | Por qué va en este orden                                     |
+| --- | --------------------------------- | ------------------------------------------------------------ |
+| 1   | `feature/saas-gestion-empresas`   | Primero: define la entidad `Empresa` y el `tenant_id` base   |
+| 2   | `feature/saas-aislamiento-datos`  | Depende de `Empresa` — aplica `tenant_id` a todas las tablas |
+| 3   | `feature/auth-gestion-usuarios`   | Depende de `Empresa` — el usuario pertenece a un tenant      |
+| 4   | `feature/auth-roles-permisos`     | Depende de `Usuario`                                         |
+| 5   | `feature/auth-inicio-sesion`      | Depende de `Usuario` + `Roles`                               |
+| 6   | `feature/auth-reset-password`     | Depende de `Usuario`                                         |
+| 7   | `feature/auth-cierre-sesion`      | Depende de `auth-inicio-sesion`                              |
+| 8   | `feature/auth-cierre-inactividad` | Depende de `auth-cierre-sesion`                              |
+| 9   | `feature/auth-bloqueo-intentos`   | Depende de `auth-inicio-sesion`                              |
 
 > 💡 Las ramas sin dependencia entre sí pueden trabajarse en paralelo por distintos integrantes.
 
 ### Reglas de ramas
 
-| Rama | Push directo | Cómo entran los cambios |
-|------|-------------|------------------------|
-| `main` | ❌ Nunca | Solo PR aprobado desde `develop` al cierre del Sprint |
-| `develop` | ❌ Nunca | Solo PR aprobado desde `feature/*` o `fix/*` |
-| `feature/*` | ✅ El integrante asignado | Push directo, luego PR hacia `develop` |
-| `fix/*` | ✅ El integrante asignado | Push directo, luego PR hacia `develop` |
+| Rama        | Push directo              | Cómo entran los cambios                               |
+| ----------- | ------------------------- | ----------------------------------------------------- |
+| `main`      | ❌ Nunca                  | Solo PR aprobado desde `develop` al cierre del Sprint |
+| `develop`   | ❌ Nunca                  | Solo PR aprobado desde `feature/*` o `fix/*`          |
+| `feature/*` | ✅ El integrante asignado | Push directo, luego PR hacia `develop`                |
+| `fix/*`     | ✅ El integrante asignado | Push directo, luego PR hacia `develop`                |
 
 ---
 
@@ -247,13 +247,13 @@ src/
 
 ### Responsabilidades por capa
 
-| Capa | Hace | NO hace |
-|------|------|---------|
+| Capa           | Hace                                                                 | NO hace                        |
+| -------------- | -------------------------------------------------------------------- | ------------------------------ |
 | **Controller** | Recibe request, valida DTO, llama al Service, devuelve response HTTP | Lógica de negocio, acceso a BD |
-| **Service** | Implementa reglas de negocio, orquesta repositorios | Manejar HTTP, SQL directo |
-| **Repository** | Consultas a la BD via TypeORM | Reglas de negocio, HTTP |
-| **Entity** | Mapeo de tabla con decoradores TypeORM | Métodos de negocio |
-| **DTO** | Validar y tipar datos de entrada/salida | Persistencia, lógica |
+| **Service**    | Implementa reglas de negocio, orquesta repositorios                  | Manejar HTTP, SQL directo      |
+| **Repository** | Consultas a la BD via TypeORM                                        | Reglas de negocio, HTTP        |
+| **Entity**     | Mapeo de tabla con decoradores TypeORM                               | Métodos de negocio             |
+| **DTO**        | Validar y tipar datos de entrada/salida                              | Persistencia, lógica           |
 
 ### Campos obligatorios en TODAS las entidades
 
@@ -308,9 +308,9 @@ src/
 ```typescript
 // src/modules/auth/enums/rol.enum.ts
 export enum Rol {
-  ADMIN         = 'ADMIN',
+  ADMIN = 'ADMIN',
   JEFE_PRODUCCION = 'JEFE_PRODUCCION',
-  OPERARIO      = 'OPERARIO',
+  OPERARIO = 'OPERARIO',
 }
 ```
 
@@ -318,8 +318,8 @@ export enum Rol {
 // src/modules/alertas/enums/nivel-alerta.enum.ts
 export enum NivelAlerta {
   INFORMATIVA = 'INFORMATIVA',
-  PREVENTIVA  = 'PREVENTIVA',
-  CRITICA     = 'CRITICA',
+  PREVENTIVA = 'PREVENTIVA',
+  CRITICA = 'CRITICA',
 }
 ```
 
@@ -342,7 +342,6 @@ rol: Rol;
 rol: Rol;
 ```
 
-
 ## 7. Mappers
 
 Los mappers convierten entre `Entity` (lo que viene de la BD) y `DTO` (lo que se expone o recibe por la API). Toda conversión va en `mappers/` — nunca en el Service ni en el Controller.
@@ -355,26 +354,25 @@ import { UsuarioEntity } from '../entities/usuario.entity';
 import { UsuarioDto } from '../dto/usuario.dto';
 
 export class UsuarioMapper {
-
   // Convierte la entidad de BD al DTO que se expone en la API
   static toDto(entity: UsuarioEntity): UsuarioDto {
     return {
-      id:        entity.id,
-      nombre:    entity.nombre,
-      email:     entity.email,
-      rol:       entity.rol,
+      id: entity.id,
+      nombre: entity.nombre,
+      email: entity.email,
+      rol: entity.rol,
       empresaId: entity.tenant_id,
-      activo:    entity.deleted_at === null,
-      creadoEn:  entity.created_at,
+      activo: entity.deleted_at === null,
+      creadoEn: entity.created_at,
     };
   }
 
   // Convierte el DTO de creación a entidad para persistir en la BD
   static toEntity(dto: CreateUsuarioDto): Partial<UsuarioEntity> {
     return {
-      nombre:    dto.nombre,
-      email:     dto.email,
-      rol:       dto.rolId,
+      nombre: dto.nombre,
+      email: dto.email,
+      rol: dto.rolId,
       tenant_id: dto.empresaId,
     };
   }
@@ -415,6 +413,7 @@ NestJS incluye Jest por defecto. Cada clase con lógica debe tener su `.spec.ts`
 Los tests deben validar **comportamiento real desde la perspectiva del usuario**, no simplemente que un método existe o que devuelve algo genérico. Cada test debe responder a la pregunta: **¿qué espera el usuario que pase cuando hace X?**
 
 ❌ Test que no valida nada útil:
+
 ```
 it('login debe funcionar', () => {
   expect(service).toBeDefined();
@@ -422,6 +421,7 @@ it('login debe funcionar', () => {
 ```
 
 ✅ Test que valida comportamiento real:
+
 ```
 it('cuando el usuario ingresa credenciales correctas, debe recibir un token JWT', ...)
 it('cuando el email no existe, debe lanzar UnauthorizedException', ...)
@@ -431,10 +431,10 @@ it('cuando la cuenta está bloqueada, debe lanzar ForbiddenException', ...)
 
 ### Archivos de test
 
-| Archivo | Qué testea |
-|---------|-----------|
-| `<modulo>.service.spec.ts` | Comportamiento de negocio del Service (repositorio mockeado) |
-| `<modulo>.controller.spec.ts` | Que el Controller delega correctamente al Service |
+| Archivo                       | Qué testea                                                   |
+| ----------------------------- | ------------------------------------------------------------ |
+| `<modulo>.service.spec.ts`    | Comportamiento de negocio del Service (repositorio mockeado) |
+| `<modulo>.controller.spec.ts` | Que el Controller delega correctamente al Service            |
 
 > El repositorio **siempre se mockea** — nunca se conecta a la BD real en tests unitarios.
 
@@ -468,7 +468,7 @@ describe('AuthService — inicio de sesión', () => {
       providers: [
         AuthService,
         { provide: IUsuarioRepository, useValue: mockUsuarioRepository },
-        { provide: JwtService,          useValue: mockJwtService },
+        { provide: JwtService, useValue: mockJwtService },
       ],
     }).compile();
 
@@ -481,18 +481,18 @@ describe('AuthService — inicio de sesión', () => {
     // Arrange — simulamos un usuario activo en la BD con contraseña hasheada
     const passwordHash = await bcrypt.hash('miPassword123', 10);
     mockUsuarioRepository.findByEmail.mockResolvedValue({
-      id:            'usuario-uuid-1',
-      email:         'operario@lacteo.com',
+      id: 'usuario-uuid-1',
+      email: 'operario@lacteo.com',
       password_hash: passwordHash,
-      estado:        EstadoUsuario.ACTIVO,
-      tenant_id:     'empresa-uuid-1',
-      rol:           'OPERARIO',
+      estado: EstadoUsuario.ACTIVO,
+      tenant_id: 'empresa-uuid-1',
+      rol: 'OPERARIO',
     });
     mockJwtService.sign.mockReturnValue('jwt.token.generado');
 
     // Act — el usuario intenta loguearse
     const resultado = await service.login({
-      email:    'operario@lacteo.com',
+      email: 'operario@lacteo.com',
       password: 'miPassword123',
     });
 
@@ -508,7 +508,7 @@ describe('AuthService — inicio de sesión', () => {
 
     // Act & Assert — no debe dar pistas de si el email existe o no (seguridad)
     await expect(
-      service.login({ email: 'noexiste@lacteo.com', password: 'cualquiera' })
+      service.login({ email: 'noexiste@lacteo.com', password: 'cualquiera' }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
@@ -516,48 +516,57 @@ describe('AuthService — inicio de sesión', () => {
     // Arrange — el usuario existe pero la contraseña no coincide
     const passwordHash = await bcrypt.hash('passwordCorrecto', 10);
     mockUsuarioRepository.findByEmail.mockResolvedValue({
-      id:            'usuario-uuid-1',
-      email:         'operario@lacteo.com',
+      id: 'usuario-uuid-1',
+      email: 'operario@lacteo.com',
       password_hash: passwordHash,
-      estado:        EstadoUsuario.ACTIVO,
-      tenant_id:     'empresa-uuid-1',
+      estado: EstadoUsuario.ACTIVO,
+      tenant_id: 'empresa-uuid-1',
     });
 
     // Act & Assert
     await expect(
-      service.login({ email: 'operario@lacteo.com', password: 'passwordIncorrecto' })
+      service.login({
+        email: 'operario@lacteo.com',
+        password: 'passwordIncorrecto',
+      }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
   it('cuando la cuenta está bloqueada por intentos fallidos, debe lanzar ForbiddenException', async () => {
     // Arrange — usuario con estado BLOQUEADO
     mockUsuarioRepository.findByEmail.mockResolvedValue({
-      id:            'usuario-uuid-1',
-      email:         'operario@lacteo.com',
+      id: 'usuario-uuid-1',
+      email: 'operario@lacteo.com',
       password_hash: 'hash',
-      estado:        EstadoUsuario.BLOQUEADO,
-      tenant_id:     'empresa-uuid-1',
+      estado: EstadoUsuario.BLOQUEADO,
+      tenant_id: 'empresa-uuid-1',
     });
 
     // Act & Assert — debe rechazar el acceso con mensaje claro
     await expect(
-      service.login({ email: 'operario@lacteo.com', password: 'miPassword123' })
+      service.login({
+        email: 'operario@lacteo.com',
+        password: 'miPassword123',
+      }),
     ).rejects.toThrow(ForbiddenException);
   });
 
   it('cuando la cuenta está inactiva, debe lanzar ForbiddenException', async () => {
     // Arrange — usuario dado de baja lógica
     mockUsuarioRepository.findByEmail.mockResolvedValue({
-      id:            'usuario-uuid-1',
-      email:         'operario@lacteo.com',
+      id: 'usuario-uuid-1',
+      email: 'operario@lacteo.com',
       password_hash: 'hash',
-      estado:        EstadoUsuario.INACTIVO,
-      tenant_id:     'empresa-uuid-1',
+      estado: EstadoUsuario.INACTIVO,
+      tenant_id: 'empresa-uuid-1',
     });
 
     // Act & Assert
     await expect(
-      service.login({ email: 'operario@lacteo.com', password: 'miPassword123' })
+      service.login({
+        email: 'operario@lacteo.com',
+        password: 'miPassword123',
+      }),
     ).rejects.toThrow(ForbiddenException);
   });
 });
@@ -587,25 +596,28 @@ npm run test:cov      # con cobertura
 
 ### Nomenclatura
 
-| Elemento | Convención | Ejemplo |
-|----------|-----------|---------|
-| Clases / Entidades / DTOs | `PascalCase` | `EmpresaEntity`, `CreateEmpresaDto` |
-| Variables / Funciones / Métodos | `camelCase` | `tenantId`, `findAllActive()` |
-| Constantes | `UPPER_SNAKE_CASE` | `MAX_LOGIN_ATTEMPTS` |
-| Archivos | `kebab-case` | `empresa.service.ts` |
-| Tablas en BD | `snake_case` plural | `empresas`, `usuarios` |
-| Columnas en BD | `snake_case` | `tenant_id`, `deleted_at` |
-| Rutas de API | `kebab-case` plural | `/api/v1/empresas`, `/api/v1/usuarios` |
-| Interfaces | `I` + `PascalCase` | `IEmpresaRepository` |
+| Elemento                        | Convención          | Ejemplo                                |
+| ------------------------------- | ------------------- | -------------------------------------- |
+| Clases / Entidades / DTOs       | `PascalCase`        | `EmpresaEntity`, `CreateEmpresaDto`    |
+| Variables / Funciones / Métodos | `camelCase`         | `tenantId`, `findAllActive()`          |
+| Constantes                      | `UPPER_SNAKE_CASE`  | `MAX_LOGIN_ATTEMPTS`                   |
+| Archivos                        | `kebab-case`        | `empresa.service.ts`                   |
+| Tablas en BD                    | `snake_case` plural | `empresas`, `usuarios`                 |
+| Columnas en BD                  | `snake_case`        | `tenant_id`, `deleted_at`              |
+| Rutas de API                    | `kebab-case` plural | `/api/v1/empresas`, `/api/v1/usuarios` |
+| Interfaces                      | `I` + `PascalCase`  | `IEmpresaRepository`                   |
 
 ### Idioma
+
 - **Inglés**: variables, funciones, clases, rutas, columnas de BD.
 - **Español**: comentarios JSDoc, mensajes de commit, descripciones Swagger.
 
 ### Linter
+
 ```bash
 npx eslint . --fix   # correr antes de cada commit
 ```
+
 - Indentación: 2 espacios. Sin tabs.
 - Sin `console.log` → usar `Logger` de NestJS.
 - Máximo 1 clase por archivo.
@@ -618,16 +630,17 @@ npx eslint . --fix   # correr antes de cada commit
 <tipo>(<scope>): <descripción en español>
 ```
 
-| Tipo | Cuándo |
-|------|--------|
-| `feat` | Nueva funcionalidad |
-| `fix` | Corrección de bug |
-| `docs` | Documentación |
-| `test` | Tests |
+| Tipo       | Cuándo                                       |
+| ---------- | -------------------------------------------- |
+| `feat`     | Nueva funcionalidad                          |
+| `fix`      | Corrección de bug                            |
+| `docs`     | Documentación                                |
+| `test`     | Tests                                        |
 | `refactor` | Refactorización sin cambio de comportamiento |
-| `chore` | Mantenimiento, dependencias |
+| `chore`    | Mantenimiento, dependencias                  |
 
 ### Ejemplos correctos
+
 ```bash
 feat(saas): agregar entidad Empresa con tenant_id y soft delete
 feat(auth): agregar endpoint POST /auth/login con validación JWT
@@ -637,6 +650,7 @@ test(auth): agregar tests unitarios para AuthService
 ```
 
 ### Ejemplos incorrectos ❌
+
 ```bash
 "fix cosas"
 "wip"
@@ -649,31 +663,38 @@ feat: cambios    # sin scope
 
 ```markdown
 ## Descripción del cambio
+
 Qué se implementó y por qué.
 
 ## Issue relacionado
+
 Closes #<NNN>
 
 ## Tipo de cambio
-- [ ] feat  
-- [ ] fix  
-- [ ] refactor  
-- [ ] test  
+
+- [ ] feat
+- [ ] fix
+- [ ] refactor
+- [ ] test
 - [ ] chore
 
 ## Rama origen → destino
+
 `feature/<modulo>-<descripcion>` → `develop`
 
 ## Cambios realizados
+
 - `archivo1.ts`: descripción
 - `archivo2.ts`: descripción
 
 ## Pruebas realizadas
+
 - [ ] Tests unitarios pasando (`npm run test`)
 - [ ] Endpoint probado en Thunder Client / Postman
 - [ ] Sin defectos conocidos
 
 ## Checklist
+
 - [ ] Estructura Controller → Service → Repository respetada
 - [ ] Todas las entidades tienen `tenant_id` y `deleted_at`
 - [ ] Sin DELETE físico (soft delete con `deleted_at`)
@@ -732,12 +753,14 @@ rol_id, created_at, updated_at, deleted_at.
 ```
 
 ### ❌ Evitar
+
 ```
 "Haceme un CRUD de usuarios"         ← sin contexto del proyecto
 "Cómo hago login en Node"            ← sin mencionar NestJS ni JWT
 ```
 
 ### ✅ La IA siempre debe incluir
+
 - Dónde va cada archivo.
 - Imports explícitos.
 - Decoradores TypeORM y NestJS correctos.
@@ -746,5 +769,5 @@ rol_id, created_at, updated_at, deleted_at.
 
 ---
 
-*HexaTech — Equipo 2 | UTN FRVM | Proyecto Final 2026 | OptiLácteo*  
-*Cignetti · Milanesio · Romero · Toranzo · Torres | PO: Ing. Villafañe / Ing. Cassani*
+_HexaTech — Equipo 2 | UTN FRVM | Proyecto Final 2026 | OptiLácteo_  
+_Cignetti · Milanesio · Romero · Toranzo · Torres | PO: Ing. Villafañe / Ing. Cassani_

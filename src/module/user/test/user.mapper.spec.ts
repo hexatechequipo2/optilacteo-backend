@@ -9,7 +9,13 @@ function buildEmpresa(overrides: Partial<Empresa> = {}): Empresa {
 }
 
 function buildRol(overrides: Partial<Rol> = {}): Rol {
-  return { id: 2, nombre: 'GERENTE', isActive: true, permisos: [], ...overrides } as Rol;
+  return {
+    id: 2,
+    nombre: 'GERENTE',
+    isActive: true,
+    permisos: [],
+    ...overrides,
+  } as Rol;
 }
 
 function buildUser(overrides: Partial<User> = {}): User {
@@ -45,7 +51,12 @@ describe('UserMapper', () => {
       const empresa = buildEmpresa();
       const rol = buildRol();
 
-      const result = UserMapper.toEntity(dto, empresa, rol, 'hash_generado_por_bcrypt');
+      const result = UserMapper.toEntity(
+        dto,
+        empresa,
+        rol,
+        'hash_generado_por_bcrypt',
+      );
 
       expect(result).toEqual({
         name: 'Juan Pérez',
@@ -59,7 +70,12 @@ describe('UserMapper', () => {
     it('no deberia incluir la contraseña en texto plano del DTO en la entidad resultante', () => {
       const dto = buildCreateDto({ password: 'plainPassword123' });
 
-      const result = UserMapper.toEntity(dto, buildEmpresa(), buildRol(), 'hash_bcrypt');
+      const result = UserMapper.toEntity(
+        dto,
+        buildEmpresa(),
+        buildRol(),
+        'hash_bcrypt',
+      );
 
       expect(result.password).toBe('hash_bcrypt');
       expect(result.password).not.toBe('plainPassword123');

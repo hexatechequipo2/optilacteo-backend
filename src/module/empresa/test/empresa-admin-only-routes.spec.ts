@@ -9,15 +9,15 @@ describe('Metadata de @Roles en endpoints de Empresa/Planes', () => {
   });
 
   it('findAll (listado admin de empresas) requiere ROLES.ADMINISTRADOR', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, EmpresaController.prototype.findAll)).toEqual([
-      ROLES.ADMINISTRADOR,
-    ]);
+    expect(
+      Reflect.getMetadata(ROLES_KEY, EmpresaController.prototype.findAll),
+    ).toEqual([ROLES.ADMINISTRADOR]);
   });
 
   it('findOne requiere ROLES.ADMINISTRADOR', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, EmpresaController.prototype.findOne)).toEqual([
-      ROLES.ADMINISTRADOR,
-    ]);
+    expect(
+      Reflect.getMetadata(ROLES_KEY, EmpresaController.prototype.findOne),
+    ).toEqual([ROLES.ADMINISTRADOR]);
   });
 
   // findMine (GET /empresa/me) no lleva @Roles(): cualquier rol autenticado
@@ -29,8 +29,8 @@ describe('Metadata de @Roles en endpoints de Empresa/Planes', () => {
   });
 
   it('GET /planes requiere ROLES.ADMINISTRADOR', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, PlanesController.prototype.findAll)).toEqual([
-      ROLES.ADMINISTRADOR,
-    ]);
+    expect(
+      Reflect.getMetadata(ROLES_KEY, PlanesController.prototype.findAll),
+    ).toEqual([ROLES.ADMINISTRADOR]);
   });
 });

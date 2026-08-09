@@ -61,10 +61,22 @@ describe('DashboardService', () => {
       providers: [
         DashboardService,
         { provide: getRepositoryToken(Lote), useValue: loteRepo },
-        { provide: getRepositoryToken(Notificacion), useValue: notificacionRepo },
-        { provide: getRepositoryToken(ConfiguracionParametro), useValue: configParametroRepo },
-        { provide: getRepositoryToken(SensorLectura), useValue: sensorLecturaRepo },
-        { provide: getRepositoryToken(MedicionManualLote), useValue: medicionManualRepo },
+        {
+          provide: getRepositoryToken(Notificacion),
+          useValue: notificacionRepo,
+        },
+        {
+          provide: getRepositoryToken(ConfiguracionParametro),
+          useValue: configParametroRepo,
+        },
+        {
+          provide: getRepositoryToken(SensorLectura),
+          useValue: sensorLecturaRepo,
+        },
+        {
+          provide: getRepositoryToken(MedicionManualLote),
+          useValue: medicionManualRepo,
+        },
       ],
     }).compile();
 
@@ -92,10 +104,17 @@ describe('DashboardService', () => {
 
       notificacionRepo.count.mockResolvedValueOnce(4).mockResolvedValueOnce(2);
       configParametroRepo.find.mockResolvedValue([]);
-      sensorLecturaRepo.createQueryBuilder.mockReturnValue(buildSensorLecturaQBVacio());
-      medicionManualRepo.createQueryBuilder.mockReturnValue(buildMedicionManualQBVacio());
+      sensorLecturaRepo.createQueryBuilder.mockReturnValue(
+        buildSensorLecturaQBVacio(),
+      );
+      medicionManualRepo.createQueryBuilder.mockReturnValue(
+        buildMedicionManualQBVacio(),
+      );
 
-      const result = await service.getDashboard(tenant, GranularidadHistorico.DIA);
+      const result = await service.getDashboard(
+        tenant,
+        GranularidadHistorico.DIA,
+      );
 
       expect(result.granularidad).toBe(GranularidadHistorico.DIA);
       expect(result.lotesProcesados.valor).toBe(10);
@@ -111,17 +130,27 @@ describe('DashboardService', () => {
       expect(result.actualizadoEn).toBeInstanceOf(Date);
     });
 
-    it.each([GranularidadHistorico.DIA, GranularidadHistorico.SEMANA, GranularidadHistorico.MES])(
+    it.each([
+      GranularidadHistorico.DIA,
+      GranularidadHistorico.SEMANA,
+      GranularidadHistorico.MES,
+    ])(
       'debe devolver la granularidad "%s" tal cual fue solicitada',
       async (granularidad) => {
         const tenant = { empresaId: 1 } as any;
 
-        loteRepo.createQueryBuilder.mockReturnValue(buildLoteClasificacionQB(0));
+        loteRepo.createQueryBuilder.mockReturnValue(
+          buildLoteClasificacionQB(0),
+        );
         loteRepo.count.mockResolvedValue(0);
         notificacionRepo.count.mockResolvedValue(0);
         configParametroRepo.find.mockResolvedValue([]);
-        sensorLecturaRepo.createQueryBuilder.mockReturnValue(buildSensorLecturaQBVacio());
-        medicionManualRepo.createQueryBuilder.mockReturnValue(buildMedicionManualQBVacio());
+        sensorLecturaRepo.createQueryBuilder.mockReturnValue(
+          buildSensorLecturaQBVacio(),
+        );
+        medicionManualRepo.createQueryBuilder.mockReturnValue(
+          buildMedicionManualQBVacio(),
+        );
 
         const result = await service.getDashboard(tenant, granularidad);
 
@@ -144,10 +173,17 @@ describe('DashboardService', () => {
 
       notificacionRepo.count.mockResolvedValueOnce(6).mockResolvedValueOnce(2);
       configParametroRepo.find.mockResolvedValue([]);
-      sensorLecturaRepo.createQueryBuilder.mockReturnValue(buildSensorLecturaQBVacio());
-      medicionManualRepo.createQueryBuilder.mockReturnValue(buildMedicionManualQBVacio());
+      sensorLecturaRepo.createQueryBuilder.mockReturnValue(
+        buildSensorLecturaQBVacio(),
+      );
+      medicionManualRepo.createQueryBuilder.mockReturnValue(
+        buildMedicionManualQBVacio(),
+      );
 
-      const result = await service.getDashboard(tenant, GranularidadHistorico.DIA);
+      const result = await service.getDashboard(
+        tenant,
+        GranularidadHistorico.DIA,
+      );
 
       expect(result.lotesProcesados.tendencia).toBe('sube');
       expect(result.alertasActivas.tendencia).toBe('sube');
@@ -160,10 +196,17 @@ describe('DashboardService', () => {
       loteRepo.count.mockResolvedValue(5);
       notificacionRepo.count.mockResolvedValue(2);
       configParametroRepo.find.mockResolvedValue([]);
-      sensorLecturaRepo.createQueryBuilder.mockReturnValue(buildSensorLecturaQBVacio());
-      medicionManualRepo.createQueryBuilder.mockReturnValue(buildMedicionManualQBVacio());
+      sensorLecturaRepo.createQueryBuilder.mockReturnValue(
+        buildSensorLecturaQBVacio(),
+      );
+      medicionManualRepo.createQueryBuilder.mockReturnValue(
+        buildMedicionManualQBVacio(),
+      );
 
-      const result = await service.getDashboard(tenant, GranularidadHistorico.DIA);
+      const result = await service.getDashboard(
+        tenant,
+        GranularidadHistorico.DIA,
+      );
 
       expect(result.lotesProcesados.tendencia).toBe('igual');
       expect(result.alertasActivas.tendencia).toBe('igual');
@@ -179,7 +222,9 @@ describe('DashboardService', () => {
       jest.useFakeTimers().setSystemTime(HOY_FIJO);
     });
 
-    const buildHistoricoQB = (raw: Array<{ periodo: Date; cantidad: string }>) => ({
+    const buildHistoricoQB = (
+      raw: Array<{ periodo: Date; cantidad: string }>,
+    ) => ({
       select: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
@@ -294,13 +339,22 @@ describe('DashboardService', () => {
       const qb = buildHistoricoQB([]);
       loteRepo.createQueryBuilder.mockReturnValue(qb);
 
-      await service.getHistoricoLotesProcesados(tenant, GranularidadHistorico.DIA, 1);
+      await service.getHistoricoLotesProcesados(
+        tenant,
+        GranularidadHistorico.DIA,
+        1,
+      );
 
-      expect(qb.where).toHaveBeenCalledWith('lote.empresaId = :empresaId', { empresaId: 42 });
+      expect(qb.where).toHaveBeenCalledWith('lote.empresaId = :empresaId', {
+        empresaId: 42,
+      });
       expect(qb.andWhere).toHaveBeenCalledWith(
         'lote.estado IN (:...estados)',
         expect.objectContaining({
-          estados: expect.arrayContaining([EstadoLote.FINALIZADO, EstadoLote.RECHAZADO]),
+          estados: expect.arrayContaining([
+            EstadoLote.FINALIZADO,
+            EstadoLote.RECHAZADO,
+          ]),
         }),
       );
     });
@@ -325,10 +379,17 @@ describe('DashboardService', () => {
       loteRepo.count.mockResolvedValue(0);
       notificacionRepo.count.mockResolvedValue(0);
       configParametroRepo.find.mockResolvedValue([]);
-      sensorLecturaRepo.createQueryBuilder.mockReturnValue(buildSensorLecturaQBVacio());
-      medicionManualRepo.createQueryBuilder.mockReturnValue(buildMedicionManualQBVacio());
+      sensorLecturaRepo.createQueryBuilder.mockReturnValue(
+        buildSensorLecturaQBVacio(),
+      );
+      medicionManualRepo.createQueryBuilder.mockReturnValue(
+        buildMedicionManualQBVacio(),
+      );
 
-      const result = await service.getDashboard(tenant, GranularidadHistorico.DIA);
+      const result = await service.getDashboard(
+        tenant,
+        GranularidadHistorico.DIA,
+      );
 
       expect(result.parametrosCriticos.valor).toBe(0);
     });
@@ -341,7 +402,13 @@ describe('DashboardService', () => {
       notificacionRepo.count.mockResolvedValue(0);
 
       configParametroRepo.find.mockResolvedValue([
-        { id: 1, parametro: 'TEMPERATURA', tipoMateriaPrima: 'LECHE', umbralMin: 2, umbralMax: 8 },
+        {
+          id: 1,
+          parametro: 'TEMPERATURA',
+          tipoMateriaPrima: 'LECHE',
+          umbralMin: 2,
+          umbralMax: 8,
+        },
       ]);
 
       sensorLecturaRepo.createQueryBuilder.mockReturnValue({
@@ -351,12 +418,19 @@ describe('DashboardService', () => {
         andWhere: jest.fn().mockReturnThis(),
         getRawMany: jest
           .fn()
-          .mockResolvedValue([{ valor: '15', parametro: 'TEMPERATURA', materiaprima: 'LECHE' }]),
+          .mockResolvedValue([
+            { valor: '15', parametro: 'TEMPERATURA', materiaprima: 'LECHE' },
+          ]),
       });
 
-      medicionManualRepo.createQueryBuilder.mockReturnValue(buildMedicionManualQBVacio());
+      medicionManualRepo.createQueryBuilder.mockReturnValue(
+        buildMedicionManualQBVacio(),
+      );
 
-      const result = await service.getDashboard(tenant, GranularidadHistorico.DIA);
+      const result = await service.getDashboard(
+        tenant,
+        GranularidadHistorico.DIA,
+      );
 
       expect(result.parametrosCriticos.valor).toBe(1);
     });
@@ -369,7 +443,13 @@ describe('DashboardService', () => {
       notificacionRepo.count.mockResolvedValue(0);
 
       configParametroRepo.find.mockResolvedValue([
-        { id: 10, parametro: 'TEMPERATURA', tipoMateriaPrima: 'LECHE', umbralMin: 2, umbralMax: 8 },
+        {
+          id: 10,
+          parametro: 'TEMPERATURA',
+          tipoMateriaPrima: 'LECHE',
+          umbralMin: 2,
+          umbralMax: 8,
+        },
       ]);
 
       sensorLecturaRepo.createQueryBuilder.mockReturnValue({
@@ -383,9 +463,14 @@ describe('DashboardService', () => {
         ]),
       });
 
-      medicionManualRepo.createQueryBuilder.mockReturnValue(buildMedicionManualQBVacio());
+      medicionManualRepo.createQueryBuilder.mockReturnValue(
+        buildMedicionManualQBVacio(),
+      );
 
-      const result = await service.getDashboard(tenant, GranularidadHistorico.DIA);
+      const result = await service.getDashboard(
+        tenant,
+        GranularidadHistorico.DIA,
+      );
 
       expect(result.parametrosCriticos.valor).toBe(1);
     });
@@ -398,7 +483,13 @@ describe('DashboardService', () => {
       notificacionRepo.count.mockResolvedValue(0);
 
       configParametroRepo.find.mockResolvedValue([
-        { id: 1, parametro: 'TEMPERATURA', tipoMateriaPrima: 'LECHE', umbralMin: 2, umbralMax: 8 },
+        {
+          id: 1,
+          parametro: 'TEMPERATURA',
+          tipoMateriaPrima: 'LECHE',
+          umbralMin: 2,
+          umbralMax: 8,
+        },
       ]);
 
       sensorLecturaRepo.createQueryBuilder.mockReturnValue({
@@ -408,7 +499,9 @@ describe('DashboardService', () => {
         andWhere: jest.fn().mockReturnThis(),
         getRawMany: jest
           .fn()
-          .mockResolvedValue([{ valor: '5', parametro: 'TEMPERATURA', materiaprima: 'LECHE' }]),
+          .mockResolvedValue([
+            { valor: '5', parametro: 'TEMPERATURA', materiaprima: 'LECHE' },
+          ]),
       });
 
       medicionManualRepo.createQueryBuilder.mockReturnValue({
@@ -417,10 +510,15 @@ describe('DashboardService', () => {
         andWhere: jest.fn().mockReturnThis(),
         getRawMany: jest
           .fn()
-          .mockResolvedValue([{ valor: '6', parametro: 'TEMPERATURA', tipomateriaprima: 'LECHE' }]),
+          .mockResolvedValue([
+            { valor: '6', parametro: 'TEMPERATURA', tipomateriaprima: 'LECHE' },
+          ]),
       });
 
-      const result = await service.getDashboard(tenant, GranularidadHistorico.DIA);
+      const result = await service.getDashboard(
+        tenant,
+        GranularidadHistorico.DIA,
+      );
 
       expect(result.parametrosCriticos.valor).toBe(0);
     });

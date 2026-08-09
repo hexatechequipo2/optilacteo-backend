@@ -20,11 +20,12 @@ export class RolMapper {
       empresa: rol.empresa
         ? { id: rol.empresa.id, name: rol.empresa.name }
         : null,
-      permisos: rol.permisos?.map((p) => ({
-        modulo: p.modulo,
-        canRead: p.canRead,
-        canWrite: p.canWrite,
-      })) ?? [],
+      permisos:
+        rol.permisos?.map((p) => ({
+          modulo: p.modulo,
+          canRead: p.canRead,
+          canWrite: p.canWrite,
+        })) ?? [],
     };
   }
 

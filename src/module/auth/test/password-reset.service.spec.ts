@@ -12,14 +12,14 @@ import { USER_REPOSITORY } from '../../user/repository/user-repository.interface
 import { MailService } from '../mail.service';
 
 const mockTokenRepository = {
-  save:           jest.fn(),
-  findByToken:    jest.fn(),
-  markAsUsed:     jest.fn(),
+  save: jest.fn(),
+  findByToken: jest.fn(),
+  markAsUsed: jest.fn(),
   deleteByUserId: jest.fn(),
 };
 
 const mockUserRepository = {
-  findByEmail:    jest.fn(),
+  findByEmail: jest.fn(),
   updatePassword: jest.fn(),
 };
 
@@ -34,9 +34,12 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PasswordResetService,
-        { provide: PASSWORD_RESET_TOKEN_REPOSITORY, useValue: mockTokenRepository },
-        { provide: USER_REPOSITORY,                 useValue: mockUserRepository },
-        { provide: MailService,                     useValue: mockMailService },
+        {
+          provide: PASSWORD_RESET_TOKEN_REPOSITORY,
+          useValue: mockTokenRepository,
+        },
+        { provide: USER_REPOSITORY, useValue: mockUserRepository },
+        { provide: MailService, useValue: mockMailService },
       ],
     }).compile();
 
@@ -48,15 +51,17 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
   describe('requestReset', () => {
     it('criterio #1: cuando el email está registrado, debe enviar el email con enlace de restablecimiento', async () => {
       mockUserRepository.findByEmail.mockResolvedValue({
-        id:        'usuario-uuid-1',
-        email:     'operario@lacteo.com',
+        id: 'usuario-uuid-1',
+        email: 'operario@lacteo.com',
         tenant_id: 'empresa-uuid-1',
       });
       mockTokenRepository.deleteByUserId.mockResolvedValue(undefined);
       mockTokenRepository.save.mockResolvedValue({});
       mockMailService.sendPasswordResetEmail.mockResolvedValue(undefined);
 
-      const resultado = await service.requestReset({ email: 'operario@lacteo.com' });
+      const resultado = await service.requestReset({
+        email: 'operario@lacteo.com',
+      });
 
       expect(mockMailService.sendPasswordResetEmail).toHaveBeenCalledWith(
         'operario@lacteo.com',
@@ -81,9 +86,7 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
         ),
       );
 
-      expect(
-        mockMailService.sendPasswordResetEmail,
-      ).not.toHaveBeenCalled();
+      expect(mockMailService.sendPasswordResetEmail).not.toHaveBeenCalled();
     });
 
     //CP-06
@@ -91,8 +94,8 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
 
     it('criterio #2 y #3: el token generado debe tener fecha de expiración a 30 minutos y estar marcado como no usado', async () => {
       mockUserRepository.findByEmail.mockResolvedValue({
-        id:        'usuario-uuid-1',
-        email:     'operario@lacteo.com',
+        id: 'usuario-uuid-1',
+        email: 'operario@lacteo.com',
         tenant_id: 'empresa-uuid-1',
       });
       mockTokenRepository.deleteByUserId.mockResolvedValue(undefined);
@@ -111,40 +114,42 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
     });
   });
 
-  //CP-04 
+  //CP-04
   // Validar el flujo completo de restablecimiento de contraseña por email.
   describe('resetPassword', () => {
     it('criterio #4 y #5: cuando el token es válido y las contraseñas coinciden, debe actualizar la contraseña y confirmar el cambio', async () => {
       const futuro = new Date(Date.now() + 10 * 60 * 1000);
       mockTokenRepository.findByToken.mockResolvedValue({
-        id:        'token-uuid-1',
-        token:     'valid-token-uuid',
-        userId:    'usuario-uuid-1',
+        id: 'token-uuid-1',
+        token: 'valid-token-uuid',
+        userId: 'usuario-uuid-1',
         expiresAt: futuro,
-        used:      false,
+        used: false,
       });
       mockUserRepository.updatePassword.mockResolvedValue(undefined);
       mockTokenRepository.markAsUsed.mockResolvedValue(undefined);
 
       const resultado = await service.resetPassword({
-        token:           'valid-token-uuid',
-        newPassword:     'NuevaPassword123!',
+        token: 'valid-token-uuid',
+        newPassword: 'NuevaPassword123!',
         confirmPassword: 'NuevaPassword123!',
       });
 
       expect(mockUserRepository.updatePassword).toHaveBeenCalledWith(
         'usuario-uuid-1',
-        expect.any(String), 
+        expect.any(String),
       );
-      expect(mockTokenRepository.markAsUsed).toHaveBeenCalledWith('token-uuid-1');
+      expect(mockTokenRepository.markAsUsed).toHaveBeenCalledWith(
+        'token-uuid-1',
+      );
       expect(resultado.message).toContain('restablecida correctamente');
     });
 
     it('criterio #4: cuando las contraseñas no coinciden, debe lanzar BadRequestException', async () => {
       await expect(
         service.resetPassword({
-          token:           'valid-token-uuid',
-          newPassword:     'Password123!',
+          token: 'valid-token-uuid',
+          newPassword: 'Password123!',
           confirmPassword: 'PasswordDiferente!',
         }),
       ).rejects.toThrow(BadRequestException);
@@ -155,39 +160,38 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
 
     it('criterio #3: cuando el token ya fue utilizado, debe lanzar BadRequestException', async () => {
       mockTokenRepository.findByToken.mockResolvedValue({
-        id:        'token-uuid-1',
-        token:     'used-token-uuid',
-        userId:    'usuario-uuid-1',
+        id: 'token-uuid-1',
+        token: 'used-token-uuid',
+        userId: 'usuario-uuid-1',
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-        used:      true,
+        used: true,
       });
 
       await expect(
         service.resetPassword({
-          token:           'used-token-uuid',
-          newPassword:     'NuevaPassword123!',
+          token: 'used-token-uuid',
+          newPassword: 'NuevaPassword123!',
           confirmPassword: 'NuevaPassword123!',
         }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    
-  //CP-05 
-  // Validar el rechazo de enlace de restablecimiento vencido.
+    //CP-05
+    // Validar el rechazo de enlace de restablecimiento vencido.
     it('criterio #2: cuando el token ha expirado, debe lanzar BadRequestException', async () => {
-      const pasado = new Date(Date.now() - 31 * 60 * 1000); 
+      const pasado = new Date(Date.now() - 31 * 60 * 1000);
       mockTokenRepository.findByToken.mockResolvedValue({
-        id:        'token-uuid-1',
-        token:     'expired-token-uuid',
-        userId:    'usuario-uuid-1',
+        id: 'token-uuid-1',
+        token: 'expired-token-uuid',
+        userId: 'usuario-uuid-1',
         expiresAt: pasado,
-        used:      false,
+        used: false,
       });
 
       await expect(
         service.resetPassword({
-          token:           'expired-token-uuid',
-          newPassword:     'NuevaPassword123!',
+          token: 'expired-token-uuid',
+          newPassword: 'NuevaPassword123!',
           confirmPassword: 'NuevaPassword123!',
         }),
       ).rejects.toThrow(BadRequestException);
@@ -198,8 +202,8 @@ describe('PasswordResetService — restablecimiento de contraseña por email', (
 
       await expect(
         service.resetPassword({
-          token:           'token-inexistente',
-          newPassword:     'NuevaPassword123!',
+          token: 'token-inexistente',
+          newPassword: 'NuevaPassword123!',
           confirmPassword: 'NuevaPassword123!',
         }),
       ).rejects.toThrow(BadRequestException);

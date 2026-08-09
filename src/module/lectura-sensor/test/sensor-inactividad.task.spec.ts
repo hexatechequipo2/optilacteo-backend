@@ -4,17 +4,11 @@ import { Logger } from '@nestjs/common';
 
 import { SensorInactividadTask } from '../tasks/sensor-inactividad.task';
 
-import {
-  SENSOR_INACTIVIDAD_REPOSITORY,
-} from '../repository/sensor-inactividad.repository.interface';
+import { SENSOR_INACTIVIDAD_REPOSITORY } from '../repository/sensor-inactividad.repository.interface';
 
-import {
-  SENSOR_REPOSITORY,
-} from '../../sensor/repository/sensor.repository.interface';
+import { SENSOR_REPOSITORY } from '../../sensor/repository/sensor.repository.interface';
 
-import {
-  SENSOR_EVENTO_REPOSITORY,
-} from '../repository/sensor-evento.repository.interface';
+import { SENSOR_EVENTO_REPOSITORY } from '../repository/sensor-evento.repository.interface';
 
 import { LecturasGateway } from '../gateway/lecturas.gateway';
 import { EstadoSensor } from '../../sensor/enums/estado-sensor.enum';
@@ -103,9 +97,7 @@ describe('SensorInactividadTask', () => {
         sensor,
       ]);
 
-      const warnSpy = jest
-        .spyOn(Logger.prototype, 'warn')
-        .mockImplementation();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
       await task.detectarInactividad();
 

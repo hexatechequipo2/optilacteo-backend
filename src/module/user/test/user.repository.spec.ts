@@ -79,7 +79,10 @@ describe('UserRepository', () => {
   describe('findAll', () => {
     it('deberia listar sin filtro de empresa cuando el tenant es Administrador', async () => {
       mockTypeormRepo.find.mockResolvedValue([]);
-      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
 
       await repository.findAll(tenant);
 
@@ -157,7 +160,9 @@ describe('UserRepository', () => {
 
       await repository.updatePassword('10', 'nuevo_hash');
 
-      expect(mockTypeormRepo.update).toHaveBeenCalledWith('10', { password: 'nuevo_hash' });
+      expect(mockTypeormRepo.update).toHaveBeenCalledWith('10', {
+        password: 'nuevo_hash',
+      });
     });
   });
 
@@ -165,7 +170,11 @@ describe('UserRepository', () => {
     it('deberia incrementar failedLoginAttempts en 1', async () => {
       await repository.incrementFailedAttempts(10);
 
-      expect(mockTypeormRepo.increment).toHaveBeenCalledWith({ id: 10 }, 'failedLoginAttempts', 1);
+      expect(mockTypeormRepo.increment).toHaveBeenCalledWith(
+        { id: 10 },
+        'failedLoginAttempts',
+        1,
+      );
     });
   });
 
@@ -196,7 +205,9 @@ describe('UserRepository', () => {
 
       const result = await repository.countByEmpresa(1);
 
-      expect(mockTypeormRepo.count).toHaveBeenCalledWith({ where: { empresa: { id: 1 } } });
+      expect(mockTypeormRepo.count).toHaveBeenCalledWith({
+        where: { empresa: { id: 1 } },
+      });
       expect(result).toBe(4);
     });
   });
@@ -227,7 +238,10 @@ describe('UserRepository', () => {
       // Arrange
       const users = [buildUser()];
       mockQb.getManyAndCount.mockResolvedValue([users, 1]);
-      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
 
       // Act
       const result = await repository.findAllPaginated(tenant, 0, 10);
@@ -258,7 +272,10 @@ describe('UserRepository', () => {
     it('deberia aplicar filtro de nombre cuando se recibe filters.name', async () => {
       // Arrange
       mockQb.getManyAndCount.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
 
       // Act
       await repository.findAllPaginated(tenant, 0, 10, { name: 'Juan' });
@@ -273,7 +290,10 @@ describe('UserRepository', () => {
     it('deberia aplicar filtro de isActive cuando se recibe filters.isActive', async () => {
       // Arrange
       mockQb.getManyAndCount.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
 
       // Act
       await repository.findAllPaginated(tenant, 0, 10, { isActive: false });
@@ -288,16 +308,18 @@ describe('UserRepository', () => {
     it('deberia aplicar filtro de rolId cuando se recibe filters.rolId', async () => {
       // Arrange
       mockQb.getManyAndCount.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
 
       // Act
       await repository.findAllPaginated(tenant, 0, 10, { rolId: 2 });
 
       // Assert
-      expect(mockQb.andWhere).toHaveBeenCalledWith(
-        'rol.id = :rolId',
-        { rolId: 2 },
-      );
+      expect(mockQb.andWhere).toHaveBeenCalledWith('rol.id = :rolId', {
+        rolId: 2,
+      });
     });
 
     it('deberia aplicar filtro de empresaId solo cuando el tenant es Administrador', async () => {

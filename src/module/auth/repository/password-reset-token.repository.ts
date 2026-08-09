@@ -11,7 +11,9 @@ export class PasswordResetTokenRepository implements IPasswordResetTokenReposito
     private readonly repo: Repository<PasswordResetTokenEntity>,
   ) {}
 
-  async save(token: Partial<PasswordResetTokenEntity>): Promise<PasswordResetTokenEntity> {
+  async save(
+    token: Partial<PasswordResetTokenEntity>,
+  ): Promise<PasswordResetTokenEntity> {
     return this.repo.save(token);
   }
 

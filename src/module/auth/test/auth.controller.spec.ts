@@ -27,7 +27,11 @@ describe('AuthController', () => {
   };
 
   beforeEach(async () => {
-    mockAuthService = { login: jest.fn(), logout: jest.fn(), refresh: jest.fn() };
+    mockAuthService = {
+      login: jest.fn(),
+      logout: jest.fn(),
+      refresh: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],

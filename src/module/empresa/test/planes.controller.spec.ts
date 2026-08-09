@@ -30,7 +30,13 @@ describe('PlanesController', () => {
   describe('findAll', () => {
     it('deberia delegar en empresaService.getResumenPlanes y devolver su resultado tal cual', async () => {
       const resumen = [
-        { id: 1, nombre: 'Starter', precio: 20, empresasAsignadas: 2, modulos: [] },
+        {
+          id: 1,
+          nombre: 'Starter',
+          precio: 20,
+          empresasAsignadas: 2,
+          modulos: [],
+        },
       ];
       mockEmpresaService.getResumenPlanes.mockResolvedValue(resumen);
 

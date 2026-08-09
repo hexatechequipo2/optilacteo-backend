@@ -1,6 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
   Unique,
 } from 'typeorm';
 import { Empresa } from '../../empresa/entities/empresa.entity';
@@ -16,7 +21,9 @@ export class ConfiguracionParametro {
   @Column({ name: 'empresa_id' })
   empresaId!: number;
 
-  @ManyToOne(() => Empresa, (empresa) => empresa.configuracionParametros, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Empresa, (empresa) => empresa.configuracionParametros, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'empresa_id' })
   empresa!: Empresa;
 

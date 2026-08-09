@@ -1,6 +1,9 @@
 import 'reflect-metadata';
 import { DECORATORS } from '@nestjs/swagger';
-import { LoteParametroResponseDto, LoteResponseDto } from '../dto/lote-response.dto';
+import {
+  LoteParametroResponseDto,
+  LoteResponseDto,
+} from '../dto/lote-response.dto';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
@@ -90,7 +93,9 @@ describe('DTOs de Respuesta de Lote', () => {
       dto.codigo = 'LOTE-1-00001';
       dto.empresaId = 1;
       dto.proveedorId = 10;
-      const materiaPrima = Object.values(TipoMateriaPrima)[0] as TipoMateriaPrima;
+      const materiaPrima = Object.values(
+        TipoMateriaPrima,
+      )[0] as TipoMateriaPrima;
       dto.materiaPrima = materiaPrima;
       dto.fechaIngreso = fechaIngreso;
       dto.clasificacion = ClasificacionLote.APTO;

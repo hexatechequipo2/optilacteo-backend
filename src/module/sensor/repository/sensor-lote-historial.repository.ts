@@ -15,23 +15,34 @@ export class SensorLoteHistorialRepository implements ISensorLoteHistorialReposi
     return this.repo.save(registro);
   }
 
-  findBySensor(sensorId: number, empresaId: number): Promise<SensorLoteHistorial[]> {
+  findBySensor(
+    sensorId: number,
+    empresaId: number,
+  ): Promise<SensorLoteHistorial[]> {
     return this.repo.find({
       where: { sensorId, empresaId },
       order: { fecha: 'DESC' },
     });
   }
 
-  findByLote(loteId: number, empresaId: number): Promise<SensorLoteHistorial[]> {
+  findByLote(
+    loteId: number,
+    empresaId: number,
+  ): Promise<SensorLoteHistorial[]> {
     return this.repo
       .createQueryBuilder('h')
       .where('h.empresaId = :empresaId', { empresaId })
-      .andWhere('(h.loteIdNuevo = :loteId OR h.loteIdAnterior = :loteId)', { loteId })
+      .andWhere('(h.loteIdNuevo = :loteId OR h.loteIdAnterior = :loteId)', {
+        loteId,
+      })
       .orderBy('h.fecha', 'DESC')
       .getMany();
   }
 
-  findUltimoPorSensor(sensorId: number, empresaId: number): Promise<SensorLoteHistorial | null> {
+  findUltimoPorSensor(
+    sensorId: number,
+    empresaId: number,
+  ): Promise<SensorLoteHistorial | null> {
     return this.repo.findOne({
       where: { sensorId, empresaId },
       order: { fecha: 'DESC' },
@@ -39,7 +50,10 @@ export class SensorLoteHistorialRepository implements ISensorLoteHistorialReposi
   }
 
   // Usa DISTINCT ON de Postgres para traer la última fila de cada sensor en un solo query.
-  findUltimosPorSensores(sensorIds: number[], empresaId: number): Promise<SensorLoteHistorial[]> {
+  findUltimosPorSensores(
+    sensorIds: number[],
+    empresaId: number,
+  ): Promise<SensorLoteHistorial[]> {
     if (sensorIds.length === 0) return Promise.resolve([]);
 
     return this.repo
@@ -52,7 +66,10 @@ export class SensorLoteHistorialRepository implements ISensorLoteHistorialReposi
       .getMany();
   }
 
-  async findSensoresActualesDeLote(loteId: number, empresaId: number): Promise<number[]> {
+  async findSensoresActualesDeLote(
+    loteId: number,
+    empresaId: number,
+  ): Promise<number[]> {
     // Última fila de cada sensor (DISTINCT ON), filtrando las que apuntan a este lote.
     const raw = await this.repo.manager.query(
       `

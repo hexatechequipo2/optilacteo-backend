@@ -24,7 +24,10 @@ describe('PermissionsGuard', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  function mockRequired(required: { modulo: string | string[]; action: 'canRead' | 'canWrite' } | undefined) {
+  function mockRequired(
+    required:
+      { modulo: string | string[]; action: 'canRead' | 'canWrite' } | undefined,
+  ) {
     reflector.get.mockImplementation((key: string) => {
       if (key === PERMISSIONS_KEY) return required;
       return undefined;
@@ -36,7 +39,9 @@ describe('PermissionsGuard', () => {
     mockRequired(undefined);
 
     // Act
-    const resultado = guard.canActivate(buildContext({ rolNombre: 'Operario', permisos: [] }));
+    const resultado = guard.canActivate(
+      buildContext({ rolNombre: 'Operario', permisos: [] }),
+    );
 
     // Assert
     expect(resultado).toBe(true);
@@ -48,7 +53,9 @@ describe('PermissionsGuard', () => {
 
     // Act & Assert
     expect(() =>
-      guard.canActivate(buildContext({ rolNombre: 'Operario', permisos: undefined })),
+      guard.canActivate(
+        buildContext({ rolNombre: 'Operario', permisos: undefined }),
+      ),
     ).toThrow(ForbiddenException);
   });
 
@@ -59,7 +66,10 @@ describe('PermissionsGuard', () => {
     // Act & Assert
     expect(() =>
       guard.canActivate(
-        buildContext({ rolNombre: 'Operario', permisos: { modulo: 'empresas', canRead: true } as any }),
+        buildContext({
+          rolNombre: 'Operario',
+          permisos: { modulo: 'empresas', canRead: true } as any,
+        }),
       ),
     ).toThrow(ForbiddenException);
   });
@@ -88,7 +98,9 @@ describe('PermissionsGuard', () => {
     };
 
     // Act & Assert
-    expect(() => guard.canActivate(buildContext(user))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(buildContext(user))).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('permite el acceso cuando el usuario tiene permiso en al menos uno de varios módulos permitidos', () => {

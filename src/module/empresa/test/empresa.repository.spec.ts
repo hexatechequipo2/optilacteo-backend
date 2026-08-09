@@ -102,7 +102,9 @@ describe('EmpresaRepository', () => {
       const result = await repository.findByCuit('30-12345678-9');
 
       // Assert
-      expect(mockRepo.findOneBy).toHaveBeenCalledWith({ cuit: '30-12345678-9' });
+      expect(mockRepo.findOneBy).toHaveBeenCalledWith({
+        cuit: '30-12345678-9',
+      });
       expect(result).toEqual({ id: 1, cuit: '30-12345678-9' });
     });
 
@@ -127,7 +129,9 @@ describe('EmpresaRepository', () => {
       await repository.findAll();
 
       // Assert
-      expect(mockRepo.find).toHaveBeenCalledWith({ relations: { modulos: true, users: true } });
+      expect(mockRepo.find).toHaveBeenCalledWith({
+        relations: { modulos: true, users: true },
+      });
     });
 
     it('findAllPaginated deberia aplicar order/skip/take y devolver [items, total]', async () => {
@@ -192,7 +196,9 @@ describe('EmpresaRepository', () => {
       mockRepo.findOne.mockResolvedValue({ id: 1, name: 'Nuevo nombre' });
 
       // Act
-      const result = await repository.updateEmpresa(1, { name: 'Nuevo nombre' });
+      const result = await repository.updateEmpresa(1, {
+        name: 'Nuevo nombre',
+      });
 
       // Assert
       expect(mockRepo.update).toHaveBeenCalledWith(1, { name: 'Nuevo nombre' });
@@ -205,9 +211,9 @@ describe('EmpresaRepository', () => {
       mockRepo.findOne.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(repository.updateEmpresa(999, { name: 'X' })).rejects.toThrow(
-        'Empresa with id 999 not found after update',
-      );
+      await expect(
+        repository.updateEmpresa(999, { name: 'X' }),
+      ).rejects.toThrow('Empresa with id 999 not found after update');
     });
   });
 
@@ -229,7 +235,10 @@ describe('EmpresaRepository', () => {
       // Arrange
       mockRepo.findOne.mockResolvedValue({
         id: 1,
-        users: [{ id: 1, isActive: false }, { id: 2, isActive: true }],
+        users: [
+          { id: 1, isActive: false },
+          { id: 2, isActive: true },
+        ],
       });
 
       // Act
@@ -285,7 +294,10 @@ describe('EmpresaRepository', () => {
   describe('findModulo', () => {
     it('deberia buscar el modulo de una empresa por empresaId+modulo', async () => {
       // Arrange
-      mockModuloRepo.findOne.mockResolvedValue({ id: 1, modulo: ModuloSistema.DASHBOARD });
+      mockModuloRepo.findOne.mockResolvedValue({
+        id: 1,
+        modulo: ModuloSistema.DASHBOARD,
+      });
 
       // Act
       await repository.findModulo(1, ModuloSistema.DASHBOARD);
@@ -308,7 +320,9 @@ describe('EmpresaRepository', () => {
       const result = await repository.updateModulo(10, false);
 
       // Assert
-      expect(mockModuloRepo.update).toHaveBeenCalledWith(10, { isActive: false });
+      expect(mockModuloRepo.update).toHaveBeenCalledWith(10, {
+        isActive: false,
+      });
       expect(result).toEqual({ id: 10, isActive: false });
     });
 
@@ -334,7 +348,10 @@ describe('EmpresaRepository', () => {
       ]);
 
       // Act
-      await repository.syncModulos(1, [ModuloSistema.DASHBOARD, ModuloSistema.RECEPCION]);
+      await repository.syncModulos(1, [
+        ModuloSistema.DASHBOARD,
+        ModuloSistema.RECEPCION,
+      ]);
 
       // Assert
       expect(mockModuloRepo.create).toHaveBeenCalledWith([

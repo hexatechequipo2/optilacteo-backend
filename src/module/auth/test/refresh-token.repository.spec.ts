@@ -31,7 +31,9 @@ describe('RefreshTokenRepository', () => {
       ],
     }).compile();
 
-    refreshTokenRepository = module.get<RefreshTokenRepository>(RefreshTokenRepository);
+    refreshTokenRepository = module.get<RefreshTokenRepository>(
+      RefreshTokenRepository,
+    );
     jest.clearAllMocks();
   });
 
@@ -66,7 +68,8 @@ describe('RefreshTokenRepository', () => {
       mockTypeOrmRepository.findOne.mockResolvedValue(token);
 
       // Act
-      const result = await refreshTokenRepository.findByTokenHash('hash_abc123');
+      const result =
+        await refreshTokenRepository.findByTokenHash('hash_abc123');
 
       // Assert
       expect(mockTypeOrmRepository.findOne).toHaveBeenCalledWith({
@@ -80,7 +83,8 @@ describe('RefreshTokenRepository', () => {
       mockTypeOrmRepository.findOne.mockResolvedValue(null);
 
       // Act
-      const result = await refreshTokenRepository.findByTokenHash('hash_inexistente');
+      const result =
+        await refreshTokenRepository.findByTokenHash('hash_inexistente');
 
       // Assert
       expect(result).toBeNull();

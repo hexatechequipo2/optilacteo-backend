@@ -302,7 +302,9 @@ export class LecturaSensorService {
   ): Promise<HistorialLecturaResponseDto> {
     const empresaId = this.resolveEmpresaId(tenant);
 
-    const fechaInicio = query.fechaInicio ? new Date(query.fechaInicio) : undefined;
+    const fechaInicio = query.fechaInicio
+      ? new Date(query.fechaInicio)
+      : undefined;
     const fechaFin = this.normalizarFechaFin(query.fechaFin);
 
     if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
@@ -316,7 +318,10 @@ export class LecturaSensorService {
 
     let loteId: number | undefined;
     if (query.loteCodigo) {
-      const lote = await this.loteRepository.findByCodigo(query.loteCodigo, empresaId);
+      const lote = await this.loteRepository.findByCodigo(
+        query.loteCodigo,
+        empresaId,
+      );
       if (!lote) {
         return { data: [], total: 0, page, limit, rangoAmplio: false };
       }
@@ -374,7 +379,9 @@ export class LecturaSensorService {
   ): Promise<string> {
     const empresaId = this.resolveEmpresaId(tenant);
 
-    const fechaInicio = query.fechaInicio ? new Date(query.fechaInicio) : undefined;
+    const fechaInicio = query.fechaInicio
+      ? new Date(query.fechaInicio)
+      : undefined;
     const fechaFin = this.normalizarFechaFin(query.fechaFin);
     if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
       throw new BadRequestException(
@@ -384,7 +391,10 @@ export class LecturaSensorService {
 
     let loteId: number | undefined;
     if (query.loteCodigo) {
-      const lote = await this.loteRepository.findByCodigo(query.loteCodigo, empresaId);
+      const lote = await this.loteRepository.findByCodigo(
+        query.loteCodigo,
+        empresaId,
+      );
       if (!lote) {
         return this.aCsv([]);
       }
@@ -423,14 +433,17 @@ export class LecturaSensorService {
 
   private esRangoAmplio(fechaInicio?: Date, fechaFin?: Date): boolean {
     if (!fechaInicio || !fechaFin) return false;
-    const dias = (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24);
+    const dias =
+      (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24);
     return dias > RANGO_DIAS_SLA;
   }
 
   private async construirMapaUmbrales(
     empresaId: number,
   ): Promise<Map<string, { umbralMin: number; umbralMax: number }>> {
-    const configs = await this.configParametroRepository.find({ where: { empresaId } });
+    const configs = await this.configParametroRepository.find({
+      where: { empresaId },
+    });
     const mapa = new Map<string, { umbralMin: number; umbralMax: number }>();
     for (const c of configs) {
       mapa.set(`${c.parametro}|${c.tipoMateriaPrima}`, {
@@ -455,8 +468,28 @@ export class LecturaSensorService {
     return EstadoMedicion.NORMAL;
   }
 
-  private aCsv(data: { id: number; valor: number; unidad: string; sensorNombre: string; parametro: string; loteCodigo: string; timestampLectura: Date; estado: string }[]): string {
-    const headers = ['id', 'valor', 'unidad', 'sensor', 'parametro', 'lote', 'fechaHora', 'estado'];
+  private aCsv(
+    data: {
+      id: number;
+      valor: number;
+      unidad: string;
+      sensorNombre: string;
+      parametro: string;
+      loteCodigo: string;
+      timestampLectura: Date;
+      estado: string;
+    }[],
+  ): string {
+    const headers = [
+      'id',
+      'valor',
+      'unidad',
+      'sensor',
+      'parametro',
+      'lote',
+      'fechaHora',
+      'estado',
+    ];
     const filas = data.map((d) =>
       [
         d.id,

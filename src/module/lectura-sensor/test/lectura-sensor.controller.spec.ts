@@ -24,9 +24,7 @@ describe('LecturaSensorController', () => {
       ],
     }).compile();
 
-    controller = module.get<LecturaSensorController>(
-      LecturaSensorController,
-    );
+    controller = module.get<LecturaSensorController>(LecturaSensorController);
   });
 
   afterEach(() => {
@@ -65,7 +63,6 @@ describe('LecturaSensorController', () => {
 
   describe('ingresarManual', () => {
     it('cuando se recibe una lectura manual válida, debe delegar el ingreso al servicio', async () => {
-
       const dto = {
         sensorId: 10,
         valor: 8,
@@ -85,19 +82,11 @@ describe('LecturaSensorController', () => {
         id: 5,
       };
 
-      lecturaSensorServiceMock.ingresarManual.mockResolvedValue(
-        response,
-      );
+      lecturaSensorServiceMock.ingresarManual.mockResolvedValue(response);
 
-      const result = await controller.ingresarManual(
-        dto,
-        tenant,
-        req,
-      );
+      const result = await controller.ingresarManual(dto, tenant, req);
 
-      expect(
-        lecturaSensorServiceMock.ingresarManual,
-      ).toHaveBeenCalledWith(
+      expect(lecturaSensorServiceMock.ingresarManual).toHaveBeenCalledWith(
         dto,
         99,
         tenant,
@@ -109,7 +98,6 @@ describe('LecturaSensorController', () => {
 
   describe('consultarHistorial', () => {
     it('cuando existen lecturas, debe devolver el historial filtrado', async () => {
-
       const query = {
         page: 1,
         limit: 20,
@@ -127,18 +115,11 @@ describe('LecturaSensorController', () => {
         rangoAmplio: false,
       };
 
-      lecturaSensorServiceMock.consultarHistorial.mockResolvedValue(
-        response,
-      );
+      lecturaSensorServiceMock.consultarHistorial.mockResolvedValue(response);
 
-      const result = await controller.consultarHistorial(
-        query,
-        tenant,
-      );
+      const result = await controller.consultarHistorial(query, tenant);
 
-      expect(
-        lecturaSensorServiceMock.consultarHistorial,
-      ).toHaveBeenCalledWith(
+      expect(lecturaSensorServiceMock.consultarHistorial).toHaveBeenCalledWith(
         query,
         tenant,
       );
@@ -149,7 +130,6 @@ describe('LecturaSensorController', () => {
 
   describe('exportarHistorial', () => {
     it('cuando se exporta el historial, debe devolver un archivo CSV', async () => {
-
       const query = {
         page: 1,
         limit: 20,
@@ -166,19 +146,11 @@ describe('LecturaSensorController', () => {
         send: jest.fn(),
       } as any;
 
-      lecturaSensorServiceMock.exportarHistorial.mockResolvedValue(
-        csv,
-      );
+      lecturaSensorServiceMock.exportarHistorial.mockResolvedValue(csv);
 
-      await controller.exportarHistorial(
-        query,
-        tenant,
-        res,
-      );
+      await controller.exportarHistorial(query, tenant, res);
 
-      expect(
-        lecturaSensorServiceMock.exportarHistorial,
-      ).toHaveBeenCalledWith(
+      expect(lecturaSensorServiceMock.exportarHistorial).toHaveBeenCalledWith(
         query,
         tenant,
       );
@@ -190,9 +162,7 @@ describe('LecturaSensorController', () => {
 
       expect(res.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
-        expect.stringContaining(
-          'attachment; filename="historial-mediciones-',
-        ),
+        expect.stringContaining('attachment; filename="historial-mediciones-'),
       );
 
       expect(res.send).toHaveBeenCalledWith(csv);

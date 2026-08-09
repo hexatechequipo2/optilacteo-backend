@@ -121,11 +121,7 @@ describe('LoteController', () => {
 
       const result = await controller.update('3', dto, tenant);
 
-      expect(loteServiceMock.update).toHaveBeenCalledWith(
-        3,
-        dto,
-        tenant,
-      );
+      expect(loteServiceMock.update).toHaveBeenCalledWith(3, dto, tenant);
       expect(result).toBe(lote);
     });
   });
@@ -143,11 +139,7 @@ describe('LoteController', () => {
 
       const result = await controller.finalizar('8', dto, tenant);
 
-      expect(loteServiceMock.finalizar).toHaveBeenCalledWith(
-        8,
-        dto,
-        tenant,
-      );
+      expect(loteServiceMock.finalizar).toHaveBeenCalledWith(8, dto, tenant);
       expect(result).toBe(response);
     });
   });
@@ -159,14 +151,12 @@ describe('LoteController', () => {
 
       loteServiceMock.getHistorialClasificaciones.mockResolvedValue(historial);
 
-      const result = await controller.getHistorialClasificaciones(
-        '10',
+      const result = await controller.getHistorialClasificaciones('10', tenant);
+
+      expect(loteServiceMock.getHistorialClasificaciones).toHaveBeenCalledWith(
+        10,
         tenant,
       );
-
-      expect(
-        loteServiceMock.getHistorialClasificaciones,
-      ).toHaveBeenCalledWith(10, tenant);
 
       expect(result).toBe(historial);
     });
@@ -186,12 +176,7 @@ describe('LoteController', () => {
 
       loteServiceMock.revisarLote.mockResolvedValue(response);
 
-      const result = await controller.revisar(
-        '12',
-        dto,
-        tenant,
-        req,
-      );
+      const result = await controller.revisar('12', dto, tenant, req);
 
       expect(loteServiceMock.revisarLote).toHaveBeenCalledWith(
         12,
@@ -211,10 +196,7 @@ describe('LoteController', () => {
 
       loteServiceMock.getHistorialRevisiones.mockResolvedValue(historial);
 
-      const result = await controller.getHistorialRevisiones(
-        '20',
-        tenant,
-      );
+      const result = await controller.getHistorialRevisiones('20', tenant);
 
       expect(loteServiceMock.getHistorialRevisiones).toHaveBeenCalledWith(
         20,
@@ -235,10 +217,7 @@ describe('LoteController', () => {
 
       loteServiceMock.compararConHistorico.mockResolvedValue(comparacion);
 
-      const result = await controller.compararConHistorico(
-        '15',
-        tenant,
-      );
+      const result = await controller.compararConHistorico('15', tenant);
 
       expect(loteServiceMock.compararConHistorico).toHaveBeenCalledWith(
         15,

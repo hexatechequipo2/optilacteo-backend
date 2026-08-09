@@ -42,7 +42,7 @@ describe('HistorialMedicionManualFilterQueryDto', () => {
     const errors = await validate(dto);
 
     expect(errors.length).toBe(2);
-    
+
     const fechaInicioError = errors.find((e) => e.property === 'fechaInicio');
     const fechaFinError = errors.find((e) => e.property === 'fechaFin');
 

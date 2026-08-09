@@ -72,7 +72,9 @@ describe('NotificacionesGateway', () => {
 
       await gateway.handleConnection(socketMock as Socket);
 
-      expect(jwtServiceMock.verifyAsync).toHaveBeenCalledWith('valid-auth-token');
+      expect(jwtServiceMock.verifyAsync).toHaveBeenCalledWith(
+        'valid-auth-token',
+      );
       expect(socketMock.data?.empresaId).toBe(2);
       expect(socketMock.data?.userId).toBe(10);
       expect(socketMock.join).toHaveBeenCalledWith('empresa:2:user:10');
@@ -86,7 +88,9 @@ describe('NotificacionesGateway', () => {
 
       await gateway.handleConnection(socketMock as Socket);
 
-      expect(jwtServiceMock.verifyAsync).toHaveBeenCalledWith('valid-query-token');
+      expect(jwtServiceMock.verifyAsync).toHaveBeenCalledWith(
+        'valid-query-token',
+      );
       expect(socketMock.join).toHaveBeenCalledWith('empresa:2:user:10');
       expect(socketMock.disconnect).not.toHaveBeenCalled();
     });

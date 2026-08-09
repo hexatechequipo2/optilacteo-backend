@@ -25,14 +25,19 @@ import { AuditLogModule } from '../audit/audit-log.module';
     // Sensor se registra de nuevo acá (además de en SensorModule) para que
     // SensorInactividadRepository pueda hacer la consulta cross-tenant del
     // cron sin que sensor.module.ts tenga que exportar su Repository crudo.
-    TypeOrmModule.forFeature([SensorLectura, SensorEvento, Sensor, ConfiguracionParametro]),
+    TypeOrmModule.forFeature([
+      SensorLectura,
+      SensorEvento,
+      Sensor,
+      ConfiguracionParametro,
+    ]),
     SensorModule,
     LoteModule,
     // Provee JwtService (ya configurado con JWT_SECRET) para que el gateway
     // valide el token del handshake sin duplicar esa configuración.
     AuthModule,
     ScheduleModule.forRoot(),
-    AuditLogModule
+    AuditLogModule,
   ],
   controllers: [LecturaSensorController],
   providers: [

@@ -1,6 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
-  CreateDateColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  Index,
 } from 'typeorm';
 import { Lote } from '../../lote/entities/lote.entity';
 import { User } from '../../user/entities/user.entity';

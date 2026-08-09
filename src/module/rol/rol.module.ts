@@ -21,7 +21,7 @@ import { User } from '../user/entities/user.entity';
   ],
   exports: [
     RolService,
-    ROL_REPOSITORY,   // <-- agregar esto
+    ROL_REPOSITORY, // <-- agregar esto
   ],
 })
 export class RolModule {}

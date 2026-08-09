@@ -57,11 +57,10 @@ export class JwtAuthGuard implements CanActivate {
 
     const tokenHash = AuthService.hashToken(token);
 
-    const isRevoked =
-      await this.revokedTokenRepository.existsActiveByTokenHash(
-        tokenHash,
-        new Date(),
-      );
+    const isRevoked = await this.revokedTokenRepository.existsActiveByTokenHash(
+      tokenHash,
+      new Date(),
+    );
 
     if (isRevoked) {
       throw new UnauthorizedException('Token de sesión inválido');

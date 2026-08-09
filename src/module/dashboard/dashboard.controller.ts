@@ -34,7 +34,11 @@ export class DashboardController {
   @Get()
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions(ModuloSistema.DASHBOARD, 'canRead')
-  @ApiQuery({ name: 'granularidad', enum: GranularidadHistorico, required: false })
+  @ApiQuery({
+    name: 'granularidad',
+    enum: GranularidadHistorico,
+    required: false,
+  })
   findAll(
     @CurrentEmpresa() tenant: TenantContext,
     @Query(
@@ -53,7 +57,11 @@ export class DashboardController {
   @Get('lotes-procesados/historico')
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions(ModuloSistema.DASHBOARD, 'canRead')
-  @ApiQuery({ name: 'granularidad', enum: GranularidadHistorico, required: false })
+  @ApiQuery({
+    name: 'granularidad',
+    enum: GranularidadHistorico,
+    required: false,
+  })
   @ApiQuery({ name: 'cantidad', type: Number, required: false })
   getHistorico(
     @CurrentEmpresa() tenant: TenantContext,
@@ -68,6 +76,10 @@ export class DashboardController {
     if (tenant.empresaId === null) {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
     }
-    return this.dashboardService.getHistoricoLotesProcesados(tenant, granularidad, cantidad);
+    return this.dashboardService.getHistoricoLotesProcesados(
+      tenant,
+      granularidad,
+      cantidad,
+    );
   }
 }

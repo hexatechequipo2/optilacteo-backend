@@ -29,7 +29,9 @@ describe('ConfigParametroRepository', () => {
       ],
     }).compile();
 
-    repository = module.get<ConfigParametroRepository>(ConfigParametroRepository);
+    repository = module.get<ConfigParametroRepository>(
+      ConfigParametroRepository,
+    );
     typeOrmRepository = module.get(getRepositoryToken(ConfiguracionParametro));
   });
 

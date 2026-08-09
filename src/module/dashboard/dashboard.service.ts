@@ -102,23 +102,31 @@ export class DashboardService {
       .getRawMany<{ periodo: Date; cantidad: string }>();
 
     const mapaResultados = new Map(
-      raw.map((r) => [this.formatearPeriodo(r.periodo, granularidad), Number(r.cantidad)]),
+      raw.map((r) => [
+        this.formatearPeriodo(r.periodo, granularidad),
+        Number(r.cantidad),
+      ]),
     );
 
     // Rellenamos los períodos sin lotes con 0 para no dejar huecos en el gráfico
-    const puntos: PuntoHistoricoDto[] = this.generarPeriodos(granularidad, cantidad).map(
-      (fecha) => ({
-        fecha,
-        lotesProcesados: mapaResultados.get(fecha) ?? 0,
-      }),
-    );
+    const puntos: PuntoHistoricoDto[] = this.generarPeriodos(
+      granularidad,
+      cantidad,
+    ).map((fecha) => ({
+      fecha,
+      lotesProcesados: mapaResultados.get(fecha) ?? 0,
+    }));
 
     return { granularidad, cantidad, puntos };
   }
 
   // --- Cálculo de cada métrica ---
 
-  private async contarLotesProcesados(empresaId: number, desde: Date, hasta: Date) {
+  private async contarLotesProcesados(
+    empresaId: number,
+    desde: Date,
+    hasta: Date,
+  ) {
     return this.loteRepo.count({
       where: {
         empresaId,
@@ -128,14 +136,24 @@ export class DashboardService {
     });
   }
 
-  private async contarAlertasActivas(empresaId: number, desde: Date, hasta: Date) {
+  private async contarAlertasActivas(
+    empresaId: number,
+    desde: Date,
+    hasta: Date,
+  ) {
     return this.notificacionRepo.count({
       where: { empresaId, leida: false, createdAt: Between(desde, hasta) },
     });
   }
 
-  private async contarParametrosCriticos(empresaId: number, desde: Date, hasta: Date) {
-    const configs = await this.configParametroRepo.find({ where: { empresaId } });
+  private async contarParametrosCriticos(
+    empresaId: number,
+    desde: Date,
+    hasta: Date,
+  ) {
+    const configs = await this.configParametroRepo.find({
+      where: { empresaId },
+    });
     if (configs.length === 0) return 0;
 
     const idsCriticos = new Set<number>();
@@ -150,28 +168,48 @@ export class DashboardService {
         'lote.materiaPrima AS materiaPrima',
       ])
       .where('lectura.empresaId = :empresaId', { empresaId })
-      .andWhere('lectura.timestampLectura BETWEEN :desde AND :hasta', { desde, hasta })
+      .andWhere('lectura.timestampLectura BETWEEN :desde AND :hasta', {
+        desde,
+        hasta,
+      })
       .getRawMany<{ valor: string; parametro: string; materiaprima: string }>();
 
     const manuales = await this.medicionManualRepo
       .createQueryBuilder('m')
-      .select(['m.valor AS valor', 'm.parametro AS parametro', 'm.tipoMateriaPrima AS tipomateriaprima'])
+      .select([
+        'm.valor AS valor',
+        'm.parametro AS parametro',
+        'm.tipoMateriaPrima AS tipomateriaprima',
+      ])
       .where('m.empresaId = :empresaId', { empresaId })
       .andWhere('m.createdAt BETWEEN :desde AND :hasta', { desde, hasta })
-      .getRawMany<{ valor: string; parametro: string; tipomateriaprima: string }>();
+      .getRawMany<{
+        valor: string;
+        parametro: string;
+        tipomateriaprima: string;
+      }>();
 
-    const evaluar = (valor: number, parametro: string, materiaPrima: string) => {
+    const evaluar = (
+      valor: number,
+      parametro: string,
+      materiaPrima: string,
+    ) => {
       const config = configs.find(
         (c) => c.parametro === parametro && c.tipoMateriaPrima === materiaPrima,
       );
       if (!config) return;
-      if (valor < Number(config.umbralMin) || valor > Number(config.umbralMax)) {
+      if (
+        valor < Number(config.umbralMin) ||
+        valor > Number(config.umbralMax)
+      ) {
         idsCriticos.add(config.id);
       }
     };
 
-    for (const l of lecturas) evaluar(Number(l.valor), l.parametro, l.materiaprima);
-    for (const m of manuales) evaluar(Number(m.valor), m.parametro, m.tipomateriaprima);
+    for (const l of lecturas)
+      evaluar(Number(l.valor), l.parametro, l.materiaprima);
+    for (const m of manuales)
+      evaluar(Number(m.valor), m.parametro, m.tipomateriaprima);
 
     return idsCriticos.size;
   }
@@ -181,22 +219,36 @@ export class DashboardService {
     desde: Date,
     hasta: Date,
   ): Promise<LineaCalidadDto> {
-    const [recepcion, clasificacion, aptos, noAptos, totalLotesSistema] = await Promise.all([
-      this.loteRepo.count({ where: { empresaId, fechaIngreso: Between(desde, hasta) } }),
-      this.loteRepo
-        .createQueryBuilder('lote')
-        .where('lote.empresaId = :empresaId', { empresaId })
-        .andWhere('lote.fechaIngreso BETWEEN :desde AND :hasta', { desde, hasta })
-        .andWhere('lote.clasificacion IS NOT NULL')
-        .getCount(),
-      this.loteRepo.count({
-        where: { empresaId, clasificacion: ClasificacionLote.APTO, fechaIngreso: Between(desde, hasta) },
-      }),
-      this.loteRepo.count({
-        where: { empresaId, clasificacion: ClasificacionLote.NO_APTO, fechaIngreso: Between(desde, hasta) },
-      }),
-      this.loteRepo.count({ where: { empresaId } }),
-    ]);
+    const [recepcion, clasificacion, aptos, noAptos, totalLotesSistema] =
+      await Promise.all([
+        this.loteRepo.count({
+          where: { empresaId, fechaIngreso: Between(desde, hasta) },
+        }),
+        this.loteRepo
+          .createQueryBuilder('lote')
+          .where('lote.empresaId = :empresaId', { empresaId })
+          .andWhere('lote.fechaIngreso BETWEEN :desde AND :hasta', {
+            desde,
+            hasta,
+          })
+          .andWhere('lote.clasificacion IS NOT NULL')
+          .getCount(),
+        this.loteRepo.count({
+          where: {
+            empresaId,
+            clasificacion: ClasificacionLote.APTO,
+            fechaIngreso: Between(desde, hasta),
+          },
+        }),
+        this.loteRepo.count({
+          where: {
+            empresaId,
+            clasificacion: ClasificacionLote.NO_APTO,
+            fechaIngreso: Between(desde, hasta),
+          },
+        }),
+        this.loteRepo.count({ where: { empresaId } }),
+      ]);
 
     return { recepcion, clasificacion, aptos, noAptos, totalLotesSistema };
   }
@@ -205,7 +257,8 @@ export class DashboardService {
 
   private buildMetrica(valor: number, valorAnterior: number): MetricaDto {
     const variacion = valor - valorAnterior;
-    const tendencia: Tendencia = variacion > 0 ? 'sube' : variacion < 0 ? 'baja' : 'igual';
+    const tendencia: Tendencia =
+      variacion > 0 ? 'sube' : variacion < 0 ? 'baja' : 'igual';
     return { valor, valorAnterior, tendencia, variacion };
   }
 
@@ -220,7 +273,10 @@ export class DashboardService {
     };
   }
 
-  private rangoPeriodoActual(granularidad: GranularidadHistorico): { desde: Date; hasta: Date } {
+  private rangoPeriodoActual(granularidad: GranularidadHistorico): {
+    desde: Date;
+    hasta: Date;
+  } {
     const hasta = new Date();
     hasta.setHours(23, 59, 59, 999);
     const desde = new Date();
@@ -241,7 +297,10 @@ export class DashboardService {
     return { desde, hasta };
   }
 
-  private rangoPeriodoAnterior(granularidad: GranularidadHistorico): { desde: Date; hasta: Date } {
+  private rangoPeriodoAnterior(granularidad: GranularidadHistorico): {
+    desde: Date;
+    hasta: Date;
+  } {
     const { desde: desdeActual } = this.rangoPeriodoActual(granularidad);
     const hasta = new Date(desdeActual);
     hasta.setMilliseconds(-1); // último instante del período anterior
@@ -287,19 +346,28 @@ export class DashboardService {
     return { desde, hasta };
   }
 
-  private generarPeriodos(granularidad: GranularidadHistorico, cantidad: number): string[] {
+  private generarPeriodos(
+    granularidad: GranularidadHistorico,
+    cantidad: number,
+  ): string[] {
     const periodos: string[] = [];
     for (let i = cantidad - 1; i >= 0; i--) {
       const fecha = new Date();
-      if (granularidad === GranularidadHistorico.DIA) fecha.setDate(fecha.getDate() - i);
-      if (granularidad === GranularidadHistorico.SEMANA) fecha.setDate(fecha.getDate() - i * 7);
-      if (granularidad === GranularidadHistorico.MES) fecha.setMonth(fecha.getMonth() - i);
+      if (granularidad === GranularidadHistorico.DIA)
+        fecha.setDate(fecha.getDate() - i);
+      if (granularidad === GranularidadHistorico.SEMANA)
+        fecha.setDate(fecha.getDate() - i * 7);
+      if (granularidad === GranularidadHistorico.MES)
+        fecha.setMonth(fecha.getMonth() - i);
       periodos.push(this.formatearPeriodo(fecha, granularidad));
     }
     return periodos;
   }
 
-  private formatearPeriodo(fecha: Date, granularidad: GranularidadHistorico): string {
+  private formatearPeriodo(
+    fecha: Date,
+    granularidad: GranularidadHistorico,
+  ): string {
     const d = new Date(fecha);
     if (granularidad === GranularidadHistorico.MES) {
       return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;

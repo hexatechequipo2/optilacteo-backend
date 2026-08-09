@@ -38,7 +38,12 @@ export class ProveedoresController {
   constructor(private readonly proveedoresService: ProveedoresService) {}
 
   @Get()
-  @Roles(ROLES.OPERARIO_LINEA,ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.RESPONSABLE_CALIDAD)
+  @Roles(
+    ROLES.OPERARIO_LINEA,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+    ROLES.RESPONSABLE_CALIDAD,
+  )
   @Permissions(ModuloSistema.RECEPCION, 'canRead')
   findAll(
     @CurrentEmpresa() tenant: TenantContext,
@@ -96,9 +101,11 @@ export class ProveedoresController {
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions(ModuloSistema.RECEPCION, 'canWrite')
   @AuditLog('PROVEEDOR_ELIMINAR', 'Proveedor')
-  async remove(@Param('id', ParseIntPipe) id: number, @CurrentEmpresa() tenant: TenantContext) {
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
     await this.proveedoresService.remove(id, tenant);
     return { message: `Proveedor con id "${id}" eliminado correctamente` };
   }
-
 }

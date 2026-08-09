@@ -56,8 +56,14 @@ describe('PermisoMapper', () => {
       const result = PermisoMapper.toResponseList(permisos);
 
       expect(result).toHaveLength(2);
-      expect(result[0]).toMatchObject({ id: 1, modulo: ModuloSistema.DASHBOARD });
-      expect(result[1]).toMatchObject({ id: 2, modulo: ModuloSistema.RECEPCION });
+      expect(result[0]).toMatchObject({
+        id: 1,
+        modulo: ModuloSistema.DASHBOARD,
+      });
+      expect(result[1]).toMatchObject({
+        id: 2,
+        modulo: ModuloSistema.RECEPCION,
+      });
     });
 
     it('deberia devolver un array vacio cuando no hay permisos', () => {
@@ -68,8 +74,16 @@ describe('PermisoMapper', () => {
   describe('toUserPermisoResponse - permisos efectivos de un usuario (via su rol)', () => {
     it('deberia exponer solo modulo/canRead/canWrite, sin id ni rol', () => {
       const permisos = [
-        buildPermiso({ modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false }),
-        buildPermiso({ modulo: ModuloSistema.RECEPCION, canRead: true, canWrite: true }),
+        buildPermiso({
+          modulo: ModuloSistema.DASHBOARD,
+          canRead: true,
+          canWrite: false,
+        }),
+        buildPermiso({
+          modulo: ModuloSistema.RECEPCION,
+          canRead: true,
+          canWrite: true,
+        }),
       ];
 
       const result = PermisoMapper.toUserPermisoResponse(permisos);

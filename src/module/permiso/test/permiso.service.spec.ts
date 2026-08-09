@@ -51,7 +51,11 @@ describe('PermisoService', () => {
 
       expect(mockPermisoRepository.findByRol).toHaveBeenCalledWith(5);
       expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({ modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false });
+      expect(result[0]).toMatchObject({
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: false,
+      });
     });
   });
 
@@ -62,7 +66,9 @@ describe('PermisoService', () => {
       const result = await service.findByUsuario(10);
 
       expect(mockPermisoRepository.findByUsuario).toHaveBeenCalledWith(10);
-      expect(result).toEqual([{ modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false }]);
+      expect(result).toEqual([
+        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
+      ]);
     });
 
     it('deberia devolver un array vacio si el usuario no tiene permisos (sin rol o rol sin permisos)', async () => {
@@ -95,7 +101,11 @@ describe('PermisoService', () => {
       mockPermisoRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.update(999, { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false }),
+        service.update(999, {
+          modulo: ModuloSistema.DASHBOARD,
+          canRead: true,
+          canWrite: false,
+        }),
       ).rejects.toThrow(NotFoundException);
       expect(mockPermisoRepository.updatePermiso).not.toHaveBeenCalled();
     });
@@ -112,12 +122,18 @@ describe('PermisoService', () => {
         canWrite: true,
       });
 
-      expect(mockPermisoRepository.updatePermiso).toHaveBeenCalledWith(1, true, true);
+      expect(mockPermisoRepository.updatePermiso).toHaveBeenCalledWith(
+        1,
+        true,
+        true,
+      );
       expect(result.canWrite).toBe(true);
     });
 
     it('desasignar (canRead:false, canWrite:false) tambien se persiste correctamente', async () => {
-      mockPermisoRepository.findById.mockResolvedValue(buildPermiso({ canRead: true, canWrite: true }));
+      mockPermisoRepository.findById.mockResolvedValue(
+        buildPermiso({ canRead: true, canWrite: true }),
+      );
       mockPermisoRepository.updatePermiso.mockResolvedValue(
         buildPermiso({ canRead: false, canWrite: false }),
       );
@@ -128,7 +144,11 @@ describe('PermisoService', () => {
         canWrite: false,
       });
 
-      expect(mockPermisoRepository.updatePermiso).toHaveBeenCalledWith(1, false, false);
+      expect(mockPermisoRepository.updatePermiso).toHaveBeenCalledWith(
+        1,
+        false,
+        false,
+      );
       expect(result.canRead).toBe(false);
       expect(result.canWrite).toBe(false);
     });

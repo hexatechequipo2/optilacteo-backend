@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsInt, IsPositive } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsInt,
+  IsPositive,
+} from 'class-validator';
 
 export class CreateRolDto {
   @ApiProperty({ example: 'Supervisor de calidad' })
@@ -7,12 +13,18 @@ export class CreateRolDto {
   @IsNotEmpty()
   nombre!: string;
 
-  @ApiProperty({ example: 'Accede a módulos de calidad y reportes', required: false })
+  @ApiProperty({
+    example: 'Accede a módulos de calidad y reportes',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   descripcion?: string;
 
-  @ApiProperty({ example: 1, description: 'ID de la empresa a la que pertenece el rol' })
+  @ApiProperty({
+    example: 1,
+    description: 'ID de la empresa a la que pertenece el rol',
+  })
   @IsInt()
   @IsPositive()
   empresaId!: number;

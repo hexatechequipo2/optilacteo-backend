@@ -44,7 +44,10 @@ describe('AuditLogController', () => {
     });
 
     it('deberia convertir page y limit de string a number antes de delegar en el servicio', async () => {
-      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
       mockAuditLogService.findAll.mockResolvedValue([[], 0]);
 
       await controller.findAll(tenant, '2', '25');
@@ -58,7 +61,11 @@ describe('AuditLogController', () => {
 
       await controller.findAll(tenant, '3');
 
-      expect(mockAuditLogService.findAll).toHaveBeenCalledWith(tenant, 3, undefined);
+      expect(mockAuditLogService.findAll).toHaveBeenCalledWith(
+        tenant,
+        3,
+        undefined,
+      );
     });
 
     it('deberia convertir solo limit cuando page no viene en la query', async () => {
@@ -67,7 +74,11 @@ describe('AuditLogController', () => {
 
       await controller.findAll(tenant, undefined, '10');
 
-      expect(mockAuditLogService.findAll).toHaveBeenCalledWith(tenant, undefined, 10);
+      expect(mockAuditLogService.findAll).toHaveBeenCalledWith(
+        tenant,
+        undefined,
+        10,
+      );
     });
 
     it('deberia pasar NaN al servicio si page/limit no son numericos (no valida en el controller)', async () => {

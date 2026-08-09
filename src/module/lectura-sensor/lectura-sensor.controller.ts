@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
@@ -39,7 +48,10 @@ export class LecturaSensorController {
   // por eso exige permiso explícito de escritura.
   @Post('lecturas/manual')
   @Roles(ROLES.OPERARIO_LINEA)
-  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS], 'canWrite')
+  @Permissions(
+    [ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS],
+    'canWrite',
+  )
   @AuditLog('LECTURA_MANUAL_INGRESAR', 'SensorLectura')
   ingresarManual(
     @Body() dto: IngresarLecturaManualDto,
@@ -56,7 +68,10 @@ export class LecturaSensorController {
   // específico o si el nombre correcto ya existe con otra key.
   @Get('lecturas/historial-mediciones')
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions([ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions(
+    [ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD],
+    'canRead',
+  )
   consultarHistorial(
     @Query() query: HistorialLecturaFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -68,14 +83,20 @@ export class LecturaSensorController {
   // que la consulta paginada.
   @Get('lecturas/historial-mediciones/export')
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions([ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions(
+    [ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD],
+    'canRead',
+  )
   @AuditLog('HISTORIAL_LECTURAS_EXPORTAR', 'SensorLectura')
   async exportarHistorial(
     @Query() query: HistorialLecturaFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
     @Res() res: Response,
   ) {
-    const csv = await this.lecturaSensorService.exportarHistorial(query, tenant);
+    const csv = await this.lecturaSensorService.exportarHistorial(
+      query,
+      tenant,
+    );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
       'Content-Disposition',

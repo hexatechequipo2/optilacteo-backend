@@ -69,7 +69,10 @@ export class ConfigParametroController {
     if (tenant.empresaId === null) {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
     }
-    return this.configParametroService.listarPorEmpresa(tenant.empresaId, tenant);
+    return this.configParametroService.listarPorEmpresa(
+      tenant.empresaId,
+      tenant,
+    );
   }
 
   @Delete(':id')

@@ -1,8 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateUsersAndEmpresas1750000000000 implements MigrationInterface {
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
       CREATE TABLE "empresas" (
         "id" SERIAL NOT NULL,
         "name" character varying NOT NULL,
@@ -16,11 +16,11 @@ export class CreateUsersAndEmpresas1750000000000 implements MigrationInterface {
       )
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE TYPE "users_role_enum" AS ENUM ('admin', 'op_linea', 'gerente', 'responsable_calidad')
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE TABLE "users" (
         "id" SERIAL NOT NULL,
         "name" character varying NOT NULL,
@@ -34,18 +34,20 @@ export class CreateUsersAndEmpresas1750000000000 implements MigrationInterface {
       )
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       ALTER TABLE "users"
       ADD CONSTRAINT "FK_users_empresa"
       FOREIGN KEY ("empresaId") REFERENCES "empresas"("id")
       ON DELETE NO ACTION ON UPDATE NO ACTION
     `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "FK_users_empresa"`);
-        await queryRunner.query(`DROP TABLE "users"`);
-        await queryRunner.query(`DROP TYPE "users_role_enum"`);
-        await queryRunner.query(`DROP TABLE "empresas"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "users" DROP CONSTRAINT "FK_users_empresa"`,
+    );
+    await queryRunner.query(`DROP TABLE "users"`);
+    await queryRunner.query(`DROP TYPE "users_role_enum"`);
+    await queryRunner.query(`DROP TABLE "empresas"`);
+  }
 }

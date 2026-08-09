@@ -11,8 +11,14 @@ import type { TenantContext } from '../../../common/types/tenant-context.type';
 // metodo del controller delegue en ProveedoresService con los parametros
 // correctos (ParseIntPipe ya convierte el id antes de llegar aca).
 
-const tenantEmpresaA: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-const tenantAdmin: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+const tenantEmpresaA: TenantContext = {
+  empresaId: 1,
+  rolNombre: ROLES.GERENTE,
+};
+const tenantAdmin: TenantContext = {
+  empresaId: null,
+  rolNombre: ROLES.ADMINISTRADOR,
+};
 
 describe('ProveedoresController', () => {
   let controller: ProveedoresController;
@@ -37,7 +43,9 @@ describe('ProveedoresController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ProveedoresController],
-      providers: [{ provide: ProveedoresService, useValue: mockProveedoresService }],
+      providers: [
+        { provide: ProveedoresService, useValue: mockProveedoresService },
+      ],
     }).compile();
 
     controller = module.get<ProveedoresController>(ProveedoresController);
@@ -50,7 +58,10 @@ describe('ProveedoresController', () => {
 
       await controller.findAll(tenantEmpresaA, pagination as never);
 
-      expect(mockProveedoresService.findAll).toHaveBeenCalledWith(tenantEmpresaA, pagination);
+      expect(mockProveedoresService.findAll).toHaveBeenCalledWith(
+        tenantEmpresaA,
+        pagination,
+      );
     });
   });
 
@@ -60,7 +71,10 @@ describe('ProveedoresController', () => {
 
       await controller.findOne(7, tenantEmpresaA);
 
-      expect(mockProveedoresService.findOne).toHaveBeenCalledWith(7, tenantEmpresaA);
+      expect(mockProveedoresService.findOne).toHaveBeenCalledWith(
+        7,
+        tenantEmpresaA,
+      );
     });
   });
 
@@ -78,7 +92,10 @@ describe('ProveedoresController', () => {
 
       const result = await controller.create(dto as never, tenantEmpresaA);
 
-      expect(mockProveedoresService.create).toHaveBeenCalledWith(dto, tenantEmpresaA);
+      expect(mockProveedoresService.create).toHaveBeenCalledWith(
+        dto,
+        tenantEmpresaA,
+      );
       expect(result).toEqual({ id: 1, ...dto });
     });
 
@@ -93,7 +110,10 @@ describe('ProveedoresController', () => {
 
       await controller.create(dto as never, tenantAdmin);
 
-      expect(mockProveedoresService.create).toHaveBeenCalledWith(dto, tenantAdmin);
+      expect(mockProveedoresService.create).toHaveBeenCalledWith(
+        dto,
+        tenantAdmin,
+      );
     });
   });
 
@@ -104,17 +124,27 @@ describe('ProveedoresController', () => {
 
       await controller.update(3, dto as never, tenantEmpresaA);
 
-      expect(mockProveedoresService.update).toHaveBeenCalledWith(3, dto, tenantEmpresaA);
+      expect(mockProveedoresService.update).toHaveBeenCalledWith(
+        3,
+        dto,
+        tenantEmpresaA,
+      );
     });
   });
 
   describe('activate', () => {
     it('deberia delegar en proveedoresService.activate con id y tenant', async () => {
-      mockProveedoresService.activate.mockResolvedValue({ id: 4, estado: EstadoProveedor.ACTIVA });
+      mockProveedoresService.activate.mockResolvedValue({
+        id: 4,
+        estado: EstadoProveedor.ACTIVA,
+      });
 
       await controller.activate(4, tenantEmpresaA);
 
-      expect(mockProveedoresService.activate).toHaveBeenCalledWith(4, tenantEmpresaA);
+      expect(mockProveedoresService.activate).toHaveBeenCalledWith(
+        4,
+        tenantEmpresaA,
+      );
     });
   });
 
@@ -124,8 +154,13 @@ describe('ProveedoresController', () => {
 
       const result = await controller.remove(5, tenantEmpresaA);
 
-      expect(mockProveedoresService.remove).toHaveBeenCalledWith(5, tenantEmpresaA);
-      expect(result).toEqual({ message: 'Proveedor con id "5" eliminado correctamente' });
+      expect(mockProveedoresService.remove).toHaveBeenCalledWith(
+        5,
+        tenantEmpresaA,
+      );
+      expect(result).toEqual({
+        message: 'Proveedor con id "5" eliminado correctamente',
+      });
     });
   });
 });

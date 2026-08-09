@@ -23,7 +23,7 @@ export class NotificacionMapper {
       leida: false,
     };
   }
-  
+
   static toPaginatedResponse(
     entities: Notificacion[],
     total: number,

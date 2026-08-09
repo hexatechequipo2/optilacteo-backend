@@ -8,13 +8,7 @@ describe('LecturaMapper', () => {
     it('debe mapear correctamente una lectura con origen SENSOR', () => {
       const fecha = new Date('2026-01-01T10:00:00.000Z');
 
-      const entity = LecturaMapper.toEntity(
-        1,
-        2,
-        7.5,
-        fecha,
-        10,
-      );
+      const entity = LecturaMapper.toEntity(1, 2, 7.5, fecha, 10);
 
       expect(entity.sensorId).toBe(1);
       expect(entity.loteId).toBe(2);

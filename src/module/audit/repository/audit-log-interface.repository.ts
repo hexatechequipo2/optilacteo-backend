@@ -15,7 +15,11 @@ export interface CreateAuditLogData {
 
 export interface IAuditLogRepository {
   create(data: CreateAuditLogData): Promise<AuditLog>;
-  findAllScoped(tenant: TenantContext, skip: number, take: number): Promise<[AuditLog[], number]>;
+  findAllScoped(
+    tenant: TenantContext,
+    skip: number,
+    take: number,
+  ): Promise<[AuditLog[], number]>;
 
   // HU-63: trazabilidad genérica por entidad — reusable en cualquier módulo.
   // Trae todos los registros _SUCCESS (ordenados ASC por createdAt) para

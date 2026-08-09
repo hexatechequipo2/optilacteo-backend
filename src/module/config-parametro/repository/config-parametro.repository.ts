@@ -7,31 +7,23 @@ import { TipoMateriaPrima } from '../enums/tipo-materia-prima-enum';
 import { IConfigParametroRepository } from './config-parametro.repository.interface';
 
 @Injectable()
-export class ConfigParametroRepository
-  implements IConfigParametroRepository
-{
+export class ConfigParametroRepository implements IConfigParametroRepository {
   constructor(
     @InjectRepository(ConfiguracionParametro)
     private readonly repository: Repository<ConfiguracionParametro>,
   ) {}
 
-  save(
-    config: ConfiguracionParametro,
-  ): Promise<ConfiguracionParametro> {
+  save(config: ConfiguracionParametro): Promise<ConfiguracionParametro> {
     return this.repository.save(config);
   }
 
-  findById(
-    id: number,
-  ): Promise<ConfiguracionParametro | null> {
+  findById(id: number): Promise<ConfiguracionParametro | null> {
     return this.repository.findOne({
       where: { id },
     });
   }
 
-  findByEmpresa(
-    empresaId: number,
-  ): Promise<ConfiguracionParametro[]> {
+  findByEmpresa(empresaId: number): Promise<ConfiguracionParametro[]> {
     return this.repository.find({
       where: { empresaId },
     });

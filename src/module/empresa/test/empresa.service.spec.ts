@@ -19,7 +19,10 @@ import { StorageService } from '../../../common/storage/storage.service';
 // reglas de negocio de HU-08: alta, edición, activación/desactivación y
 // habilitación de módulos según el plan.
 
-const tenantAdmin: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+const tenantAdmin: TenantContext = {
+  empresaId: null,
+  rolNombre: ROLES.ADMINISTRADOR,
+};
 
 const empresaBase = {
   id: 1,
@@ -70,7 +73,9 @@ describe('EmpresaService', () => {
     const mockStorageService = {
       upload: jest.fn(),
       delete: jest.fn().mockResolvedValue(undefined),
-      getPublicUrl: jest.fn().mockReturnValue('https://storage.example.com/logo.png'),
+      getPublicUrl: jest
+        .fn()
+        .mockReturnValue('https://storage.example.com/logo.png'),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -123,7 +128,11 @@ describe('EmpresaService', () => {
       'deberia asignar el plan %s y habilitar automaticamente sus modulos correspondientes',
       async (plan) => {
         // Arrange
-        const dto: CreateEmpresaDto = { name: 'Empresa Test', cuit: '30-99999999-9', plan };
+        const dto: CreateEmpresaDto = {
+          name: 'Empresa Test',
+          cuit: '30-99999999-9',
+          plan,
+        };
         const empresaCreada = { ...empresaBase, id: 5, plan };
         mockEmpresaRepository.createEmpresa.mockResolvedValue(empresaCreada);
         mockEmpresaRepository.createModulos.mockResolvedValue([]);
@@ -173,7 +182,9 @@ describe('EmpresaService', () => {
 
       // Act & Assert
       await expect(service.create(dto)).rejects.toThrow(ConflictException);
-      expect(mockEmpresaRepository.findByCuit).toHaveBeenCalledWith('30-12345678-9');
+      expect(mockEmpresaRepository.findByCuit).toHaveBeenCalledWith(
+        '30-12345678-9',
+      );
       expect(mockEmpresaRepository.createEmpresa).not.toHaveBeenCalled();
     });
   });
@@ -189,7 +200,11 @@ describe('EmpresaService', () => {
       mockEmpresaRepository.updateEmpresa.mockResolvedValue(empresaActualizada);
 
       // Act
-      const result = await service.update(1, { name: 'Lacteos Norte S.A.' }, tenantAdmin);
+      const result = await service.update(
+        1,
+        { name: 'Lacteos Norte S.A.' },
+        tenantAdmin,
+      );
 
       // Assert
       expect(mockEmpresaRepository.updateEmpresa).toHaveBeenCalledWith(
@@ -238,7 +253,11 @@ describe('EmpresaService', () => {
       mockEmpresaRepository.updateEmpresa.mockResolvedValue(empresaActual);
 
       // Act
-      await service.update(1, { plan: Plan.STARTER, telefono: '+54 111' }, tenantAdmin);
+      await service.update(
+        1,
+        { plan: Plan.STARTER, telefono: '+54 111' },
+        tenantAdmin,
+      );
 
       // Assert
       expect(mockEmpresaRepository.syncModulos).not.toHaveBeenCalled();
@@ -248,13 +267,18 @@ describe('EmpresaService', () => {
       // Arrange
       const empresaActual = { ...empresaBase };
       mockEmpresaRepository.findById.mockResolvedValue(empresaActual);
-      mockEmpresaRepository.findByCuit.mockResolvedValue({ ...empresaBase, id: 2 });
+      mockEmpresaRepository.findByCuit.mockResolvedValue({
+        ...empresaBase,
+        id: 2,
+      });
 
       // Act & Assert
       await expect(
         service.update(1, { cuit: '20-99999999-9' }, tenantAdmin),
       ).rejects.toThrow(ConflictException);
-      expect(mockEmpresaRepository.findByCuit).toHaveBeenCalledWith('20-99999999-9');
+      expect(mockEmpresaRepository.findByCuit).toHaveBeenCalledWith(
+        '20-99999999-9',
+      );
       expect(mockEmpresaRepository.updateEmpresa).not.toHaveBeenCalled();
     });
 
@@ -282,7 +306,9 @@ describe('EmpresaService', () => {
       mockEmpresaRepository.hasActiveUsers.mockResolvedValue(true);
 
       // Act & Assert
-      await expect(service.deactivate(1, tenantAdmin)).rejects.toThrow(ConflictException);
+      await expect(service.deactivate(1, tenantAdmin)).rejects.toThrow(
+        ConflictException,
+      );
       expect(mockEmpresaRepository.updateEmpresa).not.toHaveBeenCalled();
     });
 
@@ -299,13 +325,18 @@ describe('EmpresaService', () => {
       const result = await service.deactivate(1, tenantAdmin);
 
       // Assert
-      expect(mockEmpresaRepository.updateEmpresa).toHaveBeenCalledWith(1, { isActive: false });
+      expect(mockEmpresaRepository.updateEmpresa).toHaveBeenCalledWith(1, {
+        isActive: false,
+      });
       expect(result.isActive).toBe(false);
     });
 
     it('deberia reactivar una empresa desactivada', async () => {
       // Arrange
-      mockEmpresaRepository.findById.mockResolvedValue({ ...empresaBase, isActive: false });
+      mockEmpresaRepository.findById.mockResolvedValue({
+        ...empresaBase,
+        isActive: false,
+      });
       mockEmpresaRepository.updateEmpresa.mockResolvedValue({
         ...empresaBase,
         isActive: true,
@@ -315,7 +346,9 @@ describe('EmpresaService', () => {
       const result = await service.activate(1, tenantAdmin);
 
       // Assert
-      expect(mockEmpresaRepository.updateEmpresa).toHaveBeenCalledWith(1, { isActive: true });
+      expect(mockEmpresaRepository.updateEmpresa).toHaveBeenCalledWith(1, {
+        isActive: true,
+      });
       expect(result.isActive).toBe(true);
     });
 
@@ -324,7 +357,9 @@ describe('EmpresaService', () => {
       mockEmpresaRepository.findById.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.deactivate(999, tenantAdmin)).rejects.toThrow(NotFoundException);
+      await expect(service.deactivate(999, tenantAdmin)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockEmpresaRepository.hasActiveUsers).not.toHaveBeenCalled();
     });
 
@@ -333,25 +368,37 @@ describe('EmpresaService', () => {
       mockEmpresaRepository.findById.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.activate(999, tenantAdmin)).rejects.toThrow(NotFoundException);
+      await expect(service.activate(999, tenantAdmin)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('activarModulo - limites del plan asignado', () => {
     it('deberia rechazar con BadRequestException la activacion de un modulo fuera del plan actual', async () => {
       // Arrange: empresa Starter (solo dashboard/recepcion) intentando activar sensores_iot (solo Pro/Enterprise)
-      mockEmpresaRepository.findById.mockResolvedValue({ ...empresaBase, plan: Plan.STARTER });
+      mockEmpresaRepository.findById.mockResolvedValue({
+        ...empresaBase,
+        plan: Plan.STARTER,
+      });
 
       // Act & Assert
       await expect(
-        service.activarModulo(1, { modulo: ModuloSistema.SENSORES_IOT }, tenantAdmin),
+        service.activarModulo(
+          1,
+          { modulo: ModuloSistema.SENSORES_IOT },
+          tenantAdmin,
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(mockEmpresaRepository.findModulo).not.toHaveBeenCalled();
     });
 
     it('deberia activar correctamente un modulo incluido en el plan actual', async () => {
       // Arrange
-      mockEmpresaRepository.findById.mockResolvedValue({ ...empresaBase, plan: Plan.STARTER });
+      mockEmpresaRepository.findById.mockResolvedValue({
+        ...empresaBase,
+        plan: Plan.STARTER,
+      });
       mockEmpresaRepository.findModulo.mockResolvedValue({
         id: 10,
         modulo: ModuloSistema.RECEPCION,
@@ -364,21 +411,35 @@ describe('EmpresaService', () => {
       });
 
       // Act
-      const result = await service.activarModulo(1, { modulo: ModuloSistema.RECEPCION }, tenantAdmin);
+      const result = await service.activarModulo(
+        1,
+        { modulo: ModuloSistema.RECEPCION },
+        tenantAdmin,
+      );
 
       // Assert
       expect(mockEmpresaRepository.updateModulo).toHaveBeenCalledWith(10, true);
-      expect(result).toEqual({ modulo: ModuloSistema.RECEPCION, isActive: true });
+      expect(result).toEqual({
+        modulo: ModuloSistema.RECEPCION,
+        isActive: true,
+      });
     });
 
     it('deberia lanzar NotFoundException si el modulo del plan aun no fue asignado a la empresa', async () => {
       // Arrange
-      mockEmpresaRepository.findById.mockResolvedValue({ ...empresaBase, plan: Plan.STARTER });
+      mockEmpresaRepository.findById.mockResolvedValue({
+        ...empresaBase,
+        plan: Plan.STARTER,
+      });
       mockEmpresaRepository.findModulo.mockResolvedValue(null);
 
       // Act & Assert
       await expect(
-        service.activarModulo(1, { modulo: ModuloSistema.RECEPCION }, tenantAdmin),
+        service.activarModulo(
+          1,
+          { modulo: ModuloSistema.RECEPCION },
+          tenantAdmin,
+        ),
       ).rejects.toThrow(NotFoundException);
       expect(mockEmpresaRepository.updateModulo).not.toHaveBeenCalled();
     });
@@ -389,7 +450,11 @@ describe('EmpresaService', () => {
 
       // Act & Assert
       await expect(
-        service.activarModulo(999, { modulo: ModuloSistema.DASHBOARD }, tenantAdmin),
+        service.activarModulo(
+          999,
+          { modulo: ModuloSistema.DASHBOARD },
+          tenantAdmin,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -397,7 +462,10 @@ describe('EmpresaService', () => {
   describe('desactivarModulo - sin restriccion de plan', () => {
     it('deberia permitir desactivar cualquier modulo ya asignado, sin chequear limites del plan', async () => {
       // Arrange: la regla de DETALLE_POR_PLAN solo se aplica al activar, no al desactivar
-      mockEmpresaRepository.findById.mockResolvedValue({ ...empresaBase, plan: Plan.STARTER });
+      mockEmpresaRepository.findById.mockResolvedValue({
+        ...empresaBase,
+        plan: Plan.STARTER,
+      });
       mockEmpresaRepository.findModulo.mockResolvedValue({
         id: 11,
         modulo: ModuloSistema.SENSORES_IOT,
@@ -417,8 +485,14 @@ describe('EmpresaService', () => {
       );
 
       // Assert
-      expect(mockEmpresaRepository.updateModulo).toHaveBeenCalledWith(11, false);
-      expect(result).toEqual({ modulo: ModuloSistema.SENSORES_IOT, isActive: false });
+      expect(mockEmpresaRepository.updateModulo).toHaveBeenCalledWith(
+        11,
+        false,
+      );
+      expect(result).toEqual({
+        modulo: ModuloSistema.SENSORES_IOT,
+        isActive: false,
+      });
     });
 
     it('deberia lanzar NotFoundException si el modulo no esta asignado a la empresa', async () => {
@@ -428,7 +502,11 @@ describe('EmpresaService', () => {
 
       // Act & Assert
       await expect(
-        service.desactivarModulo(1, { modulo: ModuloSistema.DASHBOARD }, tenantAdmin),
+        service.desactivarModulo(
+          1,
+          { modulo: ModuloSistema.DASHBOARD },
+          tenantAdmin,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -438,23 +516,31 @@ describe('EmpresaService', () => {
       [Plan.STARTER, DETALLE_POR_PLAN[Plan.STARTER].maxUsuarios],
       [Plan.PRO, DETALLE_POR_PLAN[Plan.PRO].maxUsuarios],
       [Plan.ENTERPRISE, DETALLE_POR_PLAN[Plan.ENTERPRISE].maxUsuarios],
-    ])('deberia retornar el limite de usuarios del plan %s', async (plan, maxUsuarios) => {
-      // Arrange
-      mockEmpresaRepository.findById.mockResolvedValue({ ...empresaBase, plan });
+    ])(
+      'deberia retornar el limite de usuarios del plan %s',
+      async (plan, maxUsuarios) => {
+        // Arrange
+        mockEmpresaRepository.findById.mockResolvedValue({
+          ...empresaBase,
+          plan,
+        });
 
-      // Act
-      const result = await service.getLimiteUsuarios(1);
+        // Act
+        const result = await service.getLimiteUsuarios(1);
 
-      // Assert
-      expect(result).toBe(maxUsuarios);
-    });
+        // Assert
+        expect(result).toBe(maxUsuarios);
+      },
+    );
 
     it('deberia lanzar NotFoundException si la empresa no existe', async () => {
       // Arrange
       mockEmpresaRepository.findById.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.getLimiteUsuarios(999)).rejects.toThrow(NotFoundException);
+      await expect(service.getLimiteUsuarios(999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -492,10 +578,16 @@ describe('EmpresaService', () => {
       const pro = result.find((p) => p.nombre === 'Pro')!;
       const enterprise = result.find((p) => p.nombre === 'Enterprise')!;
       expect(starter.precio).toBe(DETALLE_POR_PLAN[Plan.STARTER].precioMensual);
-      expect(starter.maxUsuarios).toBe(DETALLE_POR_PLAN[Plan.STARTER].maxUsuarios);
-      expect(starter.maxSensores).toBe(DETALLE_POR_PLAN[Plan.STARTER].maxSensores);
+      expect(starter.maxUsuarios).toBe(
+        DETALLE_POR_PLAN[Plan.STARTER].maxUsuarios,
+      );
+      expect(starter.maxSensores).toBe(
+        DETALLE_POR_PLAN[Plan.STARTER].maxSensores,
+      );
       expect(pro.precio).toBe(DETALLE_POR_PLAN[Plan.PRO].precioMensual);
-      expect(enterprise.precio).toBe(DETALLE_POR_PLAN[Plan.ENTERPRISE].precioMensual);
+      expect(enterprise.precio).toBe(
+        DETALLE_POR_PLAN[Plan.ENTERPRISE].precioMensual,
+      );
     });
 
     it('Starter deberia incluir solo Dashboard y Recepcion', async () => {
@@ -541,9 +633,10 @@ describe('EmpresaService', () => {
 
       // Assert
       const pro = result.find((p) => p.nombre === 'Pro')!;
-      expect(pro.modulos.map((m) => m.codigo)).not.toContain(ModuloSistema.ASISTENTE_VOZ);
+      expect(pro.modulos.map((m) => m.codigo)).not.toContain(
+        ModuloSistema.ASISTENTE_VOZ,
+      );
       expect(pro.modulos).toHaveLength(7);
     });
-
   });
 });

@@ -93,7 +93,10 @@ describe('AuditLogRepository', () => {
   describe('findAllScoped', () => {
     it('para Administrador no aplica filtro de empresa', async () => {
       mockTypeormRepo.findAndCount.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: null, rolNombre: ROLES.ADMINISTRADOR };
+      const tenant: TenantContext = {
+        empresaId: null,
+        rolNombre: ROLES.ADMINISTRADOR,
+      };
 
       await repository.findAllScoped(tenant, 0, 50);
 
@@ -144,9 +147,12 @@ describe('AuditLogRepository', () => {
       await repository.findPrimerosYUltimos('Lote', [1, 2, 3], 5);
 
       expect(mockTypeormRepo.createQueryBuilder).toHaveBeenCalledWith('log');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('log.entidad = :entidad', {
-        entidad: 'Lote',
-      });
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'log.entidad = :entidad',
+        {
+          entidad: 'Lote',
+        },
+      );
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'log.entidadId IN (:...entidadIds)',
         { entidadIds: [1, 2, 3] },
@@ -154,8 +160,14 @@ describe('AuditLogRepository', () => {
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         "log.accion LIKE '%\\_SUCCESS' ESCAPE '\\'",
       );
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('log.entidadId', 'ASC');
-      expect(mockQueryBuilder.addOrderBy).toHaveBeenCalledWith('log.createdAt', 'ASC');
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'log.entidadId',
+        'ASC',
+      );
+      expect(mockQueryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'log.createdAt',
+        'ASC',
+      );
     });
 
     it('deberia agregar el filtro de empresaId cuando se pasa un valor no nulo', async () => {
@@ -181,7 +193,10 @@ describe('AuditLogRepository', () => {
     });
 
     it('deberia devolver el resultado de getMany tal cual', async () => {
-      const logs = [{ id: 1, entidadId: 1 }, { id: 2, entidadId: 1 }] as unknown as AuditLog[];
+      const logs = [
+        { id: 1, entidadId: 1 },
+        { id: 2, entidadId: 1 },
+      ] as unknown as AuditLog[];
       mockQueryBuilder.getMany.mockResolvedValue(logs);
 
       const result = await repository.findPrimerosYUltimos('Lote', [1], 5);

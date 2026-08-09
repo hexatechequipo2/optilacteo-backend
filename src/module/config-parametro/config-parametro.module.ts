@@ -18,9 +18,12 @@ import { AuditLogModule } from '../audit/audit-log.module';
       ConfiguracionParametro,
       ConfiguracionComparacionHistorica,
     ]),
-    AuditLogModule
+    AuditLogModule,
   ],
-  controllers: [ConfigParametroController, ConfiguracionComparacionHistoricaController],
+  controllers: [
+    ConfigParametroController,
+    ConfiguracionComparacionHistoricaController,
+  ],
   providers: [
     ConfigParametroService,
     ConfiguracionComparacionHistoricaService,

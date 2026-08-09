@@ -26,11 +26,16 @@ export class ProveedorMapper {
     return entity;
   }
 
-  applyUpdate(entity: Proveedor, dto: UpdateProveedorDto, empresaId?: number): Proveedor {
+  applyUpdate(
+    entity: Proveedor,
+    dto: UpdateProveedorDto,
+    empresaId?: number,
+  ): Proveedor {
     if (dto.razonSocial !== undefined) entity.razonSocial = dto.razonSocial;
     if (dto.cuit !== undefined) entity.cuit = dto.cuit;
     if (dto.telefono !== undefined) entity.telefono = dto.telefono ?? null;
-    if (dto.emailContacto !== undefined) entity.emailContacto = dto.emailContacto ?? null;
+    if (dto.emailContacto !== undefined)
+      entity.emailContacto = dto.emailContacto ?? null;
     if (dto.tipo !== undefined) entity.tipo = dto.tipo;
     if (empresaId !== undefined) entity.empresaId = empresaId;
     if (dto.provincia !== undefined) entity.provincia = dto.provincia ?? null;

@@ -53,7 +53,9 @@ export class SensorService {
 
   private validarRango(min: number, max: number) {
     if (min >= max) {
-      throw new BadRequestException('El rango mínimo debe ser menor al rango máximo.');
+      throw new BadRequestException(
+        'El rango mínimo debe ser menor al rango máximo.',
+      );
     }
   }
 
@@ -61,7 +63,10 @@ export class SensorService {
     const empresaId = this.resolveEmpresaId(tenant);
     this.validarRango(dto.rangoMinFavor, dto.rangoMaxFavor);
 
-    const existente = await this.sensorRepository.findByNombre(dto.nombre, empresaId);
+    const existente = await this.sensorRepository.findByNombre(
+      dto.nombre,
+      empresaId,
+    );
     if (existente) {
       throw new ConflictException(
         `Ya existe un sensor con el nombre "${dto.nombre}" en esta empresa.`,
@@ -77,16 +82,28 @@ export class SensorService {
     const empresaId = this.resolveEmpresaId(tenant);
     const sensores = await this.sensorRepository.findAll(filter, empresaId);
     const ids = sensores.map((s) => s.id);
-    const ultimos = await this.historialRepository.findUltimosPorSensores(ids, empresaId);
-    const loteActualPorSensor = new Map(ultimos.map((h) => [h.sensorId, h.loteIdNuevo]));
+    const ultimos = await this.historialRepository.findUltimosPorSensores(
+      ids,
+      empresaId,
+    );
+    const loteActualPorSensor = new Map(
+      ultimos.map((h) => [h.sensorId, h.loteIdNuevo]),
+    );
 
     let dtos = sensores.map((s) =>
       SensorMapper.toResponseDto(s, loteActualPorSensor.get(s.id) ?? null),
     );
 
     if (this.puedeVerAuditoria(tenant)) {
-      const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch('Sensor', ids, empresaId);
-      dtos = dtos.map((dto) => ({ ...dto, auditoria: trazabilidadMap.get(dto.id) }));
+      const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch(
+        'Sensor',
+        ids,
+        empresaId,
+      );
+      dtos = dtos.map((dto) => ({
+        ...dto,
+        auditoria: trazabilidadMap.get(dto.id),
+      }));
     }
 
     return dtos;
@@ -98,11 +115,18 @@ export class SensorService {
     if (!sensor) {
       throw new NotFoundException('Sensor no encontrado.');
     }
-    const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
+    const ultimo = await this.historialRepository.findUltimoPorSensor(
+      id,
+      empresaId,
+    );
     const dto = SensorMapper.toResponseDto(sensor, ultimo?.loteIdNuevo ?? null);
 
     if (this.puedeVerAuditoria(tenant)) {
-      dto.auditoria = await this.auditLogService.getTrazabilidad('Sensor', id, empresaId);
+      dto.auditoria = await this.auditLogService.getTrazabilidad(
+        'Sensor',
+        id,
+        empresaId,
+      );
     }
 
     return dto;
@@ -120,7 +144,10 @@ export class SensorService {
     }
 
     if (dto.nombre && dto.nombre !== sensor.nombre) {
-      const existente = await this.sensorRepository.findByNombre(dto.nombre, empresaId);
+      const existente = await this.sensorRepository.findByNombre(
+        dto.nombre,
+        empresaId,
+      );
       if (existente && existente.id !== id) {
         throw new ConflictException(
           `Ya existe un sensor con el nombre "${dto.nombre}" en esta empresa.`,
@@ -134,7 +161,10 @@ export class SensorService {
 
     Object.assign(sensor, dto);
     const actualizado = await this.sensorRepository.save(sensor);
-    const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
+    const ultimo = await this.historialRepository.findUltimoPorSensor(
+      id,
+      empresaId,
+    );
     return SensorMapper.toResponseDto(actualizado, ultimo?.loteIdNuevo ?? null);
   }
 
@@ -150,7 +180,10 @@ export class SensorService {
       throw new BadRequestException('El sensor ya está inactivo.');
     }
 
-    const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
+    const ultimo = await this.historialRepository.findUltimoPorSensor(
+      id,
+      empresaId,
+    );
     if (ultimo && ultimo.loteIdNuevo) {
       throw new ConflictException(
         'No se puede desactivar el sensor: está asociado a un lote.',
@@ -178,12 +211,20 @@ export class SensorService {
     sensor.estado = EstadoSensor.ACTIVO;
     const actualizado = await this.sensorRepository.save(sensor);
 
-    const ultimo = await this.historialRepository.findUltimoPorSensor(id, empresaId);
+    const ultimo = await this.historialRepository.findUltimoPorSensor(
+      id,
+      empresaId,
+    );
     return SensorMapper.toResponseDto(actualizado, ultimo?.loteIdNuevo ?? null);
   }
 
-// HU-33
-  async asociarALote(loteId: number, sensorIds: number[], usuarioId: number, tenant: TenantContext) {
+  // HU-33
+  async asociarALote(
+    loteId: number,
+    sensorIds: number[],
+    usuarioId: number,
+    tenant: TenantContext,
+  ) {
     const empresaId = this.resolveEmpresaId(tenant);
     const lote = await this.loteRepository.findById(loteId, empresaId);
     if (!lote) {
@@ -204,7 +245,10 @@ export class SensorService {
         );
       }
 
-      const ultimo = await this.historialRepository.findUltimoPorSensor(sensorId, empresaId);
+      const ultimo = await this.historialRepository.findUltimoPorSensor(
+        sensorId,
+        empresaId,
+      );
       const loteActualId = ultimo?.loteIdNuevo ?? null;
 
       if (loteActualId === loteId) {
@@ -223,7 +267,12 @@ export class SensorService {
       registro.empresaId = empresaId;
       await this.historialRepository.create(registro);
 
-      await this.actualizarUbicacionLoteSiCorresponde(lote, sensor, usuarioId, empresaId);
+      await this.actualizarUbicacionLoteSiCorresponde(
+        lote,
+        sensor,
+        usuarioId,
+        empresaId,
+      );
 
       resultados.push(SensorMapper.toResponseDto(sensor, loteId));
     }
@@ -237,8 +286,10 @@ export class SensorService {
     usuarioId: number,
     empresaId: number,
   ): Promise<void> {
-    const ultimaUbicacion = await this.loteUbicacionRepository.findUltimoPorLote(lote.id, empresaId);
-    const ubicacionActual = ultimaUbicacion?.ubicacionNueva ?? lote.ubicacionInicial ?? null;
+    const ultimaUbicacion =
+      await this.loteUbicacionRepository.findUltimoPorLote(lote.id, empresaId);
+    const ubicacionActual =
+      ultimaUbicacion?.ubicacionNueva ?? lote.ubicacionInicial ?? null;
 
     if (ubicacionActual === sensor.ubicacion) {
       return;
@@ -256,7 +307,10 @@ export class SensorService {
 
   async historialPorSensor(sensorId: number, tenant: TenantContext) {
     const empresaId = this.resolveEmpresaId(tenant);
-    const historial = await this.historialRepository.findBySensor(sensorId, empresaId);
+    const historial = await this.historialRepository.findBySensor(
+      sensorId,
+      empresaId,
+    );
     return historial.map(SensorMapper.historialToResponseDto);
   }
 }

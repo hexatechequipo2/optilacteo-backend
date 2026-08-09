@@ -8,13 +8,13 @@ Este repositorio contiene el backend del sistema, desarrollado en Node.js con Ne
 
 ## Equipo — HexaTech
 
-| Nombre | Legajo |
-|--------|--------|
-| Cignetti, Tiziana | 14118 |
-| Milanesio, Hebe del Lourdes | 15343 |
-| Romero, Jimena Soledad | 15377 |
-| Toranzo, Juan Cruz | 15308 |
-| Torres, Damaris | 14563 |
+| Nombre                      | Legajo |
+| --------------------------- | ------ |
+| Cignetti, Tiziana           | 14118  |
+| Milanesio, Hebe del Lourdes | 15343  |
+| Romero, Jimena Soledad      | 15377  |
+| Toranzo, Juan Cruz          | 15308  |
+| Torres, Damaris             | 14563  |
 
 **Docentes / Product Owners:** Ing. Christian Villafañe — Ing. Matías Cassani  
 **Institución:** UTN FRVM — Ingeniería en Sistemas de Información — Proyecto Final 2026

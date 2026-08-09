@@ -86,13 +86,22 @@ describe('LecturaSensorService', () => {
       providers: [
         LecturaSensorService,
         { provide: SENSOR_REPOSITORY, useValue: mockSensorRepository },
-        { provide: SENSOR_LOTE_HISTORIAL_REPOSITORY, useValue: mockHistorialRepository },
+        {
+          provide: SENSOR_LOTE_HISTORIAL_REPOSITORY,
+          useValue: mockHistorialRepository,
+        },
         { provide: LOTE_REPOSITORY, useValue: mockLoteRepository },
         { provide: SENSOR_LECTURA_REPOSITORY, useValue: mockLecturaRepository },
         { provide: SENSOR_EVENTO_REPOSITORY, useValue: mockEventoRepository },
         { provide: LecturasGateway, useValue: mockLecturasGateway },
-        { provide: getRepositoryToken(ConfiguracionParametro), useValue: mockConfigParametroRepository },
-        { provide: ClasificacionLoteService, useValue: mockClasificacionLoteService },
+        {
+          provide: getRepositoryToken(ConfiguracionParametro),
+          useValue: mockConfigParametroRepository,
+        },
+        {
+          provide: ClasificacionLoteService,
+          useValue: mockClasificacionLoteService,
+        },
         { provide: AuditLogService, useValue: mockAuditLogService },
       ],
     }).compile();
@@ -102,27 +111,36 @@ describe('LecturaSensorService', () => {
     // evaluarYClasificar es best-effort (fire-and-forget con .catch): que
     // resuelva por defecto evita ruido de promesas no manejadas en los tests
     // que no la testean explícitamente.
-    mockClasificacionLoteService.evaluarYClasificar.mockResolvedValue(undefined);
+    mockClasificacionLoteService.evaluarYClasificar.mockResolvedValue(
+      undefined,
+    );
     mockAuditLogService.getTrazabilidadBatch.mockResolvedValue(new Map());
   });
 
   afterEach(() => jest.clearAllMocks());
 
   describe('ingresar', () => {
-    const dto = { sensor_id: 'sensor-ph-1', lote_id: 'L1', valor: 7, timestamp: '2026-01-01T10:00:00.000Z' } as any;
+    const dto = {
+      sensor_id: 'sensor-ph-1',
+      lote_id: 'L1',
+      valor: 7,
+      timestamp: '2026-01-01T10:00:00.000Z',
+    } as any;
     const tenant = { empresaId: 99 } as any;
 
     it('cuando el usuario no tiene empresa asociada, debe lanzar BadRequestException', async () => {
-      await expect(service.ingresar(dto, { empresaId: null } as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.ingresar(dto, { empresaId: null } as any),
+      ).rejects.toThrow(BadRequestException);
       expect(mockSensorRepository.findByNombre).not.toHaveBeenCalled();
     });
 
     it('cuando el sensor no existe, debe registrar el evento SENSOR_NO_ENCONTRADO y lanzar NotFoundException', async () => {
       mockSensorRepository.findByNombre.mockResolvedValue(null);
 
-      await expect(service.ingresar(dto, tenant)).rejects.toThrow(NotFoundException);
+      await expect(service.ingresar(dto, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockEventoRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           tipoEvento: TipoEvento.SENSOR_NO_ENCONTRADO,
@@ -138,7 +156,9 @@ describe('LecturaSensorService', () => {
       mockSensorRepository.findByNombre.mockResolvedValue(sensor);
       mockLoteRepository.findByCodigo.mockResolvedValue(null);
 
-      await expect(service.ingresar(dto, tenant)).rejects.toThrow(NotFoundException);
+      await expect(service.ingresar(dto, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockEventoRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           tipoEvento: TipoEvento.LOTE_NO_ENCONTRADO,
@@ -153,9 +173,13 @@ describe('LecturaSensorService', () => {
       const lote = buildLote();
       mockSensorRepository.findByNombre.mockResolvedValue(sensor);
       mockLoteRepository.findByCodigo.mockResolvedValue(lote);
-      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({ loteIdNuevo: 999 });
+      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
+        loteIdNuevo: 999,
+      });
 
-      await expect(service.ingresar(dto, tenant)).rejects.toThrow(NotFoundException);
+      await expect(service.ingresar(dto, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockEventoRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           tipoEvento: TipoEvento.SENSOR_NO_ASOCIADO_A_LOTE,
@@ -173,7 +197,9 @@ describe('LecturaSensorService', () => {
       mockLoteRepository.findByCodigo.mockResolvedValue(lote);
       mockHistorialRepository.findUltimoPorSensor.mockResolvedValue(null);
 
-      await expect(service.ingresar(dto, tenant)).rejects.toThrow(NotFoundException);
+      await expect(service.ingresar(dto, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('cuando el valor está fuera del rango físico posible, debe pasar el sensor a FALLA, emitir el evento y lanzar UnprocessableEntityException', async () => {
@@ -183,7 +209,9 @@ describe('LecturaSensorService', () => {
       const dtoFueraDeRango = { ...dto, valor: 20 };
       mockSensorRepository.findByNombre.mockResolvedValue(sensor);
       mockLoteRepository.findByCodigo.mockResolvedValue(lote);
-      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({ loteIdNuevo: lote.id });
+      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
+        loteIdNuevo: lote.id,
+      });
 
       await expect(service.ingresar(dtoFueraDeRango, tenant)).rejects.toThrow(
         UnprocessableEntityException,
@@ -195,7 +223,10 @@ describe('LecturaSensorService', () => {
         99,
       );
       expect(mockEventoRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ tipoEvento: TipoEvento.VALOR_FUERA_DE_RANGO, valorRecibido: 20 }),
+        expect.objectContaining({
+          tipoEvento: TipoEvento.VALOR_FUERA_DE_RANGO,
+          valorRecibido: 20,
+        }),
       );
       // El valor rechazado no debe persistirse como lectura
       expect(mockLecturaRepository.create).not.toHaveBeenCalled();
@@ -209,7 +240,9 @@ describe('LecturaSensorService', () => {
       const responseDto = { id: 555, valor: 7 };
       mockSensorRepository.findByNombre.mockResolvedValue(sensor);
       mockLoteRepository.findByCodigo.mockResolvedValue(lote);
-      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({ loteIdNuevo: lote.id });
+      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
+        loteIdNuevo: lote.id,
+      });
       (LecturaMapper.toEntity as jest.Mock).mockReturnValue(lecturaEntity);
       mockLecturaRepository.create.mockResolvedValue(creada);
       (LecturaMapper.toResponseDto as jest.Mock).mockReturnValue(responseDto);
@@ -224,8 +257,13 @@ describe('LecturaSensorService', () => {
         expect.objectContaining({ tipoEvento: TipoEvento.SENSOR_RECUPERADO }),
       );
       expect(mockLecturasGateway.emitirSensorRecuperado).not.toHaveBeenCalled();
-      expect(mockLecturasGateway.emitirLectura).toHaveBeenCalledWith(responseDto, 99);
-      expect(mockClasificacionLoteService.evaluarYClasificar).toHaveBeenCalledWith(lote.id, 99);
+      expect(mockLecturasGateway.emitirLectura).toHaveBeenCalledWith(
+        responseDto,
+        99,
+      );
+      expect(
+        mockClasificacionLoteService.evaluarYClasificar,
+      ).toHaveBeenCalledWith(lote.id, 99);
       expect(resultado).toBe(responseDto);
     });
 
@@ -234,7 +272,9 @@ describe('LecturaSensorService', () => {
       const lote = buildLote();
       mockSensorRepository.findByNombre.mockResolvedValue(sensor);
       mockLoteRepository.findByCodigo.mockResolvedValue(lote);
-      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({ loteIdNuevo: lote.id });
+      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
+        loteIdNuevo: lote.id,
+      });
       (LecturaMapper.toEntity as jest.Mock).mockReturnValue({});
       mockLecturaRepository.create.mockResolvedValue({ id: 1 });
       (LecturaMapper.toResponseDto as jest.Mock).mockReturnValue({ id: 1 });
@@ -243,7 +283,10 @@ describe('LecturaSensorService', () => {
 
       expect(sensor.estado).toBe(EstadoSensor.ACTIVO);
       expect(mockEventoRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ tipoEvento: TipoEvento.SENSOR_RECUPERADO, sensorId: sensor.id }),
+        expect.objectContaining({
+          tipoEvento: TipoEvento.SENSOR_RECUPERADO,
+          sensorId: sensor.id,
+        }),
       );
       expect(mockLecturasGateway.emitirSensorRecuperado).toHaveBeenCalledWith(
         { sensorId: sensor.id, nombre: sensor.nombre },
@@ -252,16 +295,22 @@ describe('LecturaSensorService', () => {
     });
 
     it('cuando la clasificación automática del lote falla, no debe romper la ingesta de la lectura (best-effort)', async () => {
-      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
       const sensor = buildSensor();
       const lote = buildLote();
       mockSensorRepository.findByNombre.mockResolvedValue(sensor);
       mockLoteRepository.findByCodigo.mockResolvedValue(lote);
-      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({ loteIdNuevo: lote.id });
+      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
+        loteIdNuevo: lote.id,
+      });
       (LecturaMapper.toEntity as jest.Mock).mockReturnValue({});
       mockLecturaRepository.create.mockResolvedValue({ id: 1 });
       (LecturaMapper.toResponseDto as jest.Mock).mockReturnValue({ id: 1 });
-      mockClasificacionLoteService.evaluarYClasificar.mockRejectedValue(new Error('falló'));
+      mockClasificacionLoteService.evaluarYClasificar.mockRejectedValue(
+        new Error('falló'),
+      );
 
       const resultado = await service.ingresar(dto, tenant);
 
@@ -283,31 +332,39 @@ describe('LecturaSensorService', () => {
     it('cuando el sensor no existe, debe lanzar NotFoundException', async () => {
       mockSensorRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.ingresarManual(dto, usuarioId, tenant)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.ingresarManual(dto, usuarioId, tenant),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('cuando el sensor está ACTIVO, debe lanzar BadRequestException porque no se permite carga manual', async () => {
-      mockSensorRepository.findOne.mockResolvedValue(buildSensor({ estado: EstadoSensor.ACTIVO }));
-
-      await expect(service.ingresarManual(dto, usuarioId, tenant)).rejects.toThrow(
-        BadRequestException,
+      mockSensorRepository.findOne.mockResolvedValue(
+        buildSensor({ estado: EstadoSensor.ACTIVO }),
       );
+
+      await expect(
+        service.ingresarManual(dto, usuarioId, tenant),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('cuando el sensor no tiene ningún lote asociado, debe lanzar NotFoundException', async () => {
-      mockSensorRepository.findOne.mockResolvedValue(buildSensor({ estado: EstadoSensor.FALLA }));
+      mockSensorRepository.findOne.mockResolvedValue(
+        buildSensor({ estado: EstadoSensor.FALLA }),
+      );
       mockHistorialRepository.findUltimoPorSensor.mockResolvedValue(null);
 
-      await expect(service.ingresarManual(dto, usuarioId, tenant)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.ingresarManual(dto, usuarioId, tenant),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('cuando el valor está fuera del rango físico posible, debe lanzar UnprocessableEntityException', async () => {
-      mockSensorRepository.findOne.mockResolvedValue(buildSensor({ estado: EstadoSensor.FALLA }));
-      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({ loteIdNuevo: 10 });
+      mockSensorRepository.findOne.mockResolvedValue(
+        buildSensor({ estado: EstadoSensor.FALLA }),
+      );
+      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
+        loteIdNuevo: 10,
+      });
 
       await expect(
         service.ingresarManual({ ...dto, valor: 20 }, usuarioId, tenant),
@@ -321,7 +378,9 @@ describe('LecturaSensorService', () => {
       const creada = { id: 7 };
       const responseDto = { id: 7, valor: 7 };
       mockSensorRepository.findOne.mockResolvedValue(sensor);
-      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({ loteIdNuevo: 10 });
+      mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
+        loteIdNuevo: 10,
+      });
       (LecturaMapper.toEntity as jest.Mock).mockReturnValue(lecturaEntity);
       mockLecturaRepository.create.mockResolvedValue(creada);
       (LecturaMapper.toResponseDto as jest.Mock).mockReturnValue(responseDto);
@@ -338,8 +397,13 @@ describe('LecturaSensorService', () => {
         usuarioId,
       );
       expect(mockLecturaRepository.create).toHaveBeenCalledWith(lecturaEntity);
-      expect(mockLecturasGateway.emitirLectura).toHaveBeenCalledWith(responseDto, 99);
-      expect(mockClasificacionLoteService.evaluarYClasificar).toHaveBeenCalledWith(10, 99);
+      expect(mockLecturasGateway.emitirLectura).toHaveBeenCalledWith(
+        responseDto,
+        99,
+      );
+      expect(
+        mockClasificacionLoteService.evaluarYClasificar,
+      ).toHaveBeenCalledWith(10, 99);
       // El estado del sensor y su última lectura no se modifican en la carga manual
       expect(mockSensorRepository.save).not.toHaveBeenCalled();
       expect(sensor.estado).toBe(EstadoSensor.INACTIVO);
@@ -351,23 +415,37 @@ describe('LecturaSensorService', () => {
     const tenant = { empresaId: 99 } as any;
 
     it('cuando el usuario no tiene empresa asociada, debe lanzar BadRequestException', async () => {
-      await expect(service.consultarHistorial({} as any, { empresaId: null } as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.consultarHistorial({} as any, { empresaId: null } as any),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('cuando fechaFin es anterior a fechaInicio, debe lanzar BadRequestException', async () => {
-      const query = { fechaInicio: '2026-02-10', fechaFin: '2026-02-01' } as any;
+      const query = {
+        fechaInicio: '2026-02-10',
+        fechaFin: '2026-02-01',
+      } as any;
 
-      await expect(service.consultarHistorial(query, tenant)).rejects.toThrow(BadRequestException);
+      await expect(service.consultarHistorial(query, tenant)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('cuando se filtra por un loteCodigo que no existe, debe devolver una página vacía sin consultar lecturas', async () => {
       mockLoteRepository.findByCodigo.mockResolvedValue(null);
 
-      const resultado = await service.consultarHistorial({ loteCodigo: 'NOEXISTE' } as any, tenant);
+      const resultado = await service.consultarHistorial(
+        { loteCodigo: 'NOEXISTE' } as any,
+        tenant,
+      );
 
-      expect(resultado).toEqual({ data: [], total: 0, page: 1, limit: 20, rangoAmplio: false });
+      expect(resultado).toEqual({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        rangoAmplio: false,
+      });
       expect(mockLecturaRepository.findHistorial).not.toHaveBeenCalled();
     });
 
@@ -384,7 +462,11 @@ describe('LecturaSensorService', () => {
     });
 
     it('cuando no hay umbral configurado para el parámetro y materia prima de la lectura, debe marcarla como SIN_UMBRAL_CONFIGURADO', async () => {
-      const lectura = { valor: 7, sensor: { parametro: 'PH' }, lote: { materiaPrima: 'LECHE_CRUDA' } };
+      const lectura = {
+        valor: 7,
+        sensor: { parametro: 'PH' },
+        lote: { materiaPrima: 'LECHE_CRUDA' },
+      };
       mockLecturaRepository.findHistorial.mockResolvedValue([[lectura], 1]);
       mockConfigParametroRepository.find.mockResolvedValue([]); // sin configuraciones
 
@@ -397,10 +479,19 @@ describe('LecturaSensorService', () => {
     });
 
     it('cuando el valor está fuera del umbral configurado por la empresa, debe marcarla como FUERA_DE_RANGO', async () => {
-      const lectura = { valor: 20, sensor: { parametro: 'PH' }, lote: { materiaPrima: 'LECHE_CRUDA' } };
+      const lectura = {
+        valor: 20,
+        sensor: { parametro: 'PH' },
+        lote: { materiaPrima: 'LECHE_CRUDA' },
+      };
       mockLecturaRepository.findHistorial.mockResolvedValue([[lectura], 1]);
       mockConfigParametroRepository.find.mockResolvedValue([
-        { parametro: 'PH', tipoMateriaPrima: 'LECHE_CRUDA', umbralMin: 0, umbralMax: 14 },
+        {
+          parametro: 'PH',
+          tipoMateriaPrima: 'LECHE_CRUDA',
+          umbralMin: 0,
+          umbralMax: 14,
+        },
       ]);
 
       await service.consultarHistorial({} as any, tenant);
@@ -412,21 +503,36 @@ describe('LecturaSensorService', () => {
     });
 
     it('cuando el valor está dentro del umbral configurado, debe marcarla como NORMAL', async () => {
-      const lectura = { valor: 7, sensor: { parametro: 'PH' }, lote: { materiaPrima: 'LECHE_CRUDA' } };
+      const lectura = {
+        valor: 7,
+        sensor: { parametro: 'PH' },
+        lote: { materiaPrima: 'LECHE_CRUDA' },
+      };
       mockLecturaRepository.findHistorial.mockResolvedValue([[lectura], 1]);
       mockConfigParametroRepository.find.mockResolvedValue([
-        { parametro: 'PH', tipoMateriaPrima: 'LECHE_CRUDA', umbralMin: 0, umbralMax: 14 },
+        {
+          parametro: 'PH',
+          tipoMateriaPrima: 'LECHE_CRUDA',
+          umbralMin: 0,
+          umbralMax: 14,
+        },
       ]);
 
       await service.consultarHistorial({} as any, tenant);
 
-      expect(LecturaMapper.toHistorialItemDto).toHaveBeenCalledWith(lectura, EstadoMedicion.NORMAL);
+      expect(LecturaMapper.toHistorialItemDto).toHaveBeenCalledWith(
+        lectura,
+        EstadoMedicion.NORMAL,
+      );
     });
 
     it('cuando el rango de fechas consultado supera los 30 días, debe marcar rangoAmplio en true', async () => {
       mockLecturaRepository.findHistorial.mockResolvedValue([[], 0]);
       mockConfigParametroRepository.find.mockResolvedValue([]);
-      const query = { fechaInicio: '2026-01-01', fechaFin: '2026-03-01' } as any;
+      const query = {
+        fechaInicio: '2026-01-01',
+        fechaFin: '2026-03-01',
+      } as any;
 
       const resultado = await service.consultarHistorial(query, tenant);
 
@@ -436,7 +542,10 @@ describe('LecturaSensorService', () => {
     it('cuando el rango de fechas consultado es de 30 días o menos, debe marcar rangoAmplio en false', async () => {
       mockLecturaRepository.findHistorial.mockResolvedValue([[], 0]);
       mockConfigParametroRepository.find.mockResolvedValue([]);
-      const query = { fechaInicio: '2026-01-01', fechaFin: '2026-01-15' } as any;
+      const query = {
+        fechaInicio: '2026-01-01',
+        fechaFin: '2026-01-15',
+      } as any;
 
       const resultado = await service.consultarHistorial(query, tenant);
 
@@ -506,28 +615,44 @@ describe('LecturaSensorService', () => {
     const tenant = { empresaId: 99 } as any;
 
     it('cuando el usuario no tiene empresa asociada, debe lanzar BadRequestException', async () => {
-      await expect(service.exportarHistorial({} as any, { empresaId: null } as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.exportarHistorial({} as any, { empresaId: null } as any),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('cuando fechaFin es anterior a fechaInicio, debe lanzar BadRequestException', async () => {
-      const query = { fechaInicio: '2026-02-10', fechaFin: '2026-02-01' } as any;
+      const query = {
+        fechaInicio: '2026-02-10',
+        fechaFin: '2026-02-01',
+      } as any;
 
-      await expect(service.exportarHistorial(query, tenant)).rejects.toThrow(BadRequestException);
+      await expect(service.exportarHistorial(query, tenant)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('cuando se filtra por un loteCodigo que no existe, debe devolver un CSV con solo los encabezados', async () => {
       mockLoteRepository.findByCodigo.mockResolvedValue(null);
 
-      const resultado = await service.exportarHistorial({ loteCodigo: 'NOEXISTE' } as any, tenant);
+      const resultado = await service.exportarHistorial(
+        { loteCodigo: 'NOEXISTE' } as any,
+        tenant,
+      );
 
-      expect(resultado).toBe('id,valor,unidad,sensor,parametro,lote,fechaHora,estado');
-      expect(mockLecturaRepository.findHistorialCompleto).not.toHaveBeenCalled();
+      expect(resultado).toBe(
+        'id,valor,unidad,sensor,parametro,lote,fechaHora,estado',
+      );
+      expect(
+        mockLecturaRepository.findHistorialCompleto,
+      ).not.toHaveBeenCalled();
     });
 
     it('debe exportar todas las lecturas sin paginar, con las columnas y el formato CSV esperados', async () => {
-      const lectura = { valor: 7, sensor: { parametro: 'PH' }, lote: { materiaPrima: 'LECHE_CRUDA' } };
+      const lectura = {
+        valor: 7,
+        sensor: { parametro: 'PH' },
+        lote: { materiaPrima: 'LECHE_CRUDA' },
+      };
       mockLecturaRepository.findHistorialCompleto.mockResolvedValue([lectura]);
       mockConfigParametroRepository.find.mockResolvedValue([]);
       (LecturaMapper.toHistorialItemDto as jest.Mock).mockReturnValue({
@@ -548,7 +673,9 @@ describe('LecturaSensorService', () => {
         99,
       );
       const filas = resultado.split('\n');
-      expect(filas[0]).toBe('id,valor,unidad,sensor,parametro,lote,fechaHora,estado');
+      expect(filas[0]).toBe(
+        'id,valor,unidad,sensor,parametro,lote,fechaHora,estado',
+      );
       expect(filas[1]).toBe(
         '"1","7","pH","sensor-ph-1","PH","L1","2026-01-01T10:00:00.000Z","SIN_UMBRAL_CONFIGURADO"',
       );
@@ -559,14 +686,14 @@ describe('LecturaSensorService', () => {
         {
           valor: 7,
           sensor: {
-          parametro: 'PH',
-        },
+            parametro: 'PH',
+          },
           lote: {
-          materiaPrima: 'LECHE_CRUDA',
+            materiaPrima: 'LECHE_CRUDA',
+          },
         },
-      },
-    ]);
-    
+      ]);
+
       mockConfigParametroRepository.find.mockResolvedValue([]);
       (LecturaMapper.toHistorialItemDto as jest.Mock).mockReturnValue({
         id: 1,

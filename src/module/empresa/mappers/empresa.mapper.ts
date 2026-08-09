@@ -25,10 +25,11 @@ export class EmpresaMapper {
       plan: empresa.plan,
       isActive: empresa.isActive,
       cantidadUsuarios: empresa.users?.length ?? 0,
-      modulos: empresa.modulos?.map((m) => ({
-        modulo: m.modulo,
-        isActive: m.isActive,
-      })) ?? [],
+      modulos:
+        empresa.modulos?.map((m) => ({
+          modulo: m.modulo,
+          isActive: m.isActive,
+        })) ?? [],
       logoUrl:
         empresa.logoPath && storageService
           ? storageService.getPublicUrl(empresa.logoPath)

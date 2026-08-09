@@ -5,23 +5,27 @@ import { ConfiguracionComparacionHistorica } from '../entities/configuracion-com
 import type { IConfiguracionComparacionHistoricaRepository } from './configuracion-comparacion-historica.repository.interface';
 
 @Injectable()
-export class ConfiguracionComparacionHistoricaRepository
-  implements IConfiguracionComparacionHistoricaRepository
-{
+export class ConfiguracionComparacionHistoricaRepository implements IConfiguracionComparacionHistoricaRepository {
   constructor(
     @InjectRepository(ConfiguracionComparacionHistorica)
     private readonly repository: Repository<ConfiguracionComparacionHistorica>,
   ) {}
 
-  findByEmpresa(empresaId: number): Promise<ConfiguracionComparacionHistorica | null> {
+  findByEmpresa(
+    empresaId: number,
+  ): Promise<ConfiguracionComparacionHistorica | null> {
     return this.repository.findOne({ where: { empresaId } });
   }
 
-  save(entity: ConfiguracionComparacionHistorica): Promise<ConfiguracionComparacionHistorica> {
+  save(
+    entity: ConfiguracionComparacionHistorica,
+  ): Promise<ConfiguracionComparacionHistorica> {
     return this.repository.save(entity);
   }
 
-  create(data: Partial<ConfiguracionComparacionHistorica>): ConfiguracionComparacionHistorica {
+  create(
+    data: Partial<ConfiguracionComparacionHistorica>,
+  ): ConfiguracionComparacionHistorica {
     return this.repository.create(data);
   }
 }

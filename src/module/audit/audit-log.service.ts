@@ -50,7 +50,11 @@ export class AuditLogService {
     entidadId: number,
     empresaId: number | null,
   ): Promise<TrazabilidadEntidadDto> {
-    const mapa = await this.getTrazabilidadBatch(entidad, [entidadId], empresaId);
+    const mapa = await this.getTrazabilidadBatch(
+      entidad,
+      [entidadId],
+      empresaId,
+    );
     return mapa.get(entidadId) ?? {};
   }
 
@@ -89,7 +93,11 @@ export class AuditLogService {
         },
         ultimaModificacion:
           ultimo.id !== primero.id
-            ? { userId: ultimo.userId, userEmail: ultimo.userEmail, fecha: ultimo.createdAt }
+            ? {
+                userId: ultimo.userId,
+                userEmail: ultimo.userEmail,
+                fecha: ultimo.createdAt,
+              }
             : undefined,
       });
     }

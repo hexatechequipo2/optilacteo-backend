@@ -67,7 +67,8 @@ export class CreateProveedorDto {
   // Obligatorio solo para admin (que gestiona cualquier empresa); para el
   // resto de los roles se ignora y se fuerza desde el JWT. Ver ProveedoresService.resolveEmpresaId.
   @ApiPropertyOptional({
-    description: 'Id de la empresa (obligatorio solo si el usuario es ADMINISTRADOR)',
+    description:
+      'Id de la empresa (obligatorio solo si el usuario es ADMINISTRADOR)',
     example: 2,
   })
   @IsOptional()

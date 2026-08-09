@@ -1,5 +1,7 @@
 import {
-  ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
 } from 'class-validator';
 import { RANGOS_FISICOS } from './rangos-fisicos.constant';
 
@@ -9,7 +11,9 @@ export class RangoFisicoValidator implements ValidatorConstraintInterface {
     const obj = args.object as any;
     const rango = RANGOS_FISICOS[obj.parametro as keyof typeof RANGOS_FISICOS];
     if (!rango) return true;
-    return typeof value === 'number' && value >= rango.min && value <= rango.max;
+    return (
+      typeof value === 'number' && value >= rango.min && value <= rango.max
+    );
   }
 
   defaultMessage(args: ValidationArguments): string {

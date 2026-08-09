@@ -73,9 +73,16 @@ describe('NotificacionRepository', () => {
       const expectedList = [{ id: 1 }, { id: 2 }] as Notificacion[];
       const expectedTotal = 15;
 
-      typeormRepoMock.findAndCount.mockResolvedValue([expectedList, expectedTotal]);
+      typeormRepoMock.findAndCount.mockResolvedValue([
+        expectedList,
+        expectedTotal,
+      ]);
 
-      const result = await repository.findByUsuario(usuarioId, empresaId, query);
+      const result = await repository.findByUsuario(
+        usuarioId,
+        empresaId,
+        query,
+      );
 
       expect(typeormRepoMock.findAndCount).toHaveBeenCalledWith({
         where: { usuarioId, empresaId },

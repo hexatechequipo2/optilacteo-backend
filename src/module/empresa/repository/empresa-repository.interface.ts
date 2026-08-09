@@ -25,9 +25,15 @@ export interface IEmpresaRepository {
   deleteEmpresa(id: number): Promise<void>;
   hasActiveUsers(id: number): Promise<boolean>;
   createModulos(modulos: Partial<EmpresaModulo>[]): Promise<EmpresaModulo[]>;
-  findModulo(empresaId: number, modulo: ModuloSistema): Promise<EmpresaModulo | null>;
+  findModulo(
+    empresaId: number,
+    modulo: ModuloSistema,
+  ): Promise<EmpresaModulo | null>;
   updateModulo(id: number, isActive: boolean): Promise<EmpresaModulo>;
-  syncModulos(empresaId: number, modulosNuevoPlan: ModuloSistema[]): Promise<void>;
+  syncModulos(
+    empresaId: number,
+    modulosNuevoPlan: ModuloSistema[],
+  ): Promise<void>;
 }
 
 export const EMPRESA_REPOSITORY = 'EMPRESA_REPOSITORY';

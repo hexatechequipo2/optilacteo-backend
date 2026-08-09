@@ -62,19 +62,28 @@ export class RolRepository implements IRolRepository {
     return false;
   }
 
-  async createPermisos(permisos: Partial<PermisoModulo>[]): Promise<PermisoModulo[]> {
+  async createPermisos(
+    permisos: Partial<PermisoModulo>[],
+  ): Promise<PermisoModulo[]> {
     const nuevos = this.permisoRepository.create(permisos);
     return this.permisoRepository.save(nuevos);
   }
 
-  async findPermiso(rolId: number, modulo: ModuloSistema): Promise<PermisoModulo | null> {
+  async findPermiso(
+    rolId: number,
+    modulo: ModuloSistema,
+  ): Promise<PermisoModulo | null> {
     return this.permisoRepository.findOne({
       where: { rol: { id: rolId }, modulo },
       relations: { rol: true },
     });
   }
 
-  async updatePermiso(id: number, canRead: boolean, canWrite: boolean): Promise<PermisoModulo> {
+  async updatePermiso(
+    id: number,
+    canRead: boolean,
+    canWrite: boolean,
+  ): Promise<PermisoModulo> {
     await this.permisoRepository.update(id, { canRead, canWrite });
     const updated = await this.permisoRepository.findOne({ where: { id } });
     if (!updated) {

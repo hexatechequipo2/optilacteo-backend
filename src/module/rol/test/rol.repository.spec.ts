@@ -117,7 +117,9 @@ describe('RolRepository', () => {
 
       const result = await repository.updateRol(5, { nombre: 'Nuevo nombre' });
 
-      expect(mockRolTypeormRepo.update).toHaveBeenCalledWith(5, { nombre: 'Nuevo nombre' });
+      expect(mockRolTypeormRepo.update).toHaveBeenCalledWith(5, {
+        nombre: 'Nuevo nombre',
+      });
       expect(result).toBe(updated);
     });
 
@@ -143,7 +145,9 @@ describe('RolRepository', () => {
 
   describe('createPermisos', () => {
     it('deberia crear las instancias con create() y persistirlas con save()', async () => {
-      const partial = [{ modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false }];
+      const partial = [
+        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
+      ];
       const created = [{ id: 1, ...partial[0] }] as PermisoModulo[];
       mockPermisoTypeormRepo.create.mockReturnValue(created);
       mockPermisoTypeormRepo.save.mockResolvedValue(created);
@@ -171,13 +175,21 @@ describe('RolRepository', () => {
 
   describe('updatePermiso', () => {
     it('deberia actualizar canRead/canWrite y devolver el permiso recargado', async () => {
-      const updated = { id: 1, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true } as PermisoModulo;
+      const updated = {
+        id: 1,
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: true,
+      } as PermisoModulo;
       mockPermisoTypeormRepo.update.mockResolvedValue({ affected: 1 });
       mockPermisoTypeormRepo.findOne.mockResolvedValue(updated);
 
       const result = await repository.updatePermiso(1, true, true);
 
-      expect(mockPermisoTypeormRepo.update).toHaveBeenCalledWith(1, { canRead: true, canWrite: true });
+      expect(mockPermisoTypeormRepo.update).toHaveBeenCalledWith(1, {
+        canRead: true,
+        canWrite: true,
+      });
       expect(result).toBe(updated);
     });
 

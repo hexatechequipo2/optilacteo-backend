@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({ example: 'usuario@empresa.com' })
@@ -14,7 +20,8 @@ export class LoginDto {
   @ApiProperty({
     example: false,
     required: false,
-    description: 'Si es true, el refresh_token se emite con una expiración extendida.',
+    description:
+      'Si es true, el refresh_token se emite con una expiración extendida.',
   })
   @IsOptional()
   @IsBoolean({ message: 'rememberMe debe ser un valor booleano' })

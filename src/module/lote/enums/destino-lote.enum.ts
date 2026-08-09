@@ -3,4 +3,4 @@ export enum DestinoLote {
   ALMACENAMIENTO = 'almacenamiento',
   TRATAMIENTO = 'tratamiento',
   DESCARTE = 'descarte',
-}   
+}

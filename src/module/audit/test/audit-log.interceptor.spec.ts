@@ -13,7 +13,9 @@ const mockReflector = {
   getAllAndOverride: jest.fn(),
 };
 
-function buildExecutionContext(request: Record<string, unknown>): ExecutionContext {
+function buildExecutionContext(
+  request: Record<string, unknown>,
+): ExecutionContext {
   return {
     getHandler: jest.fn(),
     getClass: jest.fn(),
@@ -160,7 +162,9 @@ describe('AuditInterceptor', () => {
       });
       const request = { params: {}, body: {} };
       const context = buildExecutionContext(request);
-      const next: CallHandler = { handle: () => of({ lote: { id: 15, nombre: 'Lote A' } }) };
+      const next: CallHandler = {
+        handle: () => of({ lote: { id: 15, nombre: 'Lote A' } }),
+      };
 
       await lastValueFrom(interceptor.intercept(context, next));
       await flushPromises();
@@ -194,7 +198,9 @@ describe('AuditInterceptor', () => {
       });
       const request = { params: {}, body: {} };
       const context = buildExecutionContext(request);
-      const next: CallHandler = { handle: () => of({ lote: { id: 'no-numerico' } }) };
+      const next: CallHandler = {
+        handle: () => of({ lote: { id: 'no-numerico' } }),
+      };
 
       await lastValueFrom(interceptor.intercept(context, next));
       await flushPromises();

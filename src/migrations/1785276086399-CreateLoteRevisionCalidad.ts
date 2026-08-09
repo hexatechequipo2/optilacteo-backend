@@ -1,14 +1,14 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateLoteRevisionCalidad1785276086399 implements MigrationInterface {
-    name = 'CreateLoteRevisionCalidad1785276086399'
+  name = 'CreateLoteRevisionCalidad1785276086399';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             CREATE TYPE "public"."lote_revision_calidad_decision_enum" AS ENUM('aprobado', 'rechazado')
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             CREATE TABLE "lote_revision_calidad" (
                 "id" SERIAL PRIMARY KEY,
                 "loteId" integer NOT NULL,
@@ -26,20 +26,24 @@ export class CreateLoteRevisionCalidad1785276086399 implements MigrationInterfac
             )
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             CREATE INDEX "IDX_lrc_empresa" ON "lote_revision_calidad" ("empresaId")
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             CREATE INDEX "IDX_lrc_empresa_lote_created"
             ON "lote_revision_calidad" ("empresaId", "loteId", "createdAt")
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP INDEX "public"."IDX_lrc_empresa_lote_created"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_lrc_empresa"`);
-        await queryRunner.query(`DROP TABLE "lote_revision_calidad"`);
-        await queryRunner.query(`DROP TYPE "public"."lote_revision_calidad_decision_enum"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_lrc_empresa_lote_created"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_lrc_empresa"`);
+    await queryRunner.query(`DROP TABLE "lote_revision_calidad"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."lote_revision_calidad_decision_enum"`,
+    );
+  }
 }

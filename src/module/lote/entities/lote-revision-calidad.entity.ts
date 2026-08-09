@@ -40,7 +40,7 @@ export class LoteRevisionCalidad {
   @Index()
   @Column()
   empresaId!: number;
-  
+
   @ManyToOne(() => User)
   @JoinColumn({ name: 'usuarioId' })
   usuario?: User;

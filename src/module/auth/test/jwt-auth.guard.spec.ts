@@ -72,10 +72,7 @@ describe('JwtAuthGuard', () => {
     jest.clearAllMocks();
   });
 
-  const mockContext = (
-    token?: string,
-    isPublic = false,
-  ): ExecutionContext => {
+  const mockContext = (token?: string, isPublic = false): ExecutionContext => {
     mockReflector.getAllAndOverride.mockReturnValue(isPublic);
 
     return {
@@ -148,9 +145,7 @@ describe('JwtAuthGuard', () => {
         false,
       );
 
-      mockJwtService.verifyAsync.mockRejectedValue(
-        new Error('invalid token'),
-      );
+      mockJwtService.verifyAsync.mockRejectedValue(new Error('invalid token'));
 
       const context = mockContext('token_invalido');
 
@@ -275,9 +270,7 @@ describe('JwtAuthGuard', () => {
         expect.any(Date),
       );
 
-      expect(mockJwtService.verifyAsync).toHaveBeenCalledWith(
-        'token_valido',
-      );
+      expect(mockJwtService.verifyAsync).toHaveBeenCalledWith('token_valido');
 
       expect(mockUserRepository.findById).toHaveBeenCalledWith(1);
     });

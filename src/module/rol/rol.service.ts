@@ -95,7 +95,11 @@ export class RolService {
     return { message: `Rol con id ${id} eliminado correctamente` };
   }
 
-  async updatePermiso(rolId: number, dto: UpdatePermisoDto, tenant: TenantContext) {
+  async updatePermiso(
+    rolId: number,
+    dto: UpdatePermisoDto,
+    tenant: TenantContext,
+  ) {
     const rol = await this.findOne(rolId);
     this.guardEdicionDePermisos(rol, tenant);
 
@@ -103,14 +107,20 @@ export class RolService {
     if (!permiso) {
       // Si no existe el permiso para ese módulo, lo creamos
       const rol = await this.rolRepository.findById(rolId);
-      await this.rolRepository.createPermisos([{
-        modulo: dto.modulo,
-        canRead: dto.canRead,
-        canWrite: dto.canWrite,
-        rol: rol!,
-      }]);
+      await this.rolRepository.createPermisos([
+        {
+          modulo: dto.modulo,
+          canRead: dto.canRead,
+          canWrite: dto.canWrite,
+          rol: rol!,
+        },
+      ]);
     } else {
-      await this.rolRepository.updatePermiso(permiso.id, dto.canRead, dto.canWrite);
+      await this.rolRepository.updatePermiso(
+        permiso.id,
+        dto.canRead,
+        dto.canWrite,
+      );
     }
 
     const updated = await this.rolRepository.findById(rolId);
@@ -128,7 +138,10 @@ export class RolService {
   // Un Gerente puede editar los permisos de roles de empleados, pero no los
   // de Administrador ni los de su propio rol (Gerente) — mismo criterio que
   // UserService.guardAsignacionDeRol.
-  private guardEdicionDePermisos(rol: { nombre: string }, tenant: TenantContext) {
+  private guardEdicionDePermisos(
+    rol: { nombre: string },
+    tenant: TenantContext,
+  ) {
     if (
       tenant.rolNombre === ROLES.GERENTE &&
       (rol.nombre === ROLES.ADMINISTRADOR || rol.nombre === ROLES.GERENTE)

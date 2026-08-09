@@ -59,7 +59,12 @@ describe('PermisoRepository', () => {
   describe('findByUsuario - permisos efectivos via el rol del usuario', () => {
     it('deberia buscar al usuario con su rol y los permisos de ese rol', async () => {
       const permisos = [
-        { id: 1, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
+        {
+          id: 1,
+          modulo: ModuloSistema.DASHBOARD,
+          canRead: true,
+          canWrite: false,
+        },
       ] as PermisoModulo[];
       mockUserTypeormRepo.findOne.mockResolvedValue({
         id: 10,
@@ -92,7 +97,10 @@ describe('PermisoRepository', () => {
     });
 
     it('deberia devolver un array vacio si el rol no tiene permisos cargados', async () => {
-      mockUserTypeormRepo.findOne.mockResolvedValue({ id: 10, rol: { id: 5, permisos: undefined } });
+      mockUserTypeormRepo.findOne.mockResolvedValue({
+        id: 10,
+        rol: { id: 5, permisos: undefined },
+      });
 
       const result = await repository.findByUsuario(10);
 

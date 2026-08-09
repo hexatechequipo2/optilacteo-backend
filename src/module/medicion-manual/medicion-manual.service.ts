@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
@@ -53,8 +59,11 @@ export class MedicionManualService {
     // HU-20 es respaldo TOTAL: solo si el lote no tiene NINGÚN sensor
     // asociado hoy. Si tiene uno (sea cual sea su estado), corresponde
     // HU-15 (ingresarManual por sensor puntual en falla/inactivo).
-    const sensoresAsociados = await this.sensorLoteHistorialRepository
-      .findSensoresActualesDeLote(loteId, empresaId);
+    const sensoresAsociados =
+      await this.sensorLoteHistorialRepository.findSensoresActualesDeLote(
+        loteId,
+        empresaId,
+      );
     if (sensoresAsociados.length > 0) {
       throw new BadRequestException(
         `El lote ${loteId} tiene sensores asociados. Para reportar un valor cuando ` +
@@ -77,13 +86,21 @@ export class MedicionManualService {
     }
 
     // AC5/6: fuera de rango se ACEPTA y se marca, no se rechaza.
-    const nuevas = MedicionManualMapper.toEntities(dto, lote.id, empresaId, usuarioId);
+    const nuevas = MedicionManualMapper.toEntities(
+      dto,
+      lote.id,
+      empresaId,
+      usuarioId,
+    );
     const creadas = await this.medicionRepository.create(nuevas);
 
     const mapaConfig = new Map(
       configs.map((c) => [`${c.parametro}|${c.tipoMateriaPrima}`, c]),
     );
-    const mediciones = MedicionManualMapper.toResponseItemList(creadas, mapaConfig);
+    const mediciones = MedicionManualMapper.toResponseItemList(
+      creadas,
+      mapaConfig,
+    );
 
     // HU-21: dispara la clasificación automática si ya están todos los
     // parámetros obligatorios. Best-effort: no debe romper el registro.
@@ -113,7 +130,9 @@ export class MedicionManualService {
       throw new NotFoundException(`Lote ${loteId} no encontrado`);
     }
 
-    const fechaInicio = query.fechaInicio ? new Date(query.fechaInicio) : undefined;
+    const fechaInicio = query.fechaInicio
+      ? new Date(query.fechaInicio)
+      : undefined;
     const fechaFin = this.normalizarFechaFin(query.fechaFin);
 
     if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
@@ -125,16 +144,22 @@ export class MedicionManualService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    const [mediciones, total] = await this.medicionRepository.findByLotePaginado(
-      { loteId, fechaInicio, fechaFin, page, limit },
-      empresaId,
-    );
+    const [mediciones, total] =
+      await this.medicionRepository.findByLotePaginado(
+        { loteId, fechaInicio, fechaFin, page, limit },
+        empresaId,
+      );
 
-    const configs = await this.configParametroRepository.find({ where: { empresaId } });
+    const configs = await this.configParametroRepository.find({
+      where: { empresaId },
+    });
     const mapaConfig = new Map(
       configs.map((c) => [`${c.parametro}|${c.tipoMateriaPrima}`, c]),
     );
-    const data = MedicionManualMapper.toResponseItemList(mediciones, mapaConfig);
+    const data = MedicionManualMapper.toResponseItemList(
+      mediciones,
+      mapaConfig,
+    );
 
     return { data, total, page, limit };
   }

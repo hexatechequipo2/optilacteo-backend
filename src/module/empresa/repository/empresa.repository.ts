@@ -4,7 +4,10 @@ import { In, Repository } from 'typeorm';
 import { Empresa } from '../entities/empresa.entity';
 import { EmpresaModulo } from '../entities/empresa-modulo.entity';
 import { ModuloSistema } from '../enums/modulo-sistema.enum';
-import { EmpresaFilters, IEmpresaRepository } from './empresa-repository.interface';
+import {
+  EmpresaFilters,
+  IEmpresaRepository,
+} from './empresa-repository.interface';
 
 @Injectable()
 export class EmpresaRepository implements IEmpresaRepository {
@@ -50,31 +53,35 @@ export class EmpresaRepository implements IEmpresaRepository {
       qb.andWhere('empresa.cuit ILIKE :cuit', { cuit: `%${filters.cuit}%` });
     }
     if (filters?.email) {
-      qb.andWhere('empresa.email ILIKE :email', { email: `%${filters.email}%` });
+      qb.andWhere('empresa.email ILIKE :email', {
+        email: `%${filters.email}%`,
+      });
     }
     if (filters?.plan) {
       qb.andWhere('empresa.plan = :plan', { plan: filters.plan });
     }
     if (filters?.isActive !== undefined) {
-      qb.andWhere('empresa.isActive = :isActive', { isActive: filters.isActive });
+      qb.andWhere('empresa.isActive = :isActive', {
+        isActive: filters.isActive,
+      });
     }
 
     return qb.getManyAndCount();
   }
 
-    async createEmpresa(empresa: Partial<Empresa>): Promise<Empresa> {
-      const newEmpresa = this.repository.create(empresa);
-      return this.repository.save(newEmpresa);
-    }
+  async createEmpresa(empresa: Partial<Empresa>): Promise<Empresa> {
+    const newEmpresa = this.repository.create(empresa);
+    return this.repository.save(newEmpresa);
+  }
 
-    async updateEmpresa(id: number, empresa: Partial<Empresa>): Promise<Empresa> {
-      await this.repository.update(id, empresa);
-      const updated = await this.findById(id);
-      if (!updated) {
-        throw new Error(`Empresa with id ${id} not found after update`);
-      }
-      return updated;
+  async updateEmpresa(id: number, empresa: Partial<Empresa>): Promise<Empresa> {
+    await this.repository.update(id, empresa);
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw new Error(`Empresa with id ${id} not found after update`);
     }
+    return updated;
+  }
 
   async deleteEmpresa(id: number): Promise<void> {
     await this.repository.delete(id);
@@ -86,12 +93,17 @@ export class EmpresaRepository implements IEmpresaRepository {
     return empresa.users.some((user) => user.isActive);
   }
 
-  async createModulos(modulos: Partial<EmpresaModulo>[]): Promise<EmpresaModulo[]> {
+  async createModulos(
+    modulos: Partial<EmpresaModulo>[],
+  ): Promise<EmpresaModulo[]> {
     const nuevos = this.moduloRepository.create(modulos);
     return this.moduloRepository.save(nuevos);
   }
 
-  async findModulo(empresaId: number, modulo: ModuloSistema): Promise<EmpresaModulo | null> {
+  async findModulo(
+    empresaId: number,
+    modulo: ModuloSistema,
+  ): Promise<EmpresaModulo | null> {
     return this.moduloRepository.findOne({
       where: { empresa: { id: empresaId }, modulo },
       relations: { empresa: true },
@@ -107,7 +119,10 @@ export class EmpresaRepository implements IEmpresaRepository {
     return updated;
   }
 
-  async syncModulos(empresaId: number, modulosNuevoPlan: ModuloSistema[]): Promise<void> {
+  async syncModulos(
+    empresaId: number,
+    modulosNuevoPlan: ModuloSistema[],
+  ): Promise<void> {
     // 1. Traer los módulos actuales de la empresa
     const modulosActuales = await this.moduloRepository.find({
       where: { empresa: { id: empresaId } },

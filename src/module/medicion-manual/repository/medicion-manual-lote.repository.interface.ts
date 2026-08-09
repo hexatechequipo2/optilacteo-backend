@@ -1,7 +1,8 @@
 // medicion-manual/repository/medicion-manual-lote.repository.interface.ts
 import { MedicionManualLote } from '../entities/medicion-manual-lote.entity';
 
-export const MEDICION_MANUAL_LOTE_REPOSITORY = 'MEDICION_MANUAL_LOTE_REPOSITORY';
+export const MEDICION_MANUAL_LOTE_REPOSITORY =
+  'MEDICION_MANUAL_LOTE_REPOSITORY';
 
 export interface HistorialMedicionManualFiltro {
   loteId: number;
@@ -12,7 +13,9 @@ export interface HistorialMedicionManualFiltro {
 }
 
 export interface IMedicionManualLoteRepository {
-  create(mediciones: Partial<MedicionManualLote>[]): Promise<MedicionManualLote[]>;
+  create(
+    mediciones: Partial<MedicionManualLote>[],
+  ): Promise<MedicionManualLote[]>;
   findByLotePaginado(
     filtro: HistorialMedicionManualFiltro,
     empresaId: number,

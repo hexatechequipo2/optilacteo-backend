@@ -70,73 +70,78 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<LoginResponse> {
-  const user = await this.userRepository.findByEmail(dto.email);
+    const user = await this.userRepository.findByEmail(dto.email);
 
-  if (!user) {
-    this.logger.warn(`Login fallido (no existe): [${dto.email}]`);
-    throw new UnauthorizedException('Credenciales incorrectas');
-  }
+    if (!user) {
+      this.logger.warn(`Login fallido (no existe): [${dto.email}]`);
+      throw new UnauthorizedException('Credenciales incorrectas');
+    }
 
-  this.checkLockStatus(user.lockedUntil, dto.email);
+    this.checkLockStatus(user.lockedUntil, dto.email);
 
-  if (!user.isActive) {
-    this.logger.warn(`Login usuario inactivo: [${dto.email}]`);
-    throw new UnauthorizedException(
-      'El usuario está inactivo. Contacte al administrador.',
-    );
-  }
+    if (!user.isActive) {
+      this.logger.warn(`Login usuario inactivo: [${dto.email}]`);
+      throw new UnauthorizedException(
+        'El usuario está inactivo. Contacte al administrador.',
+      );
+    }
 
-  const passwordValid = await bcrypt.compare(dto.password, user.password);
-  if (!passwordValid) {
-    await this.registerFailedAttempt(user.id, user.failedLoginAttempts, dto.email);
-    throw new UnauthorizedException('Credenciales incorrectas');
-  }
+    const passwordValid = await bcrypt.compare(dto.password, user.password);
+    if (!passwordValid) {
+      await this.registerFailedAttempt(
+        user.id,
+        user.failedLoginAttempts,
+        dto.email,
+      );
+      throw new UnauthorizedException('Credenciales incorrectas');
+    }
 
-  if (user.failedLoginAttempts > 0) {
-    await this.userRepository.resetFailedAttempts(user.id);
-  }
+    if (user.failedLoginAttempts > 0) {
+      await this.userRepository.resetFailedAttempts(user.id);
+    }
 
-  const payload = this.buildJwtPayload(user);
+    const payload = this.buildJwtPayload(user);
 
-  // 👇 Log para depurar el usuario y sus permisos
-  this.logger.debug('Usuario autenticado:', {
-    id: user.id,
-    email: user.email,
-    rolNombre: payload.rolNombre,
-    empresaId: payload.empresaId,
-    permisos: payload.permisos,
-  });
-
-  const access_token = await this.jwtService.signAsync(payload);
-
-  const familyId = randomUUID();
-  const expiresAt = this.buildRefreshTokenExpiration(dto.rememberMe ?? false);
-  const refresh_token = await this.issueRefreshToken({
-    userId: user.id,
-    empresaId: payload.empresaId,
-    familyId,
-    expiresAt,
-  });
-
-  this.logger.log(`Login exitoso: [${dto.email}]`);
-
-  return {
-    access_token,
-    refresh_token,
-    user: {
+    // 👇 Log para depurar el usuario y sus permisos
+    this.logger.debug('Usuario autenticado:', {
       id: user.id,
       email: user.email,
-      rolId: payload.rolId,
       rolNombre: payload.rolNombre,
-      empresa: user.empresa?.name ?? '',
       empresaId: payload.empresaId,
-    },
-  };
-}
+      permisos: payload.permisos,
+    });
+
+    const access_token = await this.jwtService.signAsync(payload);
+
+    const familyId = randomUUID();
+    const expiresAt = this.buildRefreshTokenExpiration(dto.rememberMe ?? false);
+    const refresh_token = await this.issueRefreshToken({
+      userId: user.id,
+      empresaId: payload.empresaId,
+      familyId,
+      expiresAt,
+    });
+
+    this.logger.log(`Login exitoso: [${dto.email}]`);
+
+    return {
+      access_token,
+      refresh_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        rolId: payload.rolId,
+        rolNombre: payload.rolNombre,
+        empresa: user.empresa?.name ?? '',
+        empresaId: payload.empresaId,
+      },
+    };
+  }
 
   async refresh(refreshToken: string): Promise<RefreshResponse> {
     const tokenHash = AuthService.hashToken(refreshToken);
-    const existing = await this.refreshTokenRepository.findByTokenHash(tokenHash);
+    const existing =
+      await this.refreshTokenRepository.findByTokenHash(tokenHash);
 
     if (!existing) {
       this.logger.warn('Refresh con token inexistente');
@@ -189,7 +194,8 @@ export class AuthService {
 
   private buildJwtPayload(user: User): JwtPayload {
     const rolNombre: RolNombre | null =
-      user.rol?.nombre && Object.values(ROLES).includes(user.rol.nombre as RolNombre)
+      user.rol?.nombre &&
+      Object.values(ROLES).includes(user.rol.nombre as RolNombre)
         ? (user.rol.nombre as RolNombre)
         : null;
 
@@ -211,10 +217,11 @@ export class AuthService {
 
   private buildRefreshTokenExpiration(rememberMe: boolean): Date {
     const days = rememberMe
-      ? this.configService.get<number>('REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME') ??
-        DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME
-      : this.configService.get<number>('REFRESH_TOKEN_EXPIRES_DAYS') ??
-        DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS;
+      ? (this.configService.get<number>(
+          'REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME',
+        ) ?? DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME)
+      : (this.configService.get<number>('REFRESH_TOKEN_EXPIRES_DAYS') ??
+        DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS);
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + Number(days));
@@ -266,9 +273,7 @@ export class AuthService {
 
     if (updatedAttempts >= MAX_FAILED_ATTEMPTS) {
       const lockedUntil = new Date();
-      lockedUntil.setMinutes(
-        lockedUntil.getMinutes() + LOCK_DURATION_MINUTES,
-      );
+      lockedUntil.setMinutes(lockedUntil.getMinutes() + LOCK_DURATION_MINUTES);
 
       await this.userRepository.lockUser(userId, lockedUntil);
 
@@ -329,7 +334,8 @@ export class AuthService {
 
   private async revokeRefreshTokenFamily(refreshToken: string): Promise<void> {
     const tokenHash = AuthService.hashToken(refreshToken);
-    const existing = await this.refreshTokenRepository.findByTokenHash(tokenHash);
+    const existing =
+      await this.refreshTokenRepository.findByTokenHash(tokenHash);
 
     if (existing) {
       await this.refreshTokenRepository.revokeFamily(existing.familyId);

@@ -27,7 +27,12 @@ export class Proveedor {
   @Column({ type: 'varchar', length: 20, nullable: true })
   telefono!: string | null;
 
-  @Column({ type: 'varchar', name: 'email_contacto', length: 150, nullable: true })
+  @Column({
+    type: 'varchar',
+    name: 'email_contacto',
+    length: 150,
+    nullable: true,
+  })
   emailContacto!: string | null;
 
   @Column({ type: 'enum', enum: TipoProveedor, default: TipoProveedor.TAMBO })
@@ -42,7 +47,11 @@ export class Proveedor {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   capacidad!: number | null;
 
-  @Column({ type: 'enum', enum: EstadoProveedor, default: EstadoProveedor.ACTIVA })
+  @Column({
+    type: 'enum',
+    enum: EstadoProveedor,
+    default: EstadoProveedor.ACTIVA,
+  })
   estado!: EstadoProveedor;
 
   @ManyToOne(() => Empresa, (empresa) => empresa.proveedores, {

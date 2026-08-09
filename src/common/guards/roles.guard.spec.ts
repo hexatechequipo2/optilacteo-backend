@@ -67,8 +67,8 @@ describe('RolesGuard', () => {
   it('lanza ForbiddenException si no hay usuario', () => {
     mockMetadata(undefined, ['Administrador']);
 
-    expect(() =>
-      guard.canActivate(buildContext(undefined)),
-    ).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(buildContext(undefined))).toThrow(
+      ForbiddenException,
+    );
   });
 });

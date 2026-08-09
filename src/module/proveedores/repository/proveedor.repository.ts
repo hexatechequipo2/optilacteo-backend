@@ -4,7 +4,10 @@ import { FindOptionsWhere, Repository } from 'typeorm';
 import { TenantScopedRepository } from '../../../common/repository/tenant-scoped.repository';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { Proveedor } from '../entities/proveedor.entity';
-import { IProveedorRepository, ProveedorFilters } from './proveedor-interface.repository';
+import {
+  IProveedorRepository,
+  ProveedorFilters,
+} from './proveedor-interface.repository';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 
 @Injectable()
@@ -85,9 +88,7 @@ export class ProveedorRepository
     return this.repo.findOneBy({ cuit });
   }
 
-  async findByRazonSocial(
-    razonSocial: string,
-  ): Promise<Proveedor | null> {
+  async findByRazonSocial(razonSocial: string): Promise<Proveedor | null> {
     return this.repo.findOneBy({
       razonSocial,
     });
@@ -97,7 +98,10 @@ export class ProveedorRepository
     return this.repo.save(proveedor);
   }
 
-  async update(proveedor: Proveedor, tenant: TenantContext): Promise<Proveedor | null> {
+  async update(
+    proveedor: Proveedor,
+    tenant: TenantContext,
+  ): Promise<Proveedor | null> {
     const { id, empresa, createdAt, updatedAt, ...columns } = proveedor;
     const result = await this.repo.update(
       this.scopedWhere(tenant, { id } as FindOptionsWhere<Proveedor>),

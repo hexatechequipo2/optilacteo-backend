@@ -45,7 +45,10 @@ export class MedicionManualMapper {
     mapaConfig: Map<string, ConfiguracionParametro>,
   ): MedicionManualItemResponseDto[] {
     return entities.map((e) =>
-      this.toResponseItem(e, mapaConfig.get(`${e.parametro}|${e.tipoMateriaPrima}`)),
+      this.toResponseItem(
+        e,
+        mapaConfig.get(`${e.parametro}|${e.tipoMateriaPrima}`),
+      ),
     );
   }
 

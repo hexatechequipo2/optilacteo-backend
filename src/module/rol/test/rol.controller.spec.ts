@@ -96,23 +96,38 @@ describe('RolController', () => {
 
   describe('updatePermiso', () => {
     it('deberia convertir el id a number y delegar en rolService.updatePermiso con el body y el tenant', async () => {
-      const dto = { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false };
-      mockRolService.updatePermiso.mockResolvedValue({ id: 5, permisos: [dto] });
+      const dto = {
+        modulo: ModuloSistema.DASHBOARD,
+        canRead: true,
+        canWrite: false,
+      };
+      mockRolService.updatePermiso.mockResolvedValue({
+        id: 5,
+        permisos: [dto],
+      });
 
       await controller.updatePermiso('5', dto as never, tenantGerente);
 
-      expect(mockRolService.updatePermiso).toHaveBeenCalledWith(5, dto, tenantGerente);
+      expect(mockRolService.updatePermiso).toHaveBeenCalledWith(
+        5,
+        dto,
+        tenantGerente,
+      );
     });
   });
 
   describe('remove', () => {
     it('deberia convertir el id a number y delegar en rolService.remove', async () => {
-      mockRolService.remove.mockResolvedValue({ message: 'Rol con id 5 eliminado correctamente' });
+      mockRolService.remove.mockResolvedValue({
+        message: 'Rol con id 5 eliminado correctamente',
+      });
 
       const result = await controller.remove('5');
 
       expect(mockRolService.remove).toHaveBeenCalledWith(5);
-      expect(result).toEqual({ message: 'Rol con id 5 eliminado correctamente' });
+      expect(result).toEqual({
+        message: 'Rol con id 5 eliminado correctamente',
+      });
     });
   });
 });

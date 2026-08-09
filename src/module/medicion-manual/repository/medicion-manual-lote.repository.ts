@@ -15,7 +15,9 @@ export class MedicionManualLoteRepository implements IMedicionManualLoteReposito
     private readonly repo: Repository<MedicionManualLote>,
   ) {}
 
-  create(mediciones: Partial<MedicionManualLote>[]): Promise<MedicionManualLote[]> {
+  create(
+    mediciones: Partial<MedicionManualLote>[],
+  ): Promise<MedicionManualLote[]> {
     return this.repo.save(mediciones);
   }
 

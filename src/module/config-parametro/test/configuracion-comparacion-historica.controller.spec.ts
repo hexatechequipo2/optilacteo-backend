@@ -14,7 +14,12 @@ describe('ConfiguracionComparacionHistoricaController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConfiguracionComparacionHistoricaController],
-      providers: [{ provide: ConfiguracionComparacionHistoricaService, useValue: mockService }],
+      providers: [
+        {
+          provide: ConfiguracionComparacionHistoricaService,
+          useValue: mockService,
+        },
+      ],
     }).compile();
 
     controller = module.get<ConfiguracionComparacionHistoricaController>(
@@ -26,12 +31,16 @@ describe('ConfiguracionComparacionHistoricaController', () => {
 
   describe('get', () => {
     it('cuando el usuario no tiene empresa asociada, debe lanzar ForbiddenException', () => {
-      expect(() => controller.get({ empresaId: null } as any)).toThrow(ForbiddenException);
+      expect(() => controller.get({ empresaId: null } as any)).toThrow(
+        ForbiddenException,
+      );
       expect(mockService.getConfig).not.toHaveBeenCalled();
     });
 
     it('cuando el usuario tiene empresa asociada, debe delegar en el service', () => {
-      mockService.getConfig.mockReturnValue({ desvioSignificativoPorcentaje: 15 });
+      mockService.getConfig.mockReturnValue({
+        desvioSignificativoPorcentaje: 15,
+      });
 
       const resultado = controller.get({ empresaId: 5 } as any);
 
@@ -42,9 +51,9 @@ describe('ConfiguracionComparacionHistoricaController', () => {
 
   describe('update', () => {
     it('cuando el usuario no tiene empresa asociada, debe lanzar ForbiddenException', () => {
-      expect(() => controller.update({ empresaId: null } as any, {} as any)).toThrow(
-        ForbiddenException,
-      );
+      expect(() =>
+        controller.update({ empresaId: null } as any, {} as any),
+      ).toThrow(ForbiddenException);
       expect(mockService.update).not.toHaveBeenCalled();
     });
 

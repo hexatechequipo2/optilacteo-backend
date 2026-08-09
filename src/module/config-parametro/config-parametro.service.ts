@@ -1,5 +1,9 @@
 import {
-  Inject, Injectable, ForbiddenException, ConflictException, NotFoundException,
+  Inject,
+  Injectable,
+  ForbiddenException,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import { CONFIG_PARAMETRO_REPOSITORY } from './repository/config-parametro.repository.interface';
 import type { IConfigParametroRepository } from './repository/config-parametro.repository.interface';
@@ -23,12 +27,11 @@ export class ConfigParametroService {
     empresaId: number,
     dto: CreateConfigParametroDto,
   ): Promise<ConfigParametroResponseDto> {
-    const existente =
-      await this.repository.findByParametroAndTipoMateriaPrima(
-        empresaId,
-        dto.parametro,
-        dto.tipoMateriaPrima,
-      );
+    const existente = await this.repository.findByParametroAndTipoMateriaPrima(
+      empresaId,
+      dto.parametro,
+      dto.tipoMateriaPrima,
+    );
 
     if (existente) {
       throw new ConflictException(
@@ -51,9 +54,7 @@ export class ConfigParametroService {
     const config = await this.repository.findById(id);
 
     if (!config) {
-      throw new NotFoundException(
-        'Configuración no encontrada',
-      );
+      throw new NotFoundException('Configuración no encontrada');
     }
 
     if (config.empresaId !== empresaId) {
@@ -62,16 +63,12 @@ export class ConfigParametroService {
       );
     }
 
-    const umbralMin =
-      dto.umbralMin ?? Number(config.umbralMin);
+    const umbralMin = dto.umbralMin ?? Number(config.umbralMin);
 
-    const umbralMax =
-      dto.umbralMax ?? Number(config.umbralMax);
+    const umbralMax = dto.umbralMax ?? Number(config.umbralMax);
 
     if (umbralMin >= umbralMax) {
-      throw new ConflictException(
-        'umbralMin debe ser menor a umbralMax',
-      );
+      throw new ConflictException('umbralMin debe ser menor a umbralMax');
     }
 
     config.umbralMin = umbralMin;
@@ -95,7 +92,10 @@ export class ConfigParametroService {
         configs.map((c) => c.id),
         empresaId,
       );
-      return dtos.map((dto) => ({ ...dto, auditoria: trazabilidadMap.get(dto.id) }));
+      return dtos.map((dto) => ({
+        ...dto,
+        auditoria: trazabilidadMap.get(dto.id),
+      }));
     }
 
     return dtos;
@@ -105,17 +105,11 @@ export class ConfigParametroService {
     return tenant.rolNombre === ROLES.GERENTE;
   }
 
-  async eliminar(
-    empresaId: number,
-    id: number,
-  ): Promise<{ message: string }> {
-    const config =
-      await this.repository.findById(id);
+  async eliminar(empresaId: number, id: number): Promise<{ message: string }> {
+    const config = await this.repository.findById(id);
 
     if (!config) {
-      throw new NotFoundException(
-        'Configuración no encontrada',
-      );
+      throw new NotFoundException('Configuración no encontrada');
     }
 
     if (config.empresaId !== empresaId) {

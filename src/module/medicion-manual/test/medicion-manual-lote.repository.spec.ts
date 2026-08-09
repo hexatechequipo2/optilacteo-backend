@@ -53,9 +53,17 @@ describe('MedicionManualLoteRepository', () => {
   describe('create', () => {
     it('debe llamar a repo.save con el array de mediciones parciales', async () => {
       const mediciones: Partial<MedicionManualLote>[] = [
-        { loteId: 10, empresaId: 1, usuarioId: 5, parametro: 'TEMP' as any, valor: 5.5 },
+        {
+          loteId: 10,
+          empresaId: 1,
+          usuarioId: 5,
+          parametro: 'TEMP' as any,
+          valor: 5.5,
+        },
       ];
-      const savedEntities = [{ id: 1, ...mediciones[0] }] as MedicionManualLote[];
+      const savedEntities = [
+        { id: 1, ...mediciones[0] },
+      ] as MedicionManualLote[];
 
       typeormRepoMock.save.mockResolvedValue(savedEntities as any);
 
@@ -80,7 +88,9 @@ describe('MedicionManualLoteRepository', () => {
 
       const result = await repository.findByLotePaginado(baseFiltro, empresaId);
 
-      expect(typeormRepoMock.createQueryBuilder).toHaveBeenCalledWith('medicion');
+      expect(typeormRepoMock.createQueryBuilder).toHaveBeenCalledWith(
+        'medicion',
+      );
       expect(queryBuilderMock.where).toHaveBeenCalledWith(
         'medicion.empresaId = :empresaId',
         { empresaId },
