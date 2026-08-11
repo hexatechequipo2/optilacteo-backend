@@ -7,12 +7,11 @@ import {
   CreateDateColumn,
   Index,
 } from 'typeorm';
+
 import { User } from '../../user/entities/user.entity';
+import { NivelAlerta } from '../enums/nivel-alerta.enum';
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
 
-// HU-21 (AC4): notificación al Responsable de Calidad ante un lote No Apto
-// o En Revisión. Se persiste (consulta posterior vía endpoint) y se emite
-// en tiempo real por WebSocket.
 @Entity('notificaciones')
 @Index(['empresaId', 'usuarioId', 'leida'])
 export class Notificacion {
@@ -27,6 +26,21 @@ export class Notificacion {
 
   @Column({ type: 'jsonb', nullable: true })
   data?: Record<string, unknown> | null;
+
+  /**
+   * HU-25:
+   * Nivel de severidad de la alerta.
+   *
+   * Nullable porque las notificaciones existentes
+   * de otras HUs no necesariamente son alertas.
+   */
+  @Column({
+    name: 'nivel_alerta',
+    type: 'enum',
+    enum: NivelAlerta,
+    nullable: true,
+  })
+  nivelAlerta?: NivelAlerta | null;
 
   @Column()
   usuarioId!: number;

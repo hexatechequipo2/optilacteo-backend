@@ -19,6 +19,7 @@ import { AuthModule } from '../auth/auth.module';
 import { LecturasGateway } from './gateway/lecturas.gateway';
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
 import { AuditLogModule } from '../audit/audit-log.module';
+import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AuditLogModule } from '../audit/audit-log.module';
     ]),
     SensorModule,
     LoteModule,
+    NotificacionesModule,
     // Provee JwtService (ya configurado con JWT_SECRET) para que el gateway
     // valide el token del handshake sin duplicar esa configuración.
     AuthModule,
