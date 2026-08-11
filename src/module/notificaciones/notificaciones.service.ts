@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { User } from '../user/entities/user.entity';
 import { ROLES } from '../rol/constants/roles.constants';
@@ -27,12 +27,19 @@ import {
 import type { INotificacionRepository } from './repository/notificacion.repository.interface';
 import { NOTIFICACION_REPOSITORY } from './repository/notificacion.repository.interface';
 import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-enum';
+import { ConfiguracionNotificacionNivel } from './entities/configuracion-notificacion-nivel.entity';
+import { CrearConfiguracionNotificacionDto } from './dto/crear-configuracion-notificacion.dto';
+import type { IConfiguracionNotificacionRepository } from './repository/configuracion-notificacion-nivel.repository.interface';
+import { CONFIGURACION_NOTIFICACION_REPOSITORY } from './repository/configuracion-notificacion-nivel.repository.interface';
 
 @Injectable()
 export class NotificacionesService {
   constructor(
     @Inject(NOTIFICACION_REPOSITORY)
     private readonly notificacionRepository: INotificacionRepository,
+
+    @Inject(CONFIGURACION_NOTIFICACION_REPOSITORY)
+    private readonly configuracionRepository: IConfiguracionNotificacionRepository,
 
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -94,56 +101,28 @@ export class NotificacionesService {
     timestamp?: Date;
   }): Promise<NotificacionResponseDto[]> {
     const {
-      empresaId,
-      loteId,
-      loteCodigo,
-      parametro,
-      materiaPrima,
-      valor,
-      umbralMin,
-      umbralMax,
-      timestamp,
+      empresaId, loteId, loteCodigo, parametro, materiaPrima,
+      valor, umbralMin, umbralMax, timestamp,
     } = params;
 
-    const fueraDeRango =
-      valor < umbralMin ||
-      valor > umbralMax;
-
+    const fueraDeRango = valor < umbralMin || valor > umbralMax;
     if (!fueraDeRango) {
       return [];
     }
 
-    const desvioPorcentaje = this.calcularDesvioPorcentaje(
-      valor,
-      umbralMin,
-      umbralMax,
-    );
+    const desvioPorcentaje = this.calcularDesvioPorcentaje(valor, umbralMin, umbralMax);
+    const nivelAlerta = this.determinarNivelAlerta(desvioPorcentaje);
 
-    const nivelAlerta =
-      this.determinarNivelAlerta(desvioPorcentaje);
-
-    const responsables =
-      await this.obtenerResponsablesProduccion(empresaId);
+    // HU-26: destinatarios configurables por nivel, en vez de rol fijo
+    const responsables = await this.obtenerDestinatariosPorNivel(empresaId, nivelAlerta);
 
     const mensaje = this.construirMensajeAlerta({
-      parametro,
-      valor,
-      umbralMin,
-      umbralMax,
-      loteCodigo,
-      nivelAlerta,
+      parametro, valor, umbralMin, umbralMax, loteCodigo, nivelAlerta,
     });
 
     const data: Record<string, unknown> = {
-      loteId,
-      loteCodigo,
-      parametro,
-      materiaPrima,
-      valor,
-      umbralMin,
-      umbralMax,
-      desvioPorcentaje,
-      nivelAlerta,
+      loteId, loteCodigo, parametro, materiaPrima, valor,
+      umbralMin, umbralMax, desvioPorcentaje, nivelAlerta,
       timestamp: (timestamp ?? new Date()).toISOString(),
     };
 
@@ -152,48 +131,47 @@ export class NotificacionesService {
     for (const usuario of responsables) {
       const entity = NotificacionMapper.toEntity({
         tipo: TipoNotificacion.ALERTA_UMBRAL,
-        mensaje,
-        data,
+        mensaje, data,
         usuarioId: usuario.id,
         empresaId,
         nivelAlerta,
       });
 
-      const creada =
-        await this.notificacionRepository.create(entity);
+      const creada = await this.notificacionRepository.create(entity);
+      const response = NotificacionMapper.toResponse(creada);
 
-      const response =
-        NotificacionMapper.toResponse(creada);
-
-      this.gateway.emitirNotificacion(
-        response,
-        empresaId,
-        usuario.id,
-      );
-
+      this.gateway.emitirNotificacion(response, empresaId, usuario.id);
       notificaciones.push(response);
     }
 
     return notificaciones;
   }
 
-  private async obtenerResponsablesProduccion(
+    /**
+   * HU-26: reemplaza obtenerResponsablesProduccion (hardcodeado en HU-25).
+   * Sin configuración para ese nivel => devuelve [] (nadie recibe nada,
+   * en vez de fallar silenciosamente con destinatarios incorrectos).
+   */
+  private async obtenerDestinatariosPorNivel(
     empresaId: number,
+    nivelAlerta: NivelAlerta,
   ): Promise<User[]> {
+    const rolIds = await this.configuracionRepository.findRolIdsByNivel(
+      empresaId,
+      nivelAlerta,
+    );
+
+    if (rolIds.length === 0) {
+      return [];
+    }
+
     return this.userRepository.find({
       where: {
-        empresa: {
-          id: empresaId,
-        },
-        rol: {
-          nombre: ROLES.RESPONSABLE_PRODUCCION,
-        },
+        empresa: { id: empresaId },
+        rol: { id: In(rolIds) },
         isActive: true,
       },
-      relations: {
-        rol: true,
-        empresa: true,
-      },
+      relations: { rol: true, empresa: true },
     });
   }
 
@@ -304,5 +282,42 @@ export class NotificacionesService {
     }
 
     return NotificacionMapper.toResponse(actualizada);
+  }
+
+  /** HU-26 criterio 4: badge de no leídas */
+  async contarNoLeidas(
+    usuarioId: number,
+    empresaId: number,
+  ): Promise<{ total: number }> {
+    const total = await this.notificacionRepository.countNoLeidas(
+      usuarioId,
+      empresaId,
+    );
+    return { total };
+  }
+
+  /** HU-26: gestión de configuración nivel -> rol */
+  async listarConfiguracion(
+    empresaId: number,
+  ): Promise<ConfiguracionNotificacionNivel[]> {
+    return this.configuracionRepository.findByEmpresa(empresaId);
+  }
+
+  async crearConfiguracion(
+    empresaId: number,
+    dto: CrearConfiguracionNotificacionDto,
+  ): Promise<ConfiguracionNotificacionNivel> {
+    return this.configuracionRepository.create({
+      empresaId,
+      nivelAlerta: dto.nivelAlerta,
+      rolId: dto.rolId,
+    });
+  }
+
+  async eliminarConfiguracion(id: number, empresaId: number): Promise<void> {
+    const eliminado = await this.configuracionRepository.delete(id, empresaId);
+    if (!eliminado) {
+      throw new NotFoundException(`Configuración ${id} no encontrada`);
+    }
   }
 }
