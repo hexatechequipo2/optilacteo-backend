@@ -51,4 +51,10 @@ export class NotificacionRepository implements INotificacionRepository {
     }
     return this.repository.findOne({ where: { id, usuarioId, empresaId } });
   }
+
+  countNoLeidas(usuarioId: number, empresaId: number): Promise<number> {
+    return this.repository.count({
+      where: { usuarioId, empresaId, leida: false },
+    });
+  }
 }

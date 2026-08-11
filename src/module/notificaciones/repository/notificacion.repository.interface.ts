@@ -19,4 +19,6 @@ export interface INotificacionRepository {
     usuarioId: number,
     empresaId: number,
   ): Promise<Notificacion | null>;
+
+  countNoLeidas(usuarioId: number, empresaId: number): Promise<number>;
 }
