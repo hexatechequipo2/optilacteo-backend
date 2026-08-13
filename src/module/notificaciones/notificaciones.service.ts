@@ -27,15 +27,21 @@ import {
 
 import type { INotificacionRepository } from './repository/notificacion.repository.interface';
 import { NOTIFICACION_REPOSITORY } from './repository/notificacion.repository.interface';
+
 import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-enum';
+
 import { ConfiguracionNotificacionNivel } from './entities/configuracion-notificacion-nivel.entity';
 import { CrearConfiguracionNotificacionDto } from './dto/crear-configuracion-notificacion.dto';
+
 import type { IConfiguracionNotificacionRepository } from './repository/configuracion-notificacion-nivel.repository.interface';
 import { CONFIGURACION_NOTIFICACION_REPOSITORY } from './repository/configuracion-notificacion-nivel.repository.interface';
+
 import { HistorialAlertasQueryDto } from './dto/historial-alertas-query.dto';
 import { EstadoAlerta } from './enums/estado-alerta.enum';
 import { ResolverAlertaDto } from './dto/resolver-alerta.dto';
 import { Parametro } from '../config-parametro/enums/parametro.enum';
+
+import PDFDocument from 'pdfkit';
 
 @Injectable()
 export class NotificacionesService {
@@ -52,39 +58,44 @@ export class NotificacionesService {
     private readonly gateway: NotificacionesGateway,
   ) {}
 
+
   async notificarResponsablesCalidad(
     empresaId: number,
     tipo: TipoNotificacion,
     mensaje: string,
     data?: Record<string, unknown>,
   ): Promise<void> {
-    const responsables = await this.userRepository.find({
-      where: {
-        empresa: {
-          id: empresaId,
+    const responsables =
+      await this.userRepository.find({
+        where: {
+          empresa: {
+            id: empresaId,
+          },
+          rol: {
+            nombre: ROLES.RESPONSABLE_CALIDAD,
+          },
+          isActive: true,
         },
-        rol: {
-          nombre: ROLES.RESPONSABLE_CALIDAD,
+        relations: {
+          rol: true,
+          empresa: true,
         },
-        isActive: true,
-      },
-      relations: {
-        rol: true,
-        empresa: true,
-      },
-    });
-
-    for (const usuario of responsables) {
-      const entity = NotificacionMapper.toEntity({
-        tipo,
-        mensaje,
-        data,
-        usuarioId: usuario.id,
-        empresaId,
       });
 
+    for (const usuario of responsables) {
+      const entity =
+        NotificacionMapper.toEntity({
+          tipo,
+          mensaje,
+          data,
+          usuarioId: usuario.id,
+          empresaId,
+        });
+
       const creada =
-        await this.notificacionRepository.create(entity);
+        await this.notificacionRepository.create(
+          entity,
+        );
 
       this.gateway.emitirNotificacion(
         NotificacionMapper.toResponse(creada),
@@ -106,77 +117,134 @@ export class NotificacionesService {
     timestamp?: Date;
   }): Promise<NotificacionResponseDto[]> {
     const {
-      empresaId, loteId, loteCodigo, parametro, materiaPrima,
-      valor, umbralMin, umbralMax, timestamp,
+      empresaId,
+      loteId,
+      loteCodigo,
+      parametro,
+      materiaPrima,
+      valor,
+      umbralMin,
+      umbralMax,
+      timestamp,
     } = params;
 
-    const fueraDeRango = valor < umbralMin || valor > umbralMax;
+    const fueraDeRango =
+      valor < umbralMin ||
+      valor > umbralMax;
+
     if (!fueraDeRango) {
       return [];
     }
 
-    // HU-27: si ya hay una alerta abierta para este lote+parámetro,
-    // no se generan notificaciones duplicadas hasta que se resuelva.
+    /**
+     * HU-27:
+     * Si ya existe una alerta abierta para el mismo
+     * lote + parámetro, no se genera otra.
+     */
     const alertaAbiertaExistente =
-      await this.notificacionRepository.findAlertaAbiertaPorLoteYParametro(
-        empresaId,
-        loteId,
-        parametro,
-      );
+      await this.notificacionRepository
+        .findAlertaAbiertaPorLoteYParametro(
+          empresaId,
+          loteId,
+          parametro,
+        );
+
     if (alertaAbiertaExistente) {
       return [];
     }
 
-    const desvioPorcentaje = this.calcularDesvioPorcentaje(valor, umbralMin, umbralMax);
-    const nivelAlerta = this.determinarNivelAlerta(desvioPorcentaje);
-    const responsables = await this.obtenerDestinatariosPorNivel(empresaId, nivelAlerta);
+    const desvioPorcentaje =
+      this.calcularDesvioPorcentaje(
+        valor,
+        umbralMin,
+        umbralMax,
+      );
 
-    const mensaje = this.construirMensajeAlerta({
-      parametro, valor, umbralMin, umbralMax, loteCodigo, nivelAlerta,
-    });
+    const nivelAlerta =
+      this.determinarNivelAlerta(
+        desvioPorcentaje,
+      );
 
-    const data: Record<string, unknown> = {
-      loteId, loteCodigo, parametro, materiaPrima, valor,
-      umbralMin, umbralMax, desvioPorcentaje, nivelAlerta,
-      timestamp: (timestamp ?? new Date()).toISOString(),
-    };
-
-    const notificaciones: NotificacionResponseDto[] = [];
-
-    for (const usuario of responsables) {
-      const entity = NotificacionMapper.toEntity({
-        tipo: TipoNotificacion.ALERTA_UMBRAL,
-        mensaje, data,
-        usuarioId: usuario.id,
+    const responsables =
+      await this.obtenerDestinatariosPorNivel(
         empresaId,
         nivelAlerta,
-        loteId,
+      );
+
+    const mensaje =
+      this.construirMensajeAlerta({
         parametro,
+        valor,
+        umbralMin,
+        umbralMax,
+        loteCodigo,
+        nivelAlerta,
       });
 
-      const creada = await this.notificacionRepository.create(entity);
-      const response = NotificacionMapper.toResponse(creada);
+    const data: Record<string, unknown> = {
+      loteId,
+      loteCodigo,
+      parametro,
+      materiaPrima,
+      valor,
+      umbralMin,
+      umbralMax,
+      desvioPorcentaje,
+      nivelAlerta,
+      timestamp: (
+        timestamp ?? new Date()
+      ).toISOString(),
+    };
 
-      this.gateway.emitirNotificacion(response, empresaId, usuario.id);
+    const notificaciones: NotificacionResponseDto[] =
+      [];
+
+    for (const usuario of responsables) {
+      const entity =
+        NotificacionMapper.toEntity({
+          tipo:
+            TipoNotificacion.ALERTA_UMBRAL,
+          mensaje,
+          data,
+          usuarioId: usuario.id,
+          empresaId,
+          nivelAlerta,
+          loteId,
+          parametro,
+        });
+
+      const creada =
+        await this.notificacionRepository.create(
+          entity,
+        );
+
+      const response =
+        NotificacionMapper.toResponse(
+          creada,
+        );
+
+      this.gateway.emitirNotificacion(
+        response,
+        empresaId,
+        usuario.id,
+      );
+
       notificaciones.push(response);
     }
 
     return notificaciones;
   }
 
-    /**
-   * HU-26: reemplaza obtenerResponsablesProduccion (hardcodeado en HU-25).
-   * Sin configuración para ese nivel => devuelve [] (nadie recibe nada,
-   * en vez de fallar silenciosamente con destinatarios incorrectos).
-   */
   private async obtenerDestinatariosPorNivel(
     empresaId: number,
     nivelAlerta: NivelAlerta,
   ): Promise<User[]> {
-    const rolIds = await this.configuracionRepository.findRolIdsByNivel(
-      empresaId,
-      nivelAlerta,
-    );
+    const rolIds =
+      await this.configuracionRepository
+        .findRolIdsByNivel(
+          empresaId,
+          nivelAlerta,
+        );
 
     if (rolIds.length === 0) {
       return [];
@@ -184,11 +252,18 @@ export class NotificacionesService {
 
     return this.userRepository.find({
       where: {
-        empresa: { id: empresaId },
-        rol: { id: In(rolIds) },
+        empresa: {
+          id: empresaId,
+        },
+        rol: {
+          id: In(rolIds),
+        },
         isActive: true,
       },
-      relations: { rol: true, empresa: true },
+      relations: {
+        rol: true,
+        empresa: true,
+      },
     });
   }
 
@@ -203,7 +278,8 @@ export class NotificacionesService {
       }
 
       return (
-        ((umbralMin - valor) / Math.abs(umbralMin)) *
+        ((umbralMin - valor) /
+          Math.abs(umbralMin)) *
         100
       );
     }
@@ -214,7 +290,8 @@ export class NotificacionesService {
       }
 
       return (
-        ((valor - umbralMax) / Math.abs(umbralMax)) *
+        ((valor - umbralMax) /
+          Math.abs(umbralMax)) *
         100
       );
     }
@@ -267,11 +344,12 @@ export class NotificacionesService {
     query: NotificacionFilterQueryDto,
   ): Promise<NotificacionPaginadaResponseDto> {
     const [notificaciones, total] =
-      await this.notificacionRepository.findByUsuario(
-        usuarioId,
-        empresaId,
-        query,
-      );
+      await this.notificacionRepository
+        .findByUsuario(
+          usuarioId,
+          empresaId,
+          query,
+        );
 
     return NotificacionMapper.toPaginatedResponse(
       notificaciones,
@@ -286,11 +364,12 @@ export class NotificacionesService {
     empresaId: number,
   ): Promise<NotificacionResponseDto> {
     const actualizada =
-      await this.notificacionRepository.markAsLeida(
-        id,
-        usuarioId,
-        empresaId,
-      );
+      await this.notificacionRepository
+        .markAsLeida(
+          id,
+          usuarioId,
+          empresaId,
+        );
 
     if (!actualizada) {
       throw new NotFoundException(
@@ -298,26 +377,42 @@ export class NotificacionesService {
       );
     }
 
-    return NotificacionMapper.toResponse(actualizada);
+    return NotificacionMapper.toResponse(
+      actualizada,
+    );
   }
 
-  /** HU-26 criterio 4: badge de no leídas */
+  /**
+   * ============================================================
+   * HU-26
+   * CONTADOR DE NO LEÍDAS
+   * ============================================================
+   */
   async contarNoLeidas(
     usuarioId: number,
     empresaId: number,
   ): Promise<{ total: number }> {
-    const total = await this.notificacionRepository.countNoLeidas(
-      usuarioId,
-      empresaId,
-    );
+    const total =
+      await this.notificacionRepository
+        .countNoLeidas(
+          usuarioId,
+          empresaId,
+        );
+
     return { total };
   }
 
-  /** HU-26: gestión de configuración nivel -> rol */
+  /**
+   * ============================================================
+   * HU-26
+   * CONFIGURACIÓN NIVEL -> ROL
+   * ============================================================
+   */
   async listarConfiguracion(
     empresaId: number,
   ): Promise<ConfiguracionNotificacionNivel[]> {
-    return this.configuracionRepository.findByEmpresa(empresaId);
+    return this.configuracionRepository
+      .findByEmpresa(empresaId);
   }
 
   async crearConfiguracion(
@@ -331,15 +426,28 @@ export class NotificacionesService {
     });
   }
 
-  async eliminarConfiguracion(id: number, empresaId: number): Promise<void> {
-    const eliminado = await this.configuracionRepository.delete(id, empresaId);
+  async eliminarConfiguracion(
+    id: number,
+    empresaId: number,
+  ): Promise<void> {
+    const eliminado =
+      await this.configuracionRepository.delete(
+        id,
+        empresaId,
+      );
+
     if (!eliminado) {
-      throw new NotFoundException(`Configuración ${id} no encontrada`);
+      throw new NotFoundException(
+        `Configuración ${id} no encontrada`,
+      );
     }
   }
 
   /**
-   * HU-27: marca una alerta como resuelta con su acción correctiva.
+   * ============================================================
+   * HU-27
+   * RESOLVER ALERTA
+   * ============================================================
    */
   async resolverAlerta(
     id: number,
@@ -347,46 +455,432 @@ export class NotificacionesService {
     usuarioId: number,
     dto: ResolverAlertaDto,
   ): Promise<NotificacionResponseDto> {
-    const notificacion = await this.notificacionRepository.findById(id, empresaId);
+    const notificacion =
+      await this.notificacionRepository.findById(
+        id,
+        empresaId,
+      );
 
     if (!notificacion) {
-      throw new NotFoundException(`Alerta ${id} no encontrada`);
+      throw new NotFoundException(
+        `Alerta ${id} no encontrada`,
+      );
     }
 
-    if (notificacion.tipo !== TipoNotificacion.ALERTA_UMBRAL) {
+    if (
+      notificacion.tipo !==
+      TipoNotificacion.ALERTA_UMBRAL
+    ) {
       throw new BadRequestException(
         'Solo se pueden resolver notificaciones de tipo alerta',
       );
     }
 
-    if (notificacion.estado === EstadoAlerta.CERRADA) {
-      throw new BadRequestException('La alerta ya se encuentra cerrada');
+    if (
+      notificacion.estado ===
+      EstadoAlerta.CERRADA
+    ) {
+      throw new BadRequestException(
+        'La alerta ya se encuentra cerrada',
+      );
     }
 
-    const resuelta = await this.notificacionRepository.resolver(
-      id,
-      empresaId,
-      dto.accionCorrectiva,
-      usuarioId,
-    );
+    const resuelta =
+      await this.notificacionRepository.resolver(
+        id,
+        empresaId,
+        dto.accionCorrectiva,
+        usuarioId,
+      );
 
     if (!resuelta) {
-      throw new NotFoundException(`Alerta ${id} no encontrada`);
+      throw new NotFoundException(
+        `Alerta ${id} no encontrada`,
+      );
     }
 
-    return NotificacionMapper.toResponse(resuelta);
+    return NotificacionMapper.toResponse(
+      resuelta,
+    );
   }
 
   /**
-   * HU-27: historial de alertas abiertas y cerradas.
+   * ============================================================
+   * HU-27 + HU-28
+   * HISTORIAL PAGINADO
+   * ============================================================
    */
   async obtenerHistorial(
     empresaId: number,
     query: HistorialAlertasQueryDto,
   ): Promise<NotificacionPaginadaResponseDto> {
     const [alertas, total] =
-      await this.notificacionRepository.findHistorial(empresaId, query);
+      await this.notificacionRepository
+        .findHistorial(
+          empresaId,
+          query,
+        );
 
-    return NotificacionMapper.toPaginatedResponse(alertas, total, query);
+    return NotificacionMapper.toPaginatedResponse(
+      alertas,
+      total,
+      query,
+    );
+  }
+
+  /**
+   * ============================================================
+   * HU-28
+   * EXPORTAR HISTORIAL A EXCEL
+   * ============================================================
+   */
+  async exportarHistorialCsv(
+  empresaId: number,
+  query: HistorialAlertasQueryDto,
+): Promise<Buffer> {
+  const alertas =
+    await this.notificacionRepository
+      .findHistorialCompleto(
+        empresaId,
+        query,
+      );
+
+  const escaparCsv = (
+    valor: unknown,
+  ): string => {
+    if (
+      valor === null ||
+      valor === undefined
+    ) {
+      return '';
+    }
+
+    const texto = String(valor);
+
+    return `"${texto.replace(
+      /"/g,
+      '""',
+    )}"`;
+  };
+
+  const filas: string[] = [];
+  filas.push(
+    [
+      'Fecha',
+      'Lote',
+      'Parámetro',
+      'Nivel',
+      'Estado',
+      'Acción correctiva',
+    ]
+      .map(escaparCsv)
+      .join(';'),
+  );
+
+  for (const alerta of alertas) {
+    const lote =
+      alerta.lote?.codigo ??
+      alerta.data?.loteCodigo ??
+      alerta.loteId ??
+      '';
+
+    filas.push(
+      [
+        this.formatearFecha(
+          alerta.createdAt,
+        ),
+        lote,
+        alerta.parametro ?? '',
+        alerta.nivelAlerta ?? '',
+        alerta.estado ?? '',
+        alerta.accionCorrectiva ?? '',
+      ]
+        .map(escaparCsv)
+        .join(';'),
+    );
+  }
+
+  const contenido =
+    '\uFEFF' +
+    filas.join('\r\n');
+
+  return Buffer.from(
+    contenido,
+    'utf8',
+  );
+}
+  /**
+   * ============================================================
+   * HU-28
+   * EXPORTAR HISTORIAL A PDF
+   * ============================================================
+   */
+  async exportarHistorialPdf(
+    empresaId: number,
+    query: HistorialAlertasQueryDto,
+  ): Promise<Buffer> {
+    const alertas =
+      await this.notificacionRepository
+        .findHistorialCompleto(
+          empresaId,
+          query,
+        );
+
+    return new Promise<Buffer>(
+      (resolve, reject) => {
+        const doc =
+          new PDFDocument({
+            size: 'A4',
+            layout: 'landscape',
+            margin: 30,
+          });
+
+        const chunks: Buffer[] = [];
+
+        doc.on(
+          'data',
+          (chunk: Buffer) => {
+            chunks.push(chunk);
+          },
+        );
+
+        doc.on(
+          'end',
+          () => {
+            resolve(
+              Buffer.concat(chunks),
+            );
+          },
+        );
+
+        doc.on(
+          'error',
+          reject,
+        );
+
+        doc
+          .fontSize(18)
+          .font('Helvetica-Bold')
+          .text(
+            'Historial de alertas',
+            {
+              align: 'center',
+            },
+          );
+
+        doc.moveDown();
+
+        doc
+          .fontSize(9)
+          .font('Helvetica')
+          .text(
+            `Fecha de generación: ${new Date().toLocaleString(
+              'es-AR',
+            )}`,
+            {
+              align: 'right',
+            },
+          );
+
+        doc.moveDown();
+
+        const startX = 30;
+
+        const columns = [
+          {
+            title: 'Fecha',
+            x: startX,
+            width: 95,
+          },
+          {
+            title: 'Lote',
+            x: startX + 95,
+            width: 85,
+          },
+          {
+            title: 'Parámetro',
+            x: startX + 180,
+            width: 95,
+          },
+          {
+            title: 'Nivel',
+            x: startX + 275,
+            width: 75,
+          },
+          {
+            title: 'Estado',
+            x: startX + 350,
+            width: 75,
+          },
+          {
+            title: 'Acción correctiva',
+            x: startX + 425,
+            width: 360,
+          },
+        ];
+
+        const drawHeader = () => {
+          const y = doc.y;
+
+          doc
+            .fontSize(9)
+            .font('Helvetica-Bold');
+
+          for (const column of columns) {
+            doc.text(
+              column.title,
+              column.x,
+              y,
+              {
+                width:
+                  column.width,
+                align: 'left',
+              },
+            );
+          }
+
+          doc.moveDown();
+
+          doc
+            .moveTo(
+              startX,
+              doc.y,
+            )
+            .lineTo(
+              startX + 785,
+              doc.y,
+            )
+            .stroke();
+
+          doc.moveDown(0.5);
+        };
+
+        const drawRow = (
+          fecha: string,
+          lote: string,
+          parametro: string,
+          nivel: string,
+          estado: string,
+          accionCorrectiva: string,
+        ) => {
+          const y = doc.y;
+
+          doc
+            .fontSize(8)
+            .font('Helvetica');
+
+          const values = [
+            fecha,
+            lote,
+            parametro,
+            nivel,
+            estado,
+            accionCorrectiva,
+          ];
+
+          let maxHeight = 0;
+
+          columns.forEach(
+            (column, index) => {
+              const height =
+                doc.heightOfString(
+                  values[index],
+                  {
+                    width:
+                      column.width,
+                  },
+                );
+
+              maxHeight =
+                Math.max(
+                  maxHeight,
+                  height,
+                );
+
+              doc.text(
+                values[index],
+                column.x,
+                y,
+                {
+                  width:
+                    column.width,
+                  align: 'left',
+                },
+              );
+            },
+          );
+
+          doc.y =
+            y +
+            Math.max(
+              maxHeight,
+              12,
+            ) +
+            6;
+        };
+
+        drawHeader();
+
+        for (const alerta of alertas) {
+          if (doc.y > 520) {
+            doc.addPage();
+            drawHeader();
+          }
+
+          const lote =
+            alerta.lote?.codigo ??
+            alerta.data?.loteCodigo ??
+            String(
+              alerta.loteId ?? '',
+            );
+
+          drawRow(
+            this.formatearFecha(
+              alerta.createdAt,
+            ),
+            String(lote),
+            String(
+              alerta.parametro ?? '',
+            ),
+            String(
+              alerta.nivelAlerta ?? '',
+            ),
+            String(
+              alerta.estado ?? '',
+            ),
+            String(
+              alerta.accionCorrectiva ??
+                '',
+            ),
+          );
+        }
+
+        if (alertas.length === 0) {
+          doc
+            .fontSize(10)
+            .font('Helvetica')
+            .text(
+              'No se encontraron alertas para los filtros seleccionados.',
+              {
+                align: 'center',
+              },
+            );
+        }
+
+        doc.end();
+      },
+    );
+  }
+
+  private formatearFecha(
+    fecha: Date,
+  ): string {
+    return new Intl.DateTimeFormat(
+      'es-AR',
+      {
+        dateStyle: 'short',
+        timeStyle: 'medium',
+      },
+    ).format(fecha);
   }
 }
