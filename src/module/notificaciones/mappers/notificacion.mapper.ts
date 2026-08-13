@@ -2,31 +2,26 @@ import { Notificacion } from '../entities/notificacion.entity';
 
 import { NivelAlerta } from '../enums/nivel-alerta.enum';
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
+import { EstadoAlerta } from '../enums/estado-alerta.enum';
 
 import { NotificacionResponseDto } from '../dto/notificacion-response.dto';
-
 import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto';
-
 import { NotificacionPaginadaResponseDto } from '../dto/notificacion-paginada-response.dto';
+import { Parametro } from '../../config-parametro/enums/parametro.enum';
 
 export interface CrearNotificacionParams {
   tipo: TipoNotificacion;
-
   mensaje: string;
-
   data?: Record<string, unknown>;
-
   usuarioId: number;
-
   empresaId: number;
-
   nivelAlerta?: NivelAlerta;
+  loteId?: number;        // HU-27
+  parametro?: Parametro;  // HU-27 — antes era string, corregido a enum
 }
 
 export class NotificacionMapper {
-  static toEntity(
-    params: CrearNotificacionParams,
-  ): Partial<Notificacion> {
+  static toEntity(params: CrearNotificacionParams): Partial<Notificacion> {
     return {
       tipo: params.tipo,
       mensaje: params.mensaje,
@@ -34,6 +29,13 @@ export class NotificacionMapper {
       usuarioId: params.usuarioId,
       empresaId: params.empresaId,
       nivelAlerta: params.nivelAlerta ?? null,
+      loteId: params.loteId ?? null,
+      parametro: params.parametro ?? null,
+      // Toda alerta nace abierta; el resto de notificaciones quedan en null.
+      estado:
+        params.tipo === TipoNotificacion.ALERTA_UMBRAL
+          ? EstadoAlerta.ABIERTA
+          : null,
       leida: false,
     };
   }
@@ -51,9 +53,7 @@ export class NotificacionMapper {
     };
   }
 
-  static toResponse(
-    entity: Notificacion,
-  ): NotificacionResponseDto {
+  static toResponse(entity: Notificacion): NotificacionResponseDto {
     const dto = new NotificacionResponseDto();
 
     dto.id = entity.id;
@@ -61,15 +61,17 @@ export class NotificacionMapper {
     dto.mensaje = entity.mensaje;
     dto.data = entity.data ?? null;
     dto.nivelAlerta = entity.nivelAlerta ?? null;
+    dto.estado = entity.estado ?? null;
+    dto.accionCorrectiva = entity.accionCorrectiva ?? null;
+    dto.resueltaPorId = entity.resueltaPorId ?? null;
+    dto.fechaResolucion = entity.fechaResolucion ?? null;
     dto.leida = entity.leida;
     dto.createdAt = entity.createdAt;
 
     return dto;
   }
 
-  static toResponseList(
-    entities: Notificacion[],
-  ): NotificacionResponseDto[] {
+  static toResponseList(entities: Notificacion[]): NotificacionResponseDto[] {
     return entities.map((e) => this.toResponse(e));
   }
 }

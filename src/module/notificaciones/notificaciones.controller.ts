@@ -23,6 +23,8 @@ import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { CrearConfiguracionNotificacionDto } from './dto/crear-configuracion-notificacion.dto';
+import { HistorialAlertasQueryDto } from './dto/historial-alertas-query.dto';
+import { ResolverAlertaDto } from './dto/resolver-alerta.dto';
 
 @ApiTags('notificaciones')
 @ApiBearerAuth()
@@ -98,5 +100,34 @@ export class NotificacionesController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.notificacionesService.eliminarConfiguracion(+id, tenant.empresaId!);
+  }
+
+  @Get('historial')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
+  obtenerHistorial(
+    @Query() query: HistorialAlertasQueryDto,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.notificacionesService.obtenerHistorial(tenant.empresaId!, query);
+  }
+
+  @Patch(':id/resolver')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION)
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
+  @AuditLog('ALERTA_RESOLVER', 'Notificacion')
+  resolverAlerta(
+    @Param('id') id: string,
+    @Body() dto: ResolverAlertaDto,
+    @CurrentEmpresa() tenant: TenantContext,
+    @Req() req: any,
+  ) {
+    return this.notificacionesService.resolverAlerta(
+      +id,
+      tenant.empresaId!,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+      req.user.sub,
+      dto,
+    );
   }
 }
