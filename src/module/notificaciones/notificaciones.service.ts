@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
   NotFoundException,
@@ -31,6 +32,10 @@ import { ConfiguracionNotificacionNivel } from './entities/configuracion-notific
 import { CrearConfiguracionNotificacionDto } from './dto/crear-configuracion-notificacion.dto';
 import type { IConfiguracionNotificacionRepository } from './repository/configuracion-notificacion-nivel.repository.interface';
 import { CONFIGURACION_NOTIFICACION_REPOSITORY } from './repository/configuracion-notificacion-nivel.repository.interface';
+import { HistorialAlertasQueryDto } from './dto/historial-alertas-query.dto';
+import { EstadoAlerta } from './enums/estado-alerta.enum';
+import { ResolverAlertaDto } from './dto/resolver-alerta.dto';
+import { Parametro } from '../config-parametro/enums/parametro.enum';
 
 @Injectable()
 export class NotificacionesService {
@@ -93,7 +98,7 @@ export class NotificacionesService {
     empresaId: number;
     loteId: number;
     loteCodigo: string;
-    parametro: string;
+    parametro: Parametro;
     materiaPrima: TipoMateriaPrima;
     valor: number;
     umbralMin: number;
@@ -110,10 +115,20 @@ export class NotificacionesService {
       return [];
     }
 
+    // HU-27: si ya hay una alerta abierta para este lote+parámetro,
+    // no se generan notificaciones duplicadas hasta que se resuelva.
+    const alertaAbiertaExistente =
+      await this.notificacionRepository.findAlertaAbiertaPorLoteYParametro(
+        empresaId,
+        loteId,
+        parametro,
+      );
+    if (alertaAbiertaExistente) {
+      return [];
+    }
+
     const desvioPorcentaje = this.calcularDesvioPorcentaje(valor, umbralMin, umbralMax);
     const nivelAlerta = this.determinarNivelAlerta(desvioPorcentaje);
-
-    // HU-26: destinatarios configurables por nivel, en vez de rol fijo
     const responsables = await this.obtenerDestinatariosPorNivel(empresaId, nivelAlerta);
 
     const mensaje = this.construirMensajeAlerta({
@@ -135,6 +150,8 @@ export class NotificacionesService {
         usuarioId: usuario.id,
         empresaId,
         nivelAlerta,
+        loteId,
+        parametro,
       });
 
       const creada = await this.notificacionRepository.create(entity);
@@ -220,7 +237,7 @@ export class NotificacionesService {
   }
 
   private construirMensajeAlerta(params: {
-    parametro: string;
+    parametro: Parametro;
     valor: number;
     umbralMin: number;
     umbralMax: number;
@@ -319,5 +336,57 @@ export class NotificacionesService {
     if (!eliminado) {
       throw new NotFoundException(`Configuración ${id} no encontrada`);
     }
+  }
+
+  /**
+   * HU-27: marca una alerta como resuelta con su acción correctiva.
+   */
+  async resolverAlerta(
+    id: number,
+    empresaId: number,
+    usuarioId: number,
+    dto: ResolverAlertaDto,
+  ): Promise<NotificacionResponseDto> {
+    const notificacion = await this.notificacionRepository.findById(id, empresaId);
+
+    if (!notificacion) {
+      throw new NotFoundException(`Alerta ${id} no encontrada`);
+    }
+
+    if (notificacion.tipo !== TipoNotificacion.ALERTA_UMBRAL) {
+      throw new BadRequestException(
+        'Solo se pueden resolver notificaciones de tipo alerta',
+      );
+    }
+
+    if (notificacion.estado === EstadoAlerta.CERRADA) {
+      throw new BadRequestException('La alerta ya se encuentra cerrada');
+    }
+
+    const resuelta = await this.notificacionRepository.resolver(
+      id,
+      empresaId,
+      dto.accionCorrectiva,
+      usuarioId,
+    );
+
+    if (!resuelta) {
+      throw new NotFoundException(`Alerta ${id} no encontrada`);
+    }
+
+    return NotificacionMapper.toResponse(resuelta);
+  }
+
+  /**
+   * HU-27: historial de alertas abiertas y cerradas.
+   */
+  async obtenerHistorial(
+    empresaId: number,
+    query: HistorialAlertasQueryDto,
+  ): Promise<NotificacionPaginadaResponseDto> {
+    const [alertas, total] =
+      await this.notificacionRepository.findHistorial(empresaId, query);
+
+    return NotificacionMapper.toPaginatedResponse(alertas, total, query);
   }
 }
