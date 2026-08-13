@@ -3,10 +3,13 @@ import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto
 import { HistorialAlertasQueryDto } from '../dto/historial-alertas-query.dto';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 
-export const NOTIFICACION_REPOSITORY = 'NOTIFICACION_REPOSITORY';
+export const NOTIFICACION_REPOSITORY =
+  'NOTIFICACION_REPOSITORY';
 
 export interface INotificacionRepository {
-  create(notificacion: Partial<Notificacion>): Promise<Notificacion>;
+  create(
+    notificacion: Partial<Notificacion>,
+  ): Promise<Notificacion>;
 
   findByUsuario(
     usuarioId: number,
@@ -14,7 +17,10 @@ export interface INotificacionRepository {
     query: NotificacionFilterQueryDto,
   ): Promise<[Notificacion[], number]>;
 
-  findById(id: number, empresaId: number): Promise<Notificacion | null>;
+  findById(
+    id: number,
+    empresaId: number,
+  ): Promise<Notificacion | null>;
 
   markAsLeida(
     id: number,
@@ -22,7 +28,10 @@ export interface INotificacionRepository {
     empresaId: number,
   ): Promise<Notificacion | null>;
 
-  countNoLeidas(usuarioId: number, empresaId: number): Promise<number>;
+  countNoLeidas(
+    usuarioId: number,
+    empresaId: number,
+  ): Promise<number>;
 
   // HU-27
   findAlertaAbiertaPorLoteYParametro(
@@ -38,8 +47,15 @@ export interface INotificacionRepository {
     resueltaPorId: number,
   ): Promise<Notificacion | null>;
 
+  // HU-27 + HU-28
   findHistorial(
     empresaId: number,
     query: HistorialAlertasQueryDto,
   ): Promise<[Notificacion[], number]>;
+
+  // HU-28
+  findHistorialCompleto(
+    empresaId: number,
+    query: HistorialAlertasQueryDto,
+  ): Promise<Notificacion[]>;
 }
