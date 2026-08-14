@@ -7,10 +7,18 @@ export const CONFIGURACION_NOTIFICACION_REPOSITORY =
 export interface IConfiguracionNotificacionRepository {
   findByEmpresa(empresaId: number): Promise<ConfiguracionNotificacionNivel[]>;
 
-  findRolIdsByNivel(
+  findById(
+    id: number,
+    empresaId: number,
+  ): Promise<ConfiguracionNotificacionNivel | null>;
+
+  // Reemplaza a findRolIdsByNivel: devuelve ambas fuentes de destinatarios.
+  findDestinatariosConfigByNivel(
     empresaId: number,
     nivelAlerta: NivelAlerta,
-  ): Promise<number[]>;
+  ): Promise<{ rolIds: number[]; usuarioIds: number[] }>;
+
+  countByNivel(empresaId: number, nivelAlerta: NivelAlerta): Promise<number>;
 
   create(
     config: Partial<ConfiguracionNotificacionNivel>,
