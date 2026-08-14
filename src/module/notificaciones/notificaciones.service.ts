@@ -58,44 +58,38 @@ export class NotificacionesService {
     private readonly gateway: NotificacionesGateway,
   ) {}
 
-
   async notificarResponsablesCalidad(
     empresaId: number,
     tipo: TipoNotificacion,
     mensaje: string,
     data?: Record<string, unknown>,
   ): Promise<void> {
-    const responsables =
-      await this.userRepository.find({
-        where: {
-          empresa: {
-            id: empresaId,
-          },
-          rol: {
-            nombre: ROLES.RESPONSABLE_CALIDAD,
-          },
-          isActive: true,
+    const responsables = await this.userRepository.find({
+      where: {
+        empresa: {
+          id: empresaId,
         },
-        relations: {
-          rol: true,
-          empresa: true,
+        rol: {
+          nombre: ROLES.RESPONSABLE_CALIDAD,
         },
-      });
+        isActive: true,
+      },
+      relations: {
+        rol: true,
+        empresa: true,
+      },
+    });
 
     for (const usuario of responsables) {
-      const entity =
-        NotificacionMapper.toEntity({
-          tipo,
-          mensaje,
-          data,
-          usuarioId: usuario.id,
-          empresaId,
-        });
+      const entity = NotificacionMapper.toEntity({
+        tipo,
+        mensaje,
+        data,
+        usuarioId: usuario.id,
+        empresaId,
+      });
 
-      const creada =
-        await this.notificacionRepository.create(
-          entity,
-        );
+      const creada = await this.notificacionRepository.create(entity);
 
       this.gateway.emitirNotificacion(
         NotificacionMapper.toResponse(creada),
@@ -128,9 +122,7 @@ export class NotificacionesService {
       timestamp,
     } = params;
 
-    const fueraDeRango =
-      valor < umbralMin ||
-      valor > umbralMax;
+    const fueraDeRango = valor < umbralMin || valor > umbralMax;
 
     if (!fueraDeRango) {
       return [];
@@ -142,44 +134,37 @@ export class NotificacionesService {
      * lote + parámetro, no se genera otra.
      */
     const alertaAbiertaExistente =
-      await this.notificacionRepository
-        .findAlertaAbiertaPorLoteYParametro(
-          empresaId,
-          loteId,
-          parametro,
-        );
+      await this.notificacionRepository.findAlertaAbiertaPorLoteYParametro(
+        empresaId,
+        loteId,
+        parametro,
+      );
 
     if (alertaAbiertaExistente) {
       return [];
     }
 
-    const desvioPorcentaje =
-      this.calcularDesvioPorcentaje(
-        valor,
-        umbralMin,
-        umbralMax,
-      );
+    const desvioPorcentaje = this.calcularDesvioPorcentaje(
+      valor,
+      umbralMin,
+      umbralMax,
+    );
 
-    const nivelAlerta =
-      this.determinarNivelAlerta(
-        desvioPorcentaje,
-      );
+    const nivelAlerta = this.determinarNivelAlerta(desvioPorcentaje);
 
-    const responsables =
-      await this.obtenerDestinatariosPorNivel(
-        empresaId,
-        nivelAlerta,
-      );
+    const responsables = await this.obtenerDestinatariosPorNivel(
+      empresaId,
+      nivelAlerta,
+    );
 
-    const mensaje =
-      this.construirMensajeAlerta({
-        parametro,
-        valor,
-        umbralMin,
-        umbralMax,
-        loteCodigo,
-        nivelAlerta,
-      });
+    const mensaje = this.construirMensajeAlerta({
+      parametro,
+      valor,
+      umbralMin,
+      umbralMax,
+      loteCodigo,
+      nivelAlerta,
+    });
 
     const data: Record<string, unknown> = {
       loteId,
@@ -191,37 +176,26 @@ export class NotificacionesService {
       umbralMax,
       desvioPorcentaje,
       nivelAlerta,
-      timestamp: (
-        timestamp ?? new Date()
-      ).toISOString(),
+      timestamp: (timestamp ?? new Date()).toISOString(),
     };
 
-    const notificaciones: NotificacionResponseDto[] =
-      [];
+    const notificaciones: NotificacionResponseDto[] = [];
 
     for (const usuario of responsables) {
-      const entity =
-        NotificacionMapper.toEntity({
-          tipo:
-            TipoNotificacion.ALERTA_UMBRAL,
-          mensaje,
-          data,
-          usuarioId: usuario.id,
-          empresaId,
-          nivelAlerta,
-          loteId,
-          parametro,
-        });
+      const entity = NotificacionMapper.toEntity({
+        tipo: TipoNotificacion.ALERTA_UMBRAL,
+        mensaje,
+        data,
+        usuarioId: usuario.id,
+        empresaId,
+        nivelAlerta,
+        loteId,
+        parametro,
+      });
 
-      const creada =
-        await this.notificacionRepository.create(
-          entity,
-        );
+      const creada = await this.notificacionRepository.create(entity);
 
-      const response =
-        NotificacionMapper.toResponse(
-          creada,
-        );
+      const response = NotificacionMapper.toResponse(creada);
 
       this.gateway.emitirNotificacion(
         response,
@@ -235,36 +209,78 @@ export class NotificacionesService {
     return notificaciones;
   }
 
+  /**
+   * HU-26 + HU-29:
+   *
+   * Combina destinatarios configurados:
+   *
+   * - por rol: todos los usuarios activos de la empresa con ese rol.
+   * - por usuario: un usuario específico de la empresa.
+   *
+   * Si un usuario está configurado por rol y también individualmente,
+   * se envía una sola notificación mediante deduplicación por ID.
+   *
+   * Si no existe ninguna configuración para el nivel de alerta,
+   * no se notifica a nadie.
+   */
   private async obtenerDestinatariosPorNivel(
     empresaId: number,
     nivelAlerta: NivelAlerta,
   ): Promise<User[]> {
-    const rolIds =
-      await this.configuracionRepository
-        .findRolIdsByNivel(
-          empresaId,
-          nivelAlerta,
-        );
+    const { rolIds, usuarioIds } =
+      await this.configuracionRepository.findDestinatariosConfigByNivel(
+        empresaId,
+        nivelAlerta,
+      );
 
-    if (rolIds.length === 0) {
+    if (rolIds.length === 0 && usuarioIds.length === 0) {
       return [];
     }
 
-    return this.userRepository.find({
-      where: {
-        empresa: {
-          id: empresaId,
-        },
-        rol: {
-          id: In(rolIds),
-        },
-        isActive: true,
-      },
-      relations: {
-        rol: true,
-        empresa: true,
-      },
-    });
+    const porRol = rolIds.length
+      ? await this.userRepository.find({
+          where: {
+            empresa: {
+              id: empresaId,
+            },
+            rol: {
+              id: In(rolIds),
+            },
+            isActive: true,
+          },
+          relations: {
+            rol: true,
+            empresa: true,
+          },
+        })
+      : [];
+
+    const porUsuarioDirecto = usuarioIds.length
+      ? await this.userRepository.find({
+          where: {
+            id: In(usuarioIds),
+            empresa: {
+              id: empresaId,
+            },
+            isActive: true,
+          },
+          relations: {
+            rol: true,
+            empresa: true,
+          },
+        })
+      : [];
+
+    // HU-29:
+    // Evita enviar dos notificaciones al mismo usuario
+    // si coincide una configuración por rol y una individual.
+    const mapa = new Map<number, User>();
+
+    for (const usuario of [...porRol, ...porUsuarioDirecto]) {
+      mapa.set(usuario.id, usuario);
+    }
+
+    return Array.from(mapa.values());
   }
 
   private calcularDesvioPorcentaje(
@@ -278,8 +294,7 @@ export class NotificacionesService {
       }
 
       return (
-        ((umbralMin - valor) /
-          Math.abs(umbralMin)) *
+        ((umbralMin - valor) / Math.abs(umbralMin)) *
         100
       );
     }
@@ -290,8 +305,7 @@ export class NotificacionesService {
       }
 
       return (
-        ((valor - umbralMax) /
-          Math.abs(umbralMax)) *
+        ((valor - umbralMax) / Math.abs(umbralMax)) *
         100
       );
     }
@@ -344,12 +358,11 @@ export class NotificacionesService {
     query: NotificacionFilterQueryDto,
   ): Promise<NotificacionPaginadaResponseDto> {
     const [notificaciones, total] =
-      await this.notificacionRepository
-        .findByUsuario(
-          usuarioId,
-          empresaId,
-          query,
-        );
+      await this.notificacionRepository.findByUsuario(
+        usuarioId,
+        empresaId,
+        query,
+      );
 
     return NotificacionMapper.toPaginatedResponse(
       notificaciones,
@@ -364,12 +377,11 @@ export class NotificacionesService {
     empresaId: number,
   ): Promise<NotificacionResponseDto> {
     const actualizada =
-      await this.notificacionRepository
-        .markAsLeida(
-          id,
-          usuarioId,
-          empresaId,
-        );
+      await this.notificacionRepository.markAsLeida(
+        id,
+        usuarioId,
+        empresaId,
+      );
 
     if (!actualizada) {
       throw new NotFoundException(
@@ -377,59 +389,105 @@ export class NotificacionesService {
       );
     }
 
-    return NotificacionMapper.toResponse(
-      actualizada,
-    );
+    return NotificacionMapper.toResponse(actualizada);
   }
 
   /**
-   * ============================================================
-   * HU-26
-   * CONTADOR DE NO LEÍDAS
-   * ============================================================
+   * HU-26 criterio 4:
+   * contador de notificaciones no leídas.
    */
   async contarNoLeidas(
     usuarioId: number,
     empresaId: number,
   ): Promise<{ total: number }> {
     const total =
-      await this.notificacionRepository
-        .countNoLeidas(
-          usuarioId,
-          empresaId,
-        );
+      await this.notificacionRepository.countNoLeidas(
+        usuarioId,
+        empresaId,
+      );
 
     return { total };
   }
 
   /**
-   * ============================================================
-   * HU-26
-   * CONFIGURACIÓN NIVEL -> ROL
-   * ============================================================
+   * HU-26 + HU-29:
+   * Gestión de configuración nivel -> rol o nivel -> usuario.
    */
   async listarConfiguracion(
     empresaId: number,
   ): Promise<ConfiguracionNotificacionNivel[]> {
-    return this.configuracionRepository
-      .findByEmpresa(empresaId);
+    return this.configuracionRepository.findByEmpresa(
+      empresaId,
+    );
   }
 
   async crearConfiguracion(
     empresaId: number,
     dto: CrearConfiguracionNotificacionDto,
   ): Promise<ConfiguracionNotificacionNivel> {
+    const tieneRol = dto.rolId != null;
+    const tieneUsuario = dto.usuarioId != null;
+
+    /**
+     * HU-29:
+     * Debe existir exactamente una fuente de destinatario.
+     *
+     * Válidos:
+     * - rolId solamente
+     * - usuarioId solamente
+     *
+     * Inválidos:
+     * - ninguno
+     * - ambos
+     */
+    if (tieneRol === tieneUsuario) {
+      throw new BadRequestException(
+        'Debe indicar exactamente uno: rolId o usuarioId.',
+      );
+    }
+
     return this.configuracionRepository.create({
       empresaId,
       nivelAlerta: dto.nivelAlerta,
-      rolId: dto.rolId,
+      rolId: dto.rolId ?? null,
+      usuarioId: dto.usuarioId ?? null,
     });
   }
 
+  /**
+   * HU-29 criterio 4:
+   * No permite dejar el nivel CRITICA sin destinatarios.
+   */
   async eliminarConfiguracion(
     id: number,
     empresaId: number,
   ): Promise<void> {
+    const config =
+      await this.configuracionRepository.findById(
+        id,
+        empresaId,
+      );
+
+    if (!config) {
+      throw new NotFoundException(
+        `Configuración ${id} no encontrada`,
+      );
+    }
+
+    if (config.nivelAlerta === NivelAlerta.CRITICA) {
+      const totalCritica =
+        await this.configuracionRepository.countByNivel(
+          empresaId,
+          NivelAlerta.CRITICA,
+        );
+
+      if (totalCritica <= 1) {
+        throw new BadRequestException(
+          'Debe quedar al menos un destinatario configurado para el nivel crítico.',
+        );
+      }
+    }
+
     const eliminado =
       await this.configuracionRepository.delete(
         id,
@@ -444,10 +502,8 @@ export class NotificacionesService {
   }
 
   /**
-   * ============================================================
-   * HU-27
-   * RESOLVER ALERTA
-   * ============================================================
+   * HU-27:
+   * Marca una alerta como resuelta con su acción correctiva.
    */
   async resolverAlerta(
     id: number,
@@ -499,27 +555,22 @@ export class NotificacionesService {
       );
     }
 
-    return NotificacionMapper.toResponse(
-      resuelta,
-    );
+    return NotificacionMapper.toResponse(resuelta);
   }
 
   /**
-   * ============================================================
-   * HU-27 + HU-28
-   * HISTORIAL PAGINADO
-   * ============================================================
+   * HU-27 + HU-28:
+   * Historial paginado.
    */
   async obtenerHistorial(
     empresaId: number,
     query: HistorialAlertasQueryDto,
   ): Promise<NotificacionPaginadaResponseDto> {
     const [alertas, total] =
-      await this.notificacionRepository
-        .findHistorial(
-          empresaId,
-          query,
-        );
+      await this.notificacionRepository.findHistorial(
+        empresaId,
+        query,
+      );
 
     return NotificacionMapper.toPaginatedResponse(
       alertas,
@@ -529,102 +580,98 @@ export class NotificacionesService {
   }
 
   /**
-   * ============================================================
-   * HU-28
-   * EXPORTAR HISTORIAL A EXCEL
-   * ============================================================
+   * HU-28:
+   * Exportar historial a CSV.
    */
   async exportarHistorialCsv(
-  empresaId: number,
-  query: HistorialAlertasQueryDto,
-): Promise<Buffer> {
-  const alertas =
-    await this.notificacionRepository
-      .findHistorialCompleto(
+    empresaId: number,
+    query: HistorialAlertasQueryDto,
+  ): Promise<Buffer> {
+    const alertas =
+      await this.notificacionRepository.findHistorialCompleto(
         empresaId,
         query,
       );
 
-  const escaparCsv = (
-    valor: unknown,
-  ): string => {
-    if (
-      valor === null ||
-      valor === undefined
-    ) {
-      return '';
-    }
+    const escaparCsv = (
+      valor: unknown,
+    ): string => {
+      if (
+        valor === null ||
+        valor === undefined
+      ) {
+        return '';
+      }
 
-    const texto = String(valor);
+      const texto = String(valor);
 
-    return `"${texto.replace(
-      /"/g,
-      '""',
-    )}"`;
-  };
+      return `"${texto.replace(
+        /"/g,
+        '""',
+      )}"`;
+    };
 
-  const filas: string[] = [];
-  filas.push(
-    [
-      'Fecha',
-      'Lote',
-      'Parámetro',
-      'Nivel',
-      'Estado',
-      'Acción correctiva',
-    ]
-      .map(escaparCsv)
-      .join(';'),
-  );
-
-  for (const alerta of alertas) {
-    const lote =
-      alerta.lote?.codigo ??
-      alerta.data?.loteCodigo ??
-      alerta.loteId ??
-      '';
+    const filas: string[] = [];
 
     filas.push(
       [
-        this.formatearFecha(
-          alerta.createdAt,
-        ),
-        lote,
-        alerta.parametro ?? '',
-        alerta.nivelAlerta ?? '',
-        alerta.estado ?? '',
-        alerta.accionCorrectiva ?? '',
+        'Fecha',
+        'Lote',
+        'Parámetro',
+        'Nivel',
+        'Estado',
+        'Acción correctiva',
       ]
         .map(escaparCsv)
         .join(';'),
     );
+
+    for (const alerta of alertas) {
+      const lote =
+        alerta.lote?.codigo ??
+        alerta.data?.loteCodigo ??
+        alerta.loteId ??
+        '';
+
+      filas.push(
+        [
+          this.formatearFecha(
+            alerta.createdAt,
+          ),
+          lote,
+          alerta.parametro ?? '',
+          alerta.nivelAlerta ?? '',
+          alerta.estado ?? '',
+          alerta.accionCorrectiva ?? '',
+        ]
+          .map(escaparCsv)
+          .join(';'),
+      );
+    }
+
+    const contenido =
+      '\uFEFF' +
+      filas.join('\r\n');
+
+    return Buffer.from(
+      contenido,
+      'utf8',
+    );
   }
 
-  const contenido =
-    '\uFEFF' +
-    filas.join('\r\n');
-
-  return Buffer.from(
-    contenido,
-    'utf8',
-  );
-}
   /**
-   * ============================================================
-   * HU-28
-   * EXPORTAR HISTORIAL A PDF
-   * ============================================================
+   * HU-28:
+   * Exportar historial a PDF.
    */
   async exportarHistorialPdf(
     empresaId: number,
     query: HistorialAlertasQueryDto,
   ): Promise<Buffer> {
     const alertas =
-      await this.notificacionRepository
-        .findHistorialCompleto(
-          empresaId,
-          query,
-        );
+      await this.notificacionRepository.findHistorialCompleto(
+        empresaId,
+        query,
+      );
 
     return new Promise<Buffer>(
       (resolve, reject) => {
@@ -732,8 +779,7 @@ export class NotificacionesService {
               column.x,
               y,
               {
-                width:
-                  column.width,
+                width: column.width,
                 align: 'left',
               },
             );

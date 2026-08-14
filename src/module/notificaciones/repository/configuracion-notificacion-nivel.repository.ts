@@ -17,19 +17,38 @@ export class ConfiguracionNotificacionRepository
   findByEmpresa(empresaId: number): Promise<ConfiguracionNotificacionNivel[]> {
     return this.repository.find({
       where: { empresaId },
-      relations: { rol: true },
+      relations: { rol: true, usuario: true },
       order: { nivelAlerta: 'ASC' },
     });
   }
 
-  async findRolIdsByNivel(
+  findById(
+    id: number,
+    empresaId: number,
+  ): Promise<ConfiguracionNotificacionNivel | null> {
+    return this.repository.findOne({ where: { id, empresaId } });
+  }
+
+  async findDestinatariosConfigByNivel(
     empresaId: number,
     nivelAlerta: NivelAlerta,
-  ): Promise<number[]> {
+  ): Promise<{ rolIds: number[]; usuarioIds: number[] }> {
     const rows = await this.repository.find({
       where: { empresaId, nivelAlerta },
     });
-    return rows.map((r) => r.rolId);
+
+    return {
+      rolIds: rows
+        .filter((r) => r.rolId != null)
+        .map((r) => r.rolId as number),
+      usuarioIds: rows
+        .filter((r) => r.usuarioId != null)
+        .map((r) => r.usuarioId as number),
+    };
+  }
+
+  countByNivel(empresaId: number, nivelAlerta: NivelAlerta): Promise<number> {
+    return this.repository.count({ where: { empresaId, nivelAlerta } });
   }
 
   create(
