@@ -293,6 +293,24 @@ export class LecturaSensorService {
     }
 
     // ------------------------------------------------------------
+    // HU-31:
+    // Toda lectura válida del sensor (haya estado ACTIVO, INACTIVO
+    // o FALLA) resuelve cualquier alerta de desconexión abierta.
+    // No se limita al caso "noEstabaActivo" porque la desconexión
+    // es ortogonal al estado del sensor: puede seguir figurando
+    // ACTIVO y aun así llevar rato sin mandar datos hasta que el
+    // cron detecta el corte.
+    // ------------------------------------------------------------
+
+    this.notificacionesService
+      .resolverAlertaSensorDesconectado(sensor.id, empresaId)
+      .catch((err) =>
+        this.logger.error(
+          `Error al resolver alerta de desconexión para sensor ${sensor.id}: ${err}`,
+        ),
+      );
+
+    // ------------------------------------------------------------
     // Response + WebSocket
     // ------------------------------------------------------------
 
@@ -381,6 +399,10 @@ export class LecturaSensorService {
   //
   // La recuperación del sensor solamente ocurre cuando el propio
   // sensor vuelve a enviar una lectura automática válida.
+  //
+  // HU-31: tampoco resuelve la alerta de desconexión — una carga
+  // manual es el fallback cuando el sensor no anda, no representa
+  // "reanudar el envío de datos" (AC 4 de la HU-31).
 
   async ingresarManual(
     dto: IngresarLecturaManualDto,
@@ -835,131 +857,68 @@ export class LecturaSensorService {
   }
 
   // ============================================================
-  // CONFIGURACIÓN DE UMBRALES
-  // ============================================================
-
-  private async construirMapaUmbrales(
-    empresaId: number,
-  ): Promise<
-    Map<
-      string,
-      {
-        umbralMin: number;
-        umbralMax: number;
-      }
-    >
-  > {
-    const configs =
-      await this.configParametroRepository.find({
-        where: {
-          empresaId,
-        },
-      });
-
-    const mapa = new Map<
-      string,
-      {
-        umbralMin: number;
-        umbralMax: number;
-      }
-    >();
-
-    for (const config of configs) {
-      mapa.set(
-        `${config.parametro}|${config.tipoMateriaPrima}`,
-        {
-          umbralMin: config.umbralMin,
-          umbralMax: config.umbralMax,
-        },
-      );
-    }
-
-    return mapa;
+// CONFIGURACIÓN DE UMBRALES
+// ============================================================
+private async construirMapaUmbrales(
+  empresaId: number,
+): Promise<Map<string, { umbralMin: number; umbralMax: number }>> {
+  const configs = await this.configParametroRepository.find({ where: { empresaId } });
+  const mapa = new Map<string, { umbralMin: number; umbralMax: number }>();
+  for (const config of configs) {
+    mapa.set(`${config.parametro}|${config.tipoMateriaPrima}`, {
+      umbralMin: config.umbralMin,
+      umbralMax: config.umbralMax,
+    });
   }
+  return mapa;
+}
 
-  // ============================================================
-  // ESTADO DE MEDICIÓN
-  // ============================================================
+// ============================================================
+// ESTADO DE MEDICIÓN
+// ============================================================
+private calcularEstado(
+  valor: number,
+  parametro: Parametro,
+  materiaPrima: TipoMateriaPrima,
+  mapa: Map<string, { umbralMin: number; umbralMax: number }>,
+): EstadoMedicion {
+  const umbral = mapa.get(`${parametro}|${materiaPrima}`);
+  if (!umbral) return EstadoMedicion.SIN_UMBRAL_CONFIGURADO;
+  if (valor < umbral.umbralMin || valor > umbral.umbralMax) return EstadoMedicion.FUERA_DE_RANGO;
+  return EstadoMedicion.NORMAL;
+}
 
-  private calcularEstado(
-    valor: number,
-    parametro: Parametro,
-    materiaPrima: TipoMateriaPrima,
-    mapa: Map<
-      string,
-      {
-        umbralMin: number;
-        umbralMax: number;
-      }
-    >,
-  ): EstadoMedicion {
-    const umbral = mapa.get(
-      `${parametro}|${materiaPrima}`,
-    );
+// ============================================================
+// CSV
+// ============================================================
+private aCsv(
+  data: {
+    id: number;
+    valor: number;
+    unidad: string;
+    sensorNombre: string;
+    parametro: string;
+    loteCodigo: string;
+    timestampLectura: Date;
+    estado: string;
+  }[],
+): string {
+  const headers = ['id', 'valor', 'unidad', 'sensor', 'parametro', 'lote', 'fechaHora', 'estado'];
+  const filas = data.map((d) =>
+    [
+      d.id,
+      d.valor,
+      d.unidad,
+      d.sensorNombre,
+      d.parametro,
+      d.loteCodigo,
+      d.timestampLectura.toISOString(),
+      d.estado,
+    ]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(','),
+  );
+  return [headers.join(','), ...filas].join('\n');
+}
 
-    if (!umbral) {
-      return EstadoMedicion.SIN_UMBRAL_CONFIGURADO;
-    }
-
-    if (
-      valor < umbral.umbralMin ||
-      valor > umbral.umbralMax
-    ) {
-      return EstadoMedicion.FUERA_DE_RANGO;
-    }
-
-    return EstadoMedicion.NORMAL;
-  }
-
-  // ============================================================
-  // CSV
-  // ============================================================
-
-  private aCsv(
-    data: {
-      id: number;
-      valor: number;
-      unidad: string;
-      sensorNombre: string;
-      parametro: string;
-      loteCodigo: string;
-      timestampLectura: Date;
-      estado: string;
-    }[],
-  ): string {
-    const headers = [
-      'id',
-      'valor',
-      'unidad',
-      'sensor',
-      'parametro',
-      'lote',
-      'fechaHora',
-      'estado',
-    ];
-
-    const filas = data.map(
-      (d) =>
-        [
-          d.id,
-          d.valor,
-          d.unidad,
-          d.sensorNombre,
-          d.parametro,
-          d.loteCodigo,
-          d.timestampLectura.toISOString(),
-          d.estado,
-        ]
-          .map(
-            (v) =>
-              `"${String(v).replace(/"/g, '""')}"`,
-          )
-          .join(','),
-    );
-
-    return [
-      headers.join(','),
-      ...filas,
-    ].join('\n');
-  }
 }

@@ -33,19 +33,21 @@ export class ConfiguracionNotificacionRepository
     empresaId: number,
     nivelAlerta: NivelAlerta,
   ): Promise<{ rolIds: number[]; usuarioIds: number[] }> {
-    const rows = await this.repository.find({
-      where: { empresaId, nivelAlerta },
-    });
+    const rows = await this.repository
+      .createQueryBuilder('config')
+      .where('config.empresaId = :empresaId', { empresaId })
+      .andWhere('config.nivelAlerta = :nivelAlerta', { nivelAlerta }) // camelCase
+      .getMany();
 
     return {
-      rolIds: rows
-        .filter((r) => r.rolId != null)
-        .map((r) => r.rolId as number),
+      rolIds: rows.filter((r) => r.rolId != null).map((r) => r.rolId as number),
       usuarioIds: rows
         .filter((r) => r.usuarioId != null)
         .map((r) => r.usuarioId as number),
     };
   }
+
+
 
   countByNivel(empresaId: number, nivelAlerta: NivelAlerta): Promise<number> {
     return this.repository.count({ where: { empresaId, nivelAlerta } });

@@ -151,7 +151,8 @@ export class NotificacionesService {
     );
 
     const nivelAlerta = this.determinarNivelAlerta(desvioPorcentaje);
-
+    console.log('NivelAlerta que se busca:', nivelAlerta);
+    console.log('Buscando config con nivelAlerta:', nivelAlerta);
     const responsables = await this.obtenerDestinatariosPorNivel(
       empresaId,
       nivelAlerta,
@@ -233,26 +234,26 @@ export class NotificacionesService {
         nivelAlerta,
       );
 
+    console.log(
+      'DEBUG obtenerDestinatariosPorNivel -> empresaId:', empresaId,
+      'nivelAlerta:', nivelAlerta,
+      'rolIds:', rolIds,
+      'usuarioIds:', usuarioIds,
+    ); // temporal
+
     if (rolIds.length === 0 && usuarioIds.length === 0) {
       return [];
     }
 
     const porRol = rolIds.length
-      ? await this.userRepository.find({
-          where: {
-            empresa: {
-              id: empresaId,
-            },
-            rol: {
-              id: In(rolIds),
-            },
-            isActive: true,
-          },
-          relations: {
-            rol: true,
-            empresa: true,
-          },
-        })
+      ? await this.userRepository
+          .createQueryBuilder('user')
+          .leftJoinAndSelect('user.rol', 'rol')
+          .leftJoinAndSelect('user.empresa', 'empresa')
+          .where('"user"."empresaId" = :empresaId', { empresaId })
+          .andWhere('"user"."rolId" IN (:...rolIds)', { rolIds })
+          .andWhere('"user"."isActive" = true')
+          .getMany()
       : [];
 
     const porUsuarioDirecto = usuarioIds.length
@@ -928,5 +929,91 @@ export class NotificacionesService {
         timeStyle: 'medium',
       },
     ).format(fecha);
+  }
+
+  /**
+   * HU-31:
+   * Genera una alerta crítica de sensor desconectado, una fila por
+   * destinatario configurado para nivel CRITICA. No genera duplicados
+   * mientras exista una alerta abierta para el mismo sensor.
+   */
+  async generarAlertaSensorDesconectado(params: {
+    empresaId: number;
+    sensorId: number;
+    sensorNombre: string;
+    ultimaLectura: Date | null;
+    minutosSinDatos: number;
+  }): Promise<NotificacionResponseDto[]> {
+    const { empresaId, sensorId, sensorNombre, ultimaLectura, minutosSinDatos } =
+      params;
+
+    const alertaAbiertaExistente =
+      await this.notificacionRepository.findAlertaAbiertaPorSensor(
+        empresaId,
+        sensorId,
+        TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
+      );
+
+    if (alertaAbiertaExistente) {
+      return [];
+    }
+
+    const responsables = await this.obtenerDestinatariosPorNivel(
+      empresaId,
+      NivelAlerta.CRITICA,
+    );
+
+    const mensaje =
+      `Alerta crítica: el sensor "${sensorNombre}" no envía datos hace ` +
+      `${minutosSinDatos} minutos. Última lectura: ` +
+      `${ultimaLectura ? ultimaLectura.toISOString() : 'sin registro'}.`;
+
+    const data: Record<string, unknown> = {
+      sensorId,
+      sensorNombre,
+      ultimaLectura: ultimaLectura?.toISOString() ?? null,
+      minutosSinDatos,
+    };
+
+    const notificaciones: NotificacionResponseDto[] = [];
+
+      // 👇 Log para ver qué usuarios devuelve
+    console.log('Responsables nivel crítica:', responsables.map(u => ({
+      id: u.id,
+      name: u.name,
+      rolId: u.rolId,
+      rolNombre: u.rol?.nombre,
+    })));
+
+    for (const usuario of responsables) {
+      const entity = NotificacionMapper.toEntity({
+        tipo: TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
+        mensaje,
+        data,
+        usuarioId: usuario.id,
+        empresaId,
+        nivelAlerta: NivelAlerta.CRITICA,
+        sensorId,
+      });
+
+      const creada = await this.notificacionRepository.create(entity);
+      const response = NotificacionMapper.toResponse(creada);
+
+      this.gateway.emitirNotificacion(response, empresaId, usuario.id);
+      notificaciones.push(response);
+    }
+
+    return notificaciones;
+  }
+
+  async resolverAlertaSensorDesconectado(
+    sensorId: number,
+    empresaId: number,
+  ): Promise<void> {
+    await this.notificacionRepository.cerrarAlertasAbiertasPorSensor(
+      empresaId,
+      sensorId,
+      TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
+    );
   }
 }

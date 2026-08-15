@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 import { PermisoModulo } from '../../permiso/entities/permiso-modulo.entity';
 import { Empresa } from '../../empresa/entities/empresa.entity';
+import { User } from '../../user/entities/user.entity';
 
 @Entity('roles')
 export class Rol {
@@ -27,4 +28,8 @@ export class Rol {
 
   @ManyToOne(() => Empresa, { nullable: true })
   empresa?: Empresa;
+
+  // 👇 relación inversa hacia User
+  @OneToMany(() => User, (user) => user.rol)
+  users!: User[];
 }

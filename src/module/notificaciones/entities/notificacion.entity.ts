@@ -14,10 +14,12 @@ import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
 import { EstadoAlerta } from '../enums/estado-alerta.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { Lote } from '../../lote/entities/lote.entity';
+import { Sensor } from '../../sensor/entities/sensor.entity';
 
 @Entity('notificaciones')
 @Index(['empresaId', 'usuarioId', 'leida'])
 @Index(['empresaId', 'loteId', 'parametro', 'estado']) // HU-27: lookup de alertas abiertas
+@Index(['empresaId', 'sensorId', 'tipo', 'estado']) // HU-31: lookup de alertas de desconexión abiertas
 export class Notificacion {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -61,6 +63,19 @@ export class Notificacion {
 
   @Column({ type: 'enum', enum: Parametro, nullable: true })
   parametro?: Parametro | null;
+
+  /**
+   * HU-31:
+   * Solo se completa para tipo = ALERTA_SENSOR_DESCONECTADO. Se usa para
+   * detectar si ya hay una alerta abierta para el mismo sensor y así
+   * evitar notificaciones duplicadas mientras siga desconectado.
+   */
+  @Column({ name: 'sensor_id', type: 'int', nullable: true })
+  sensorId?: number | null;
+
+  @ManyToOne(() => Sensor, { nullable: true })
+  @JoinColumn({ name: 'sensor_id' })
+  sensor?: Sensor | null;
 
   /**
    * HU-27: ciclo de vida de la alerta.

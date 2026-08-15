@@ -18,12 +18,16 @@ export interface CrearNotificacionParams {
   nivelAlerta?: NivelAlerta;
   loteId?: number;
   parametro?: Parametro;
+  sensorId?: number; // HU-31
 }
 
+const TIPOS_CON_ESTADO_ABIERTA = [
+  TipoNotificacion.ALERTA_UMBRAL,
+  TipoNotificacion.ALERTA_SENSOR_DESCONECTADO, // HU-31
+];
+
 export class NotificacionMapper {
-  static toEntity(
-    params: CrearNotificacionParams,
-  ): Partial<Notificacion> {
+  static toEntity(params: CrearNotificacionParams): Partial<Notificacion> {
     return {
       tipo: params.tipo,
       mensaje: params.mensaje,
@@ -33,11 +37,11 @@ export class NotificacionMapper {
       nivelAlerta: params.nivelAlerta ?? null,
       loteId: params.loteId ?? null,
       parametro: params.parametro ?? null,
+      sensorId: params.sensorId ?? null, // HU-31
 
-      estado:
-        params.tipo === TipoNotificacion.ALERTA_UMBRAL
-          ? EstadoAlerta.ABIERTA
-          : null,
+      estado: TIPOS_CON_ESTADO_ABIERTA.includes(params.tipo)
+        ? EstadoAlerta.ABIERTA
+        : null,
 
       leida: false,
     };
@@ -56,51 +60,29 @@ export class NotificacionMapper {
     };
   }
 
-  static toResponse(
-    entity: Notificacion,
-  ): NotificacionResponseDto {
+  static toResponse(entity: Notificacion): NotificacionResponseDto {
     const dto = new NotificacionResponseDto();
 
     dto.id = entity.id;
     dto.tipo = entity.tipo;
     dto.mensaje = entity.mensaje;
     dto.data = entity.data ?? null;
-
-    dto.nivelAlerta =
-      entity.nivelAlerta ?? null;
-
-    dto.loteId =
-      entity.loteId ?? null;
-
-    dto.loteCodigo =
-      entity.lote?.codigo ?? null;
-
-    dto.parametro =
-      entity.parametro ?? null;
-
-    dto.estado =
-      entity.estado ?? null;
-
-    dto.accionCorrectiva =
-      entity.accionCorrectiva ?? null;
-
-    dto.resueltaPorId =
-      entity.resueltaPorId ?? null;
-
-    dto.fechaResolucion =
-      entity.fechaResolucion ?? null;
-
+    dto.nivelAlerta = entity.nivelAlerta ?? null;
+    dto.loteId = entity.loteId ?? null;
+    dto.loteCodigo = entity.lote?.codigo ?? null;
+    dto.parametro = entity.parametro ?? null;
+    dto.sensorId = entity.sensorId ?? null; // HU-31
+    dto.estado = entity.estado ?? null;
+    dto.accionCorrectiva = entity.accionCorrectiva ?? null;
+    dto.resueltaPorId = entity.resueltaPorId ?? null;
+    dto.fechaResolucion = entity.fechaResolucion ?? null;
     dto.leida = entity.leida;
     dto.createdAt = entity.createdAt;
 
     return dto;
   }
 
-  static toResponseList(
-    entities: Notificacion[],
-  ): NotificacionResponseDto[] {
-    return entities.map(
-      (entity) => this.toResponse(entity),
-    );
+  static toResponseList(entities: Notificacion[]): NotificacionResponseDto[] {
+    return entities.map((entity) => this.toResponse(entity));
   }
 }
