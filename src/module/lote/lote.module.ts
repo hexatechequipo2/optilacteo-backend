@@ -23,6 +23,18 @@ import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
 import { ConfigParametroModule } from '../config-parametro/config-parametro.module';
 import { AuditLogModule } from '../audit/audit-log.module';
 
+// HU-67: catálogo de SKU e ingreso a cámara de producto terminado
+import { Sku } from './entities/sku.entity';
+import { IngresoCamara } from './entities/ingreso-camara.entity';
+import { SkuService } from './sku.service';
+import { SkuController } from './sku.controller';
+import { SkuRepository } from './repository/sku.repository';
+import { SKU_REPOSITORY } from './repository/sku-repository.interface';
+import { IngresoCamaraService } from './ingreso-camara.service';
+import { IngresoCamaraController } from './ingreso-camara.controller';
+import { IngresoCamaraRepository } from './repository/ingreso-camara.repository';
+import { INGRESO_CAMARA_REPOSITORY } from './repository/ingreso-camara-repository.interface';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -37,13 +49,15 @@ import { AuditLogModule } from '../audit/audit-log.module';
       User,
       LoteClasificacionHistorial,
       LoteRevisionCalidad,
+      Sku,
+      IngresoCamara,
     ]),
     forwardRef(() => SensorModule),
     NotificacionesModule,
     ConfigParametroModule,
     AuditLogModule,
   ],
-  controllers: [LoteController],
+  controllers: [LoteController, SkuController, IngresoCamaraController],
   providers: [
     LoteService,
     ClasificacionLoteService,
@@ -55,12 +69,24 @@ import { AuditLogModule } from '../audit/audit-log.module';
       provide: LOTE_UBICACION_HISTORIAL_REPOSITORY,
       useClass: LoteUbicacionHistorialRepository,
     },
+    SkuService,
+    {
+      provide: SKU_REPOSITORY,
+      useClass: SkuRepository,
+    },
+    IngresoCamaraService,
+    {
+      provide: INGRESO_CAMARA_REPOSITORY,
+      useClass: IngresoCamaraRepository,
+    },
   ],
   exports: [
     LoteService,
     LOTE_REPOSITORY,
     LOTE_UBICACION_HISTORIAL_REPOSITORY,
     ClasificacionLoteService,
+    SkuService,
+    SKU_REPOSITORY,
   ],
 })
 export class LoteModule {}
