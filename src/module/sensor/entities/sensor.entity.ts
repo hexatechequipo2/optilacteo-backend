@@ -42,6 +42,12 @@ export class Sensor {
   @Column({ type: 'timestamp', nullable: true })
   ultimaLectura?: Date | null;
 
+  // HU-31: override opcional del umbral de desconexión a nivel sensor.
+  // Si es null, se usa el default configurado por empresa
+  // (ConfiguracionAlertaDesconexion).
+  @Column({ name: 'umbral_desconexion_minutos', type: 'int', nullable: true })
+  umbralDesconexionMinutos?: number | null;
+
   @Column()
   empresaId!: number;
 

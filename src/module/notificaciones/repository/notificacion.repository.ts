@@ -237,12 +237,13 @@ export class NotificacionRepository
           empresaId,
         },
       )
-      .andWhere(
-        'notificacion.tipo = :tipo',
-        {
-          tipo: TipoNotificacion.ALERTA_UMBRAL,
-        },
-      );
+      qb.andWhere('notificacion.tipo IN (:...tipos)', {
+        tipos: [
+          TipoNotificacion.ALERTA_UMBRAL,
+          TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
+        ],
+      });
+
 
     if (query.estado) {
       qb.andWhere(
@@ -324,5 +325,39 @@ export class NotificacionRepository
     }
 
     return fecha;
+  }
+
+   findAlertaAbiertaPorSensor(
+    empresaId: number,
+    sensorId: number,
+    tipo: TipoNotificacion,
+  ): Promise<Notificacion | null> {
+    return this.repository.findOne({
+      where: {
+        empresaId,
+        sensorId,
+        tipo,
+        estado: EstadoAlerta.ABIERTA,
+      },
+    });
+  }
+
+  async cerrarAlertasAbiertasPorSensor(
+    empresaId: number,
+    sensorId: number,
+    tipo: TipoNotificacion,
+  ): Promise<void> {
+    await this.repository.update(
+      {
+        empresaId,
+        sensorId,
+        tipo,
+        estado: EstadoAlerta.ABIERTA,
+      },
+      {
+        estado: EstadoAlerta.CERRADA,
+        fechaResolucion: new Date(),
+      },
+    );
   }
 }

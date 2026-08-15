@@ -41,6 +41,11 @@ export class NotificacionResponseDto {
   parametro?: Parametro | null;
 
   @ApiPropertyOptional({
+    nullable: true,
+  })
+  sensorId?: number | null;
+
+  @ApiPropertyOptional({
     enum: EstadoAlerta,
     nullable: true,
   })
