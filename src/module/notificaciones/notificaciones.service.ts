@@ -42,6 +42,8 @@ import { ResolverAlertaDto } from './dto/resolver-alerta.dto';
 import { Parametro } from '../config-parametro/enums/parametro.enum';
 
 import PDFDocument from 'pdfkit';
+import { ConfiguracionNotificacionResponseDto } from './dto/configuracion-notificacion-response.dto';
+import { ConfiguracionNotificacionMapper } from './mappers/configuracion-notificacion.mapper';
 
 @Injectable()
 export class NotificacionesService {
@@ -416,10 +418,11 @@ export class NotificacionesService {
    */
   async listarConfiguracion(
     empresaId: number,
-  ): Promise<ConfiguracionNotificacionNivel[]> {
-    return this.configuracionRepository.findByEmpresa(
+  ): Promise<ConfiguracionNotificacionResponseDto[]> {
+    const configs = await this.configuracionRepository.findByEmpresa(
       empresaId,
     );
+    return ConfiguracionNotificacionMapper.toResponseList(configs);
   }
 
   async crearConfiguracion(
@@ -429,22 +432,26 @@ export class NotificacionesService {
     const tieneRol = dto.rolId != null;
     const tieneUsuario = dto.usuarioId != null;
 
-    /**
-     * HU-29:
-     * Debe existir exactamente una fuente de destinatario.
-     *
-     * Válidos:
-     * - rolId solamente
-     * - usuarioId solamente
-     *
-     * Inválidos:
-     * - ninguno
-     * - ambos
-     */
     if (tieneRol === tieneUsuario) {
       throw new BadRequestException(
         'Debe indicar exactamente uno: rolId o usuarioId.',
       );
+    }
+
+    if (tieneUsuario) {
+      const usuario = await this.userRepository.findOne({
+        where: {
+          id: dto.usuarioId,
+          empresa: { id: empresaId },
+          isActive: true,
+        },
+      });
+
+      if (!usuario) {
+        throw new BadRequestException(
+          'El usuario indicado no existe o no pertenece a esta empresa.',
+        );
+      }
     }
 
     return this.configuracionRepository.create({
