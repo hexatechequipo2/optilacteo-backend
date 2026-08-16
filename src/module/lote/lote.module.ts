@@ -34,6 +34,10 @@ import { IngresoCamaraService } from './ingreso-camara.service';
 import { IngresoCamaraController } from './ingreso-camara.controller';
 import { IngresoCamaraRepository } from './repository/ingreso-camara.repository';
 import { INGRESO_CAMARA_REPOSITORY } from './repository/ingreso-camara-repository.interface';
+import { LoteProduccion } from './entities/lote-produccion.entity';
+import { LoteConsumo } from './entities/lote-consumo.entity';
+import { LoteConsumoParametro } from './entities/lote-consumo-parametro.entity';
+import { LoteConsumoService } from './lote-consumo.service';
 
 @Module({
   imports: [
@@ -51,6 +55,9 @@ import { INGRESO_CAMARA_REPOSITORY } from './repository/ingreso-camara-repositor
       LoteRevisionCalidad,
       Sku,
       IngresoCamara,
+      LoteProduccion,      
+      LoteConsumo,         
+      LoteConsumoParametro,
     ]),
     forwardRef(() => SensorModule),
     NotificacionesModule,
@@ -61,6 +68,7 @@ import { INGRESO_CAMARA_REPOSITORY } from './repository/ingreso-camara-repositor
   providers: [
     LoteService,
     ClasificacionLoteService,
+    LoteConsumoService,
     {
       provide: LOTE_REPOSITORY,
       useClass: LoteRepository,

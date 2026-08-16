@@ -52,6 +52,12 @@ export class LoteResponseDto {
   })
   rendimiento?: number | null;
 
+  @ApiPropertyOptional({ description: 'Cantidad total ingresada del lote' })
+  cantidad?: number | null;
+
+  @ApiPropertyOptional({ description: 'Saldo remanente disponible para consumo' })
+  cantidadDisponible?: number | null;
+
   @ApiProperty({ type: [LoteParametroResponseDto] })
   parametros!: LoteParametroResponseDto[];
 
