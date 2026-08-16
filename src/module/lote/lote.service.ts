@@ -220,9 +220,14 @@ export class LoteService {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
 
-    if (lote.estado === EstadoLote.FINALIZADO) {
+    // HU-62 + HU-68: el lote puede llegar a FINALIZADO por dos caminos —
+    // manualmente vía este endpoint, o automáticamente cuando el consumo
+    // parcial agota el saldo disponible (ver LoteConsumoService). En el
+    // segundo caso el rendimiento todavía no se cargó, así que la guardia
+    // no bloquea por estado sino por si el rendimiento ya está cargado.
+    if (lote.estado === EstadoLote.FINALIZADO && lote.rendimiento != null) {
       throw new BadRequestException(
-        `El lote ${id} ya está finalizado y no puede modificarse`,
+        `El lote ${id} ya está finalizado con rendimiento cargado y no puede modificarse`,
       );
     }
 
