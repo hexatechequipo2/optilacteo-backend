@@ -9,6 +9,8 @@ import {
   IsString,
   ArrayMinSize,
   ValidateNested,
+  IsNumber,
+  IsPositive,
 } from 'class-validator';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
@@ -52,4 +54,9 @@ export class CreateLoteDto {
   @ValidateNested({ each: true })
   @Type(() => CreateLoteParametroDto)
   parametros!: CreateLoteParametroDto[];
+
+  @ApiProperty({ example: 500, description: 'Cantidad total ingresada del lote' })
+  @IsNumber()
+  @IsPositive()
+  cantidad!: number;
 }

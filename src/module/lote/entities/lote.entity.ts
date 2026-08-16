@@ -74,6 +74,16 @@ export class Lote {
   @Column({ type: 'enum', enum: UnidadRendimiento, nullable: true })
   unidadRendimiento?: UnidadRendimiento | null;
 
+  // HU-68: cantidad total ingresada y saldo remanente para consumo parcial.
+  // Nullable: lotes registrados antes de HU-68 no tienen este dato y no
+  // soportan consumo parcial hasta que se les cargue manualmente (fuera de
+  // alcance de esta HU).
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  cantidad?: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  cantidadDisponible?: number | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

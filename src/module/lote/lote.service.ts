@@ -113,6 +113,8 @@ export class LoteService {
       ubicacionInicial: dto.ubicacionInicial ?? null,
       estado: EstadoLote.REGISTRADO,
       parametros,
+      cantidad: dto.cantidad,
+      cantidadDisponible: dto.cantidad,
     });
 
     const saved = await this.loteRepository.save(lote);
