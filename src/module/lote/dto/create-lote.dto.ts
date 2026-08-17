@@ -59,4 +59,15 @@ export class CreateLoteDto {
   @IsNumber()
   @IsPositive()
   cantidad!: number;
+
+  // HU-66: cantidad comprometida según remito del proveedor. Opcional (AC4) —
+  // puede no estar disponible al momento de la carga si aún no llegó el remito.
+  @ApiPropertyOptional({
+    example: 500,
+    description: 'Cantidad comprometida según remito del proveedor',
+  })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  cantidadComprometidaKg?: number;
 }

@@ -92,6 +92,25 @@ export class LoteController {
     return this.loteConsumoService.findLotesProduccion(tenant);
   }
 
+  // HU-66: histórico de desvíos entre lo comprometido (remito) y lo real
+  // recibido, agrupado por proveedor. Va ANTES de @Get(':id') por el mismo
+  // motivo que 'no-aptos' y 'producciones' — si no, Nest interpreta
+  // 'proveedor' como el :id.
+  @Get('proveedor/:proveedorId/desvios')
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
+  getDesviosPorProveedor(
+    @Param('proveedorId') proveedorId: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteService.getDesviosPorProveedor(+proveedorId, tenant);
+  }
+
   @Get(':id')
   @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')

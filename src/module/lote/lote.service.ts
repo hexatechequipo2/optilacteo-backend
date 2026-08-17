@@ -19,6 +19,7 @@ import { FinalizarLoteDto } from './dto/finalizar-lote.dto';
 import { LoteResponseDto } from './dto/lote-response.dto';
 import { LoteCreateResponseDto } from './dto/lote-create-response.dto';
 import { MetricasCalidadResponseDto } from './dto/metricas-calidad-response.dto';
+import { DesvioProveedorResponseDto } from './dto/desvio-proveedor-response.dto';
 import { LoteMapper } from './mappers/lote.mapper';
 import { EstadoLote } from './enums/estado-lote.enum';
 import type { ILoteRepository } from './repository/lote-repository.interface';
@@ -99,6 +100,7 @@ export class LoteService {
       const parametro = new LoteParametro();
       parametro.parametro = p.parametro;
       parametro.valor = p.valor;
+      parametro.valorComprometido = p.valorComprometido ?? null; // HU-66
       return parametro;
     });
 
@@ -115,6 +117,7 @@ export class LoteService {
       parametros,
       cantidad: dto.cantidad,
       cantidadDisponible: dto.cantidad,
+      cantidadComprometidaKg: dto.cantidadComprometidaKg ?? null, // HU-66
     });
 
     const saved = await this.loteRepository.save(lote);
@@ -450,5 +453,28 @@ export class LoteService {
     );
 
     return ComparacionHistoricaMapper.build(lote, historicos, config);
+  }
+
+  // HU-66: histórico de desvíos entre lo comprometido (remito) y lo real recibido.
+  async getDesviosPorProveedor(
+    proveedorId: number,
+    tenant: TenantContext,
+  ): Promise<DesvioProveedorResponseDto[]> {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    const proveedor = await this.proveedorRepository.findOne({
+      where: { id: proveedorId, empresaId },
+    });
+    if (!proveedor) {
+      throw new NotFoundException(
+        `El proveedor ${proveedorId} no existe o no pertenece a la empresa`,
+      );
+    }
+
+    const lotes = await this.loteRepository.findConDesvioByProveedor(
+      proveedorId,
+      empresaId,
+    );
+    return LoteMapper.toDesvioResponseDtoList(lotes);
   }
 }

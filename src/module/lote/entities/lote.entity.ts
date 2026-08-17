@@ -84,6 +84,11 @@ export class Lote {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   cantidadDisponible?: number | null;
 
+  // HU-66: cantidad comprometida según remito del proveedor. Opcional (AC4) —
+  // puede no estar disponible al momento de la carga si aún no llegó el remito.
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  cantidadComprometidaKg?: number | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 
