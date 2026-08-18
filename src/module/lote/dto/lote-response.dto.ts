@@ -33,6 +33,10 @@ export class LoteResponseDto {
   @ApiProperty()
   proveedorId!: number;
 
+  // --- NUEVO (HU-36): tambo de origen ---
+  @ApiProperty({ description: 'Tambo de origen del lote' })
+  tamboId!: number;
+
   @ApiProperty({ enum: TipoMateriaPrima })
   materiaPrima!: TipoMateriaPrima;
 

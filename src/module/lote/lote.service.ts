@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Proveedor } from '../proveedores/entities/proveedor.entity';
+import { Tambo } from '../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { LoteParametro } from './entities/lote-parametro.entity';
@@ -48,6 +49,8 @@ export class LoteService {
     private readonly loteRepository: ILoteRepository,
     @InjectRepository(Proveedor)
     private readonly proveedorRepository: Repository<Proveedor>,
+    @InjectRepository(Tambo) // <-- NUEVO (HU-36)
+    private readonly tamboRepository: Repository<Tambo>,
     @InjectRepository(ConfiguracionParametro)
     private readonly configParametroRepository: Repository<ConfiguracionParametro>,
     @InjectRepository(SensorLectura)
@@ -86,6 +89,31 @@ export class LoteService {
       );
     }
 
+    // --- NUEVO (HU-36): validar tambo de origen ---
+    // El tambo tiene que existir, pertenecer a la empresa del usuario
+    // autenticado, y pertenecer efectivamente al proveedor indicado en
+    // el mismo request (evita que llegue una combinación inconsistente
+    // si el request no viene del formulario normal con el select
+    // encadenado proveedor -> tambo).
+    const tambo = await this.tamboRepository.findOne({
+      where: { id: dto.tamboId, empresaId },
+    });
+    if (!tambo) {
+      throw new NotFoundException(
+        `El tambo ${dto.tamboId} no existe o no pertenece a la empresa`,
+      );
+    }
+    if (tambo.proveedorId !== dto.proveedorId) {
+      throw new BadRequestException(
+        `El tambo "${tambo.nombre}" no pertenece al proveedor "${proveedor.razonSocial}"`,
+      );
+    }
+    if (!tambo.activo) {
+      throw new BadRequestException(
+        `El tambo "${tambo.nombre}" está dado de baja y no puede asociarse a un lote nuevo.`,
+      );
+    }
+
     const { warnings } = await this.validarParametros(dto, empresaId);
 
     const codigo = dto.codigo ?? (await this.generarCodigo(empresaId));
@@ -108,6 +136,7 @@ export class LoteService {
       codigo,
       empresaId,
       proveedorId: dto.proveedorId,
+      tamboId: dto.tamboId, // <-- NUEVO (HU-36)
       materiaPrima: dto.materiaPrima,
       fechaIngreso: new Date(dto.fechaIngreso),
       clasificacion: null,
@@ -206,6 +235,11 @@ export class LoteService {
     if (dto.clasificacion !== undefined) lote.clasificacion = dto.clasificacion;
     if (dto.destinoInicial !== undefined)
       lote.destinoInicial = dto.destinoInicial;
+
+    // Nota (HU-36): a propósito NO se permite reasignar proveedorId ni
+    // tamboId desde update(), igual que ya pasaba con proveedorId antes
+    // de esta HU — el origen de un lote ya registrado no se edita, para
+    // no romper la trazabilidad histórica.
 
     const saved = await this.loteRepository.save(lote);
     return LoteMapper.toResponseDto(saved);

@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Empresa } from '../../empresa/entities/empresa.entity';
 import { Proveedor } from '../../proveedores/entities/proveedor.entity';
+import { Tambo } from '../../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 import { LoteParametro } from './lote-parametro.entity';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
@@ -40,6 +41,14 @@ export class Lote {
   @ManyToOne(() => Proveedor, (proveedor) => proveedor.lotes)
   @JoinColumn({ name: 'proveedorId' })
   proveedor!: Proveedor;
+
+  // --- NUEVO (HU-36): tambo de origen, obligatorio ---
+  @Column()
+  tamboId!: number;
+
+  @ManyToOne(() => Tambo, (tambo) => tambo.lotes, { nullable: false })
+  @JoinColumn({ name: 'tamboId' })
+  tambo!: Tambo;
 
   @Column({ name: 'tipo_materia_prima', type: 'enum', enum: TipoMateriaPrima })
   materiaPrima!: TipoMateriaPrima;

@@ -9,6 +9,7 @@ export class LoteMapper {
       codigo: lote.codigo,
       empresaId: lote.empresaId,
       proveedorId: lote.proveedorId,
+      tamboId: lote.tamboId, // <-- NUEVO (HU-36)
       materiaPrima: lote.materiaPrima,
       fechaIngreso: lote.fechaIngreso,
       clasificacion: lote.clasificacion ?? null,
