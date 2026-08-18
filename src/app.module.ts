@@ -8,6 +8,7 @@ import { UserModule } from './module/user/user.module';
 import { EmpresaModule } from './module/empresa/empresa.module';
 import { AuthModule } from './module/auth/auth.module';
 import { ProveedoresModule } from './module/proveedores/proveedor.module';
+import { TamboModule } from './module/tambo/tambo.module'; // <-- NUEVO (HU-36)
 import { SystemConfigModule } from './module/system-config/system-config.module';
 import { RolModule } from './module/rol/rol.module';
 import { PermisoModule } from './module/permiso/permiso.module';
@@ -45,6 +46,7 @@ import { HealthModule } from './health/health.module';
     EmpresaModule,
     AuthModule,
     ProveedoresModule,
+    TamboModule, // <-- NUEVO (HU-36)
     SystemConfigModule,
     RolModule,
     PermisoModule,

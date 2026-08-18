@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Lote } from './entities/lote.entity';
 import { LoteParametro } from './entities/lote-parametro.entity';
 import { Proveedor } from '../proveedores/entities/proveedor.entity';
+import { Tambo } from '../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
 import { LoteController } from './lote.controller';
 import { LoteService } from './lote.service';
@@ -45,6 +46,7 @@ import { LoteConsumoService } from './lote-consumo.service';
       Lote,
       LoteParametro,
       Proveedor,
+      Tambo, // <-- NUEVO (HU-36)
       LoteUbicacionHistorial,
       ConfiguracionParametro,
       SensorLectura,
@@ -55,8 +57,8 @@ import { LoteConsumoService } from './lote-consumo.service';
       LoteRevisionCalidad,
       Sku,
       IngresoCamara,
-      LoteProduccion,      
-      LoteConsumo,         
+      LoteProduccion,
+      LoteConsumo,
       LoteConsumoParametro,
     ]),
     forwardRef(() => SensorModule),

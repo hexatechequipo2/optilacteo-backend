@@ -30,6 +30,11 @@ export class CreateLoteDto {
   @IsInt()
   proveedorId!: number;
 
+  // --- NUEVO (HU-36): tambo de origen, obligatorio ---
+  @ApiProperty({ description: 'Tambo de origen del lote (debe pertenecer al proveedorId indicado)' })
+  @IsInt()
+  tamboId!: number;
+
   @ApiProperty({ enum: TipoMateriaPrima })
   @IsEnum(TipoMateriaPrima)
   materiaPrima!: TipoMateriaPrima;
