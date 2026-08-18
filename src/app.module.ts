@@ -16,6 +16,7 @@ import { AuditLogModule } from './module/audit/audit-log.module';
 import { ConfigParametroModule } from './module/config-parametro/config-parametro.module';
 import { LoteModule } from './module/lote/lote.module';
 import { SensorModule } from './module/sensor/sensor.module';
+import { PlcConfigModule } from './module/plc-config/plc-config.module'; // <-- NUEVO (HU-61)
 import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.module';
 import { MedicionManualModule } from './module/medicion-manual/medicion-manual.module';
 import { NotificacionesModule } from './module/notificaciones/notificaciones.module';
@@ -27,7 +28,7 @@ import { HealthModule } from './health/health.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ScheduleModule.forRoot(), // HU-31: único registro de @nestjs/schedule en toda la app
+    ScheduleModule.forRoot(), 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -46,7 +47,7 @@ import { HealthModule } from './health/health.module';
     EmpresaModule,
     AuthModule,
     ProveedoresModule,
-    TamboModule, // <-- NUEVO (HU-36)
+    TamboModule, 
     SystemConfigModule,
     RolModule,
     PermisoModule,
@@ -54,6 +55,7 @@ import { HealthModule } from './health/health.module';
     ConfigParametroModule,
     LoteModule,
     SensorModule,
+    PlcConfigModule, 
     LecturaSensorModule,
     MedicionManualModule,
     NotificacionesModule,
