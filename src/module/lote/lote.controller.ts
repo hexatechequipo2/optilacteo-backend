@@ -16,6 +16,7 @@ import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 import { LoteService } from './lote.service';
+import { LoteTrazabilidadService } from './lote-trazabilidad.service'; // <-- NUEVO (HU-32)
 import { CreateLoteDto } from './dto/create-lote.dto';
 import { UpdateLoteDto } from './dto/update-lote.dto';
 import { LoteFilterQueryDto } from './dto/lote-filter-query.dto';
@@ -36,6 +37,7 @@ export class LoteController {
   constructor(
     private readonly loteService: LoteService,
     private readonly loteConsumoService: LoteConsumoService,
+    private readonly loteTrazabilidadService: LoteTrazabilidadService, // <-- NUEVO (HU-32)
   ) {}
 
   // HU-60: registro de lotes — solo Responsable de calidad.
@@ -136,6 +138,19 @@ export class LoteController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.loteService.getMetricasCalidad(+id, tenant);
+  }
+
+  // HU-32: historial completo de trazabilidad del lote — cronológico e
+  // inmutable, desde la recepción hasta el producto terminado. Solo
+  // lectura agregada de tablas append-only, no se toca ningún dato.
+  @Get(':id/trazabilidad')
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  getTrazabilidad(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteTrazabilidadService.getTrazabilidad(+id, tenant);
   }
 
   @Patch(':id')

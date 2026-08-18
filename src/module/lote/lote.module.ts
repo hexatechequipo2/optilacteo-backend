@@ -39,6 +39,7 @@ import { LoteProduccion } from './entities/lote-produccion.entity';
 import { LoteConsumo } from './entities/lote-consumo.entity';
 import { LoteConsumoParametro } from './entities/lote-consumo-parametro.entity';
 import { LoteConsumoService } from './lote-consumo.service';
+import { LoteTrazabilidadService } from './lote-trazabilidad.service';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { LoteConsumoService } from './lote-consumo.service';
     LoteService,
     ClasificacionLoteService,
     LoteConsumoService,
+    LoteTrazabilidadService,
     {
       provide: LOTE_REPOSITORY,
       useClass: LoteRepository,
