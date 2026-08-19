@@ -51,17 +51,40 @@ describe('UserRepository', () => {
   });
 
   describe('findByEmail', () => {
+    let mockQb: {
+      addSelect: jest.Mock;
+      leftJoinAndSelect: jest.Mock;
+      where: jest.Mock;
+      getOne: jest.Mock;
+    };
+
+    beforeEach(() => {
+      mockQb = {
+        addSelect: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn(),
+      };
+      mockTypeormRepo.createQueryBuilder = jest.fn().mockReturnValue(mockQb);
+      repository = new UserRepository(
+        mockTypeormRepo as unknown as Repository<User>,
+      );
+    });
+
     it('deberia buscar por email cargando las relaciones empresa y rol.permisos', async () => {
-      mockTypeormRepo.findOne.mockResolvedValue(null);
+      mockQb.getOne.mockResolvedValue(null);
 
       await repository.findByEmail('juan@lacteosnorte.com');
 
-      expect(mockTypeormRepo.findOne).toHaveBeenCalledWith({
-        where: { email: 'juan@lacteosnorte.com' },
-        relations: { empresa: true, rol: { permisos: true } },
-      });
+      expect(mockTypeormRepo.createQueryBuilder).toHaveBeenCalledWith('user');
+      expect(mockQb.leftJoinAndSelect).toHaveBeenCalledWith('user.empresa', 'empresa');
+      expect(mockQb.leftJoinAndSelect).toHaveBeenCalledWith('user.rol', 'rol');
+      expect(mockQb.leftJoinAndSelect).toHaveBeenCalledWith('rol.permisos', 'permisos');
+      expect(mockQb.where).toHaveBeenCalledWith('user.email = :email', { email: 'juan@lacteosnorte.com' });
+      expect(mockQb.getOne).toHaveBeenCalled();
     });
   });
+
 
   describe('findById', () => {
     it('deberia buscar por id cargando las relaciones empresa y rol.permisos', async () => {

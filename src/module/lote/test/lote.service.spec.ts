@@ -10,6 +10,7 @@ import { LoteService } from '../lote.service';
 import { LOTE_REPOSITORY } from '../repository/lote-repository.interface';
 
 import { Proveedor } from '../../proveedores/entities/proveedor.entity';
+import { Tambo } from '../../tambo/entities/tambo.entity';
 import { ConfiguracionParametro } from '../../config-parametro/entities/config-parametro.entity';
 import { SensorLectura } from '../../lectura-sensor/entities/sensor-lectura.entity';
 import { SensorService } from '../../sensor/sensor.service';
@@ -77,6 +78,7 @@ describe('LoteService', () => {
   let service: LoteService;
   let loteRepository: ReturnType<typeof createMockLoteRepository>;
   let proveedorRepository: MockRepository<Proveedor>;
+  let tamboRepository: MockRepository<Tambo>;
   let configParametroRepository: MockRepository<ConfiguracionParametro>;
   let sensorLecturaRepository: MockRepository<SensorLectura>;
   let loteRevisionRepository: MockRepository<LoteRevisionCalidad>;
@@ -109,6 +111,8 @@ describe('LoteService', () => {
   beforeEach(async () => {
     loteRepository = createMockLoteRepository();
     proveedorRepository = createMockRepository();
+    tamboRepository = createMockRepository();
+
     configParametroRepository = createMockRepository();
     sensorLecturaRepository = createMockRepository();
     loteRevisionRepository = createMockRepository();
@@ -143,6 +147,10 @@ describe('LoteService', () => {
         {
           provide: getRepositoryToken(Proveedor),
           useValue: proveedorRepository,
+        },
+        {
+          provide: getRepositoryToken(Tambo),
+          useValue: tamboRepository,
         },
         {
           provide: getRepositoryToken(ConfiguracionParametro),
@@ -193,6 +201,7 @@ describe('LoteService', () => {
   describe('create — creación de lotes', () => {
     const createDto: any = {
       proveedorId: 10,
+      tamboId: 1,
       materiaPrima: 'LECHE_ENTERA',
       fechaIngreso: '2026-07-31T10:00:00Z',
       parametros: [
@@ -238,6 +247,14 @@ describe('LoteService', () => {
         estado: EstadoProveedor.ACTIVA,
       });
 
+      tamboRepository.findOne.mockResolvedValue({
+        id: 1,
+        empresaId: 1,
+        proveedorId: 10,
+        nombre: 'Tambo 1',
+        activo: true,
+      });
+
       configParametroRepository.findOne.mockResolvedValue(null);
       loteRepository.countByEmpresa.mockResolvedValue(0);
       loteRepository.findByCodigo.mockResolvedValue({
@@ -254,6 +271,14 @@ describe('LoteService', () => {
       proveedorRepository.findOne.mockResolvedValue({
         id: 10,
         estado: EstadoProveedor.ACTIVA,
+      });
+
+      tamboRepository.findOne.mockResolvedValue({
+        id: 1,
+        empresaId: 1,
+        proveedorId: 10,
+        nombre: 'Tambo 1',
+        activo: true,
       });
 
       configParametroRepository.findOne.mockResolvedValue({
@@ -300,6 +325,7 @@ describe('LoteService', () => {
     it('cuando no se envía código explícito y la ubicación es nula, genera código autogenerado y no consulta sensores', async () => {
       const dtoSinCodigoNiUbicacion: any = {
         proveedorId: 10,
+        tamboId: 1,
         materiaPrima: 'LECHE_ENTERA',
         fechaIngreso: '2026-07-31T10:00:00Z',
         parametros: [
@@ -313,6 +339,14 @@ describe('LoteService', () => {
       proveedorRepository.findOne.mockResolvedValue({
         id: 10,
         estado: EstadoProveedor.ACTIVA,
+      });
+
+      tamboRepository.findOne.mockResolvedValue({
+        id: 1,
+        empresaId: 1,
+        proveedorId: 10,
+        nombre: 'Tambo 1',
+        activo: true,
       });
 
       configParametroRepository.findOne.mockResolvedValue({
@@ -395,41 +429,27 @@ describe('LoteService', () => {
         rolNombre: ROLES.GERENTE,
       };
 
-      const lotesMock = [
-        {
-          id: 1,
-          fechaIngreso: new Date(),
-          parametros: [],
-        },
-        {
-          id: 2,
-          fechaIngreso: new Date(),
-          parametros: [],
-        },
-      ] as any;
+      const loteMock = {
+        id: 1,
+        fechaIngreso: new Date(),
+        parametros: [],
+      } as any;
 
-      const auditoria = new Map<number, any>([
-        [1, { creadoPor: 'usuario-1' }],
-        [2, { creadoPor: 'usuario-2' }],
-      ]);
+      loteRepository.findById.mockResolvedValue(loteMock);
+      auditLogService.getTrazabilidad.mockResolvedValue({
+        creadoPor: 'usuario-1',
+      } as any);
 
-      loteRepository.findAll.mockResolvedValue([lotesMock, 2]);
-      auditLogService.getTrazabilidadBatch.mockResolvedValue(auditoria);
+      const resultado = await service.findOne(1, tenantGerente);
 
-      const resultado = await service.findAll({}, tenantGerente);
-
-      expect(auditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
+      expect(auditLogService.getTrazabilidad).toHaveBeenCalledWith(
         'Lote',
-        [1, 2],
+        1,
         1,
       );
 
-      expect(resultado.data[0].auditoria).toEqual({
+      expect(resultado.auditoria).toEqual({
         creadoPor: 'usuario-1',
-      });
-
-      expect(resultado.data[1].auditoria).toEqual({
-        creadoPor: 'usuario-2',
       });
     });
 
@@ -479,42 +499,28 @@ describe('LoteService', () => {
         rolNombre: ROLES.GERENTE,
       };
 
-      const lotesMock = [
-        {
-          id: 1,
-          fechaIngreso: new Date(),
-          parametros: [],
-        },
-        {
-          id: 2,
-          fechaIngreso: new Date(),
-          parametros: [],
-        },
-      ] as any;
+      const loteMock = {
+        id: 10,
+        fechaIngreso: new Date(),
+        parametros: [],
+      } as any;
 
-      const auditoria = new Map<number, any>([
-        [1, { creadoPor: 'usuario-1' }],
-        [2, { creadoPor: 'usuario-2' }],
-      ]);
+      const auditoria = {
+        creadoPor: 'usuario-1',
+      } as any;
 
-      loteRepository.findAll.mockResolvedValue([lotesMock, 2]);
-      auditLogService.getTrazabilidadBatch.mockResolvedValue(auditoria);
+      loteRepository.findById.mockResolvedValue(loteMock);
+      auditLogService.getTrazabilidad.mockResolvedValue(auditoria);
 
-      const resultado = await service.findAll({}, tenantGerente);
+      const resultado = await service.findOne(10, tenantGerente);
 
-      expect(auditLogService.getTrazabilidadBatch).toHaveBeenCalledWith(
+      expect(auditLogService.getTrazabilidad).toHaveBeenCalledWith(
         'Lote',
-        [1, 2],
+        10,
         1,
       );
 
-      expect(resultado.data[0].auditoria).toEqual({
-        creadoPor: 'usuario-1',
-      });
-
-      expect(resultado.data[1].auditoria).toEqual({
-        creadoPor: 'usuario-2',
-      });
+      expect(resultado.auditoria).toEqual(auditoria);
     });
 
     it('cuando el usuario no es GERENTE, no debe consultar la trazabilidad de auditoría', async () => {
@@ -592,6 +598,7 @@ describe('LoteService', () => {
       loteRepository.findById.mockResolvedValue({
         id: 10,
         estado: EstadoLote.FINALIZADO,
+        rendimiento: 85,
         fechaIngreso: new Date(),
         parametros: [],
       });

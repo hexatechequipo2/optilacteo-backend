@@ -6,6 +6,8 @@ import { TenantContext } from '../../../common/types/tenant-context.type';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
+import { ConfiguracionAlertaDesconexionService } from '../configuracion-alerta-desconexion.service';
+
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -20,7 +22,7 @@ describe('NotificacionesController', () => {
 
   const mockReq = {
     user: {
-      sub: 42, // ID de usuario autenticado
+      sub: 42,
     },
   };
 
@@ -30,12 +32,18 @@ describe('NotificacionesController', () => {
       marcarLeida: jest.fn(),
     } as unknown as jest.Mocked<NotificacionesService>;
 
+    const configuracionAlertaDesconexionServiceMock = {} as jest.Mocked<ConfiguracionAlertaDesconexionService>;
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [NotificacionesController],
       providers: [
         {
           provide: NotificacionesService,
           useValue: notificacionesServiceMock,
+        },
+        {
+          provide: ConfiguracionAlertaDesconexionService,
+          useValue: configuracionAlertaDesconexionServiceMock,
         },
       ],
     }).compile();
@@ -53,10 +61,7 @@ describe('NotificacionesController', () => {
 
   describe('Configuración de Guards', () => {
     it('debe tener configurados los guards RolesGuard y PermissionsGuard', () => {
-      const guards = Reflect.getMetadata(
-        GUARDS_METADATA,
-        NotificacionesController,
-      );
+      const guards = Reflect.getMetadata(GUARDS_METADATA, NotificacionesController);
 
       expect(guards).toBeDefined();
       expect(guards).toContain(RolesGuard);
@@ -66,25 +71,20 @@ describe('NotificacionesController', () => {
 
   describe('findMine', () => {
     it('debe llamar a notificacionesService.listarPorUsuario con el usuario, empresaId y query', async () => {
-      const queryDto: NotificacionFilterQueryDto = {
-        page: 1,
-        limit: 10,
-      };
+      const queryDto: NotificacionFilterQueryDto = { page: 1, limit: 10 };
 
       const expectedResponse = {
         data: [{ id: 1, mensaje: 'Notificación 1' }],
         total: 1,
       };
 
-      notificacionesServiceMock.listarPorUsuario.mockResolvedValue(
-        expectedResponse as any,
-      );
+      notificacionesServiceMock.listarPorUsuario.mockResolvedValue(expectedResponse as any);
 
       const result = await controller.findMine(queryDto, mockTenant, mockReq);
 
       expect(notificacionesServiceMock.listarPorUsuario).toHaveBeenCalledWith(
-        42, // req.user.sub
-        5, // tenant.empresaId
+        42,
+        5,
         queryDto,
       );
       expect(result).toBe(expectedResponse);
@@ -96,20 +96,14 @@ describe('NotificacionesController', () => {
       const notificationIdStr = '123';
       const expectedResponse = { id: 123, leida: true };
 
-      notificacionesServiceMock.marcarLeida.mockResolvedValue(
-        expectedResponse as any,
-      );
+      notificacionesServiceMock.marcarLeida.mockResolvedValue(expectedResponse as any);
 
-      const result = await controller.marcarLeida(
-        notificationIdStr,
-        mockTenant,
-        mockReq,
-      );
+      const result = await controller.marcarLeida(notificationIdStr, mockTenant, mockReq);
 
       expect(notificacionesServiceMock.marcarLeida).toHaveBeenCalledWith(
-        123, // ID transformado con +id
-        42, // req.user.sub
-        5, // tenant.empresaId
+        123,
+        42,
+        5,
       );
       expect(result).toBe(expectedResponse);
     });
