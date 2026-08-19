@@ -14,6 +14,7 @@ import { SENSOR_EVENTO_REPOSITORY } from '../repository/sensor-evento.repository
 import { LecturasGateway } from '../gateway/lecturas.gateway';
 import { ClasificacionLoteService } from '../../lote/clasificacion-lote.service';
 import { AuditLogService } from '../../audit/audit-log.service';
+import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfiguracionParametro } from '../../config-parametro/entities/config-parametro.entity';
 import { LecturaMapper } from '../mappers/lectura.mapper';
@@ -52,7 +53,7 @@ const mockSensorRepository = {
   save: jest.fn(),
 };
 const mockHistorialRepository = { findUltimoPorSensor: jest.fn() };
-const mockLoteRepository = { findByCodigo: jest.fn() };
+const mockLoteRepository = { findByCodigo: jest.fn(), findById: jest.fn() };
 const mockLecturaRepository = {
   create: jest.fn(),
   findHistorial: jest.fn(),
@@ -67,6 +68,10 @@ const mockLecturasGateway = {
 const mockConfigParametroRepository = { find: jest.fn() };
 const mockClasificacionLoteService = { evaluarYClasificar: jest.fn() };
 const mockAuditLogService = { getTrazabilidadBatch: jest.fn() };
+const mockNotificacionesService = {
+  resolverAlertaSensorDesconectado: jest.fn(),
+  generarAlertaPorUmbral: jest.fn(),
+};
 
 function buildSensor(overrides: Partial<any> = {}) {
   return {
@@ -108,6 +113,7 @@ describe('LecturaSensorService', () => {
           useValue: mockClasificacionLoteService,
         },
         { provide: AuditLogService, useValue: mockAuditLogService },
+        { provide: NotificacionesService, useValue: mockNotificacionesService },
       ],
     }).compile();
 
@@ -120,6 +126,20 @@ describe('LecturaSensorService', () => {
       undefined,
     );
     mockAuditLogService.getTrazabilidadBatch.mockResolvedValue(new Map());
+
+    // construirMapaUmbrales itera el resultado de find(): sin este default
+    // devuelve undefined y el for...of del service explota en los tests que
+    // no lo mockean explícitamente.
+    mockConfigParametroRepository.find.mockResolvedValue([]);
+
+    // resolverAlertaSensorDesconectado y generarAlertaPorUmbral también son
+    // best-effort (fire-and-forget con .catch): mismo motivo que arriba.
+    mockNotificacionesService.resolverAlertaSensorDesconectado.mockResolvedValue(
+      undefined,
+    );
+    mockNotificacionesService.generarAlertaPorUmbral.mockResolvedValue(
+      undefined,
+    );
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -370,6 +390,7 @@ describe('LecturaSensorService', () => {
       mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
         loteIdNuevo: 10,
       });
+      mockLoteRepository.findById.mockResolvedValue(buildLote({ id: 10 }));
 
       await expect(
         service.ingresarManual({ ...dto, valor: 20 }, usuarioId, tenant),
@@ -379,6 +400,7 @@ describe('LecturaSensorService', () => {
 
     it('cuando los datos son válidos, debe crear la lectura con origen MANUAL, emitirla y no tocar el estado del sensor', async () => {
       const sensor = buildSensor({ estado: EstadoSensor.INACTIVO });
+      const lote = buildLote({ id: 10 });
       const lecturaEntity = {};
       const creada = { id: 7 };
       const responseDto = { id: 7, valor: 7 };
@@ -386,6 +408,7 @@ describe('LecturaSensorService', () => {
       mockHistorialRepository.findUltimoPorSensor.mockResolvedValue({
         loteIdNuevo: 10,
       });
+      mockLoteRepository.findById.mockResolvedValue(lote);
       (LecturaMapper.toEntity as jest.Mock).mockReturnValue(lecturaEntity);
       mockLecturaRepository.create.mockResolvedValue(creada);
       (LecturaMapper.toResponseDto as jest.Mock).mockReturnValue(responseDto);
