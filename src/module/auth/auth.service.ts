@@ -28,6 +28,25 @@ const REFRESH_TOKEN_BYTES = 64;
 const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS = 7;
 const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME = 30;
 
+// Mensaje único para TODO fallo de login (usuario inexistente, password
+// incorrecto, cuenta bloqueada o inactiva). Nunca debe variar el texto ni
+// el status code entre estos casos: hacerlo permite enumerar cuentas
+// existentes y su estado (MITRE ATT&CK T1589.002 - Gather Victim Identity
+// Information). El detalle real de qué pasó queda solo en los logs
+// internos (this.logger.warn), nunca en la respuesta al cliente.
+const GENERIC_LOGIN_ERROR = 'Credenciales incorrectas';
+
+// Hash bcrypt precalculado una sola vez al cargar el módulo, contra el que
+// se compara cuando el email no existe. Esto asegura que bcrypt.compare()
+// se ejecute SIEMPRE con un costo equivalente, exista o no el usuario,
+// evitando que la diferencia de tiempo de respuesta funcione como side
+// channel para enumerar emails (mismo objetivo que el punto anterior,
+// pero por timing en vez de por mensaje).
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+  'valor-fijo-solo-para-normalizar-timing',
+  10,
+);
+
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
@@ -71,28 +90,38 @@ export class AuthService {
   async login(dto: LoginDto): Promise<LoginResponse> {
     const user = await this.userRepository.findByEmail(dto.email);
 
-    if (!user) {
-      this.logger.warn(`Login fallido (no existe): [${dto.email}]`);
-      throw new UnauthorizedException('Credenciales incorrectas');
-    }
+    // bcrypt.compare corre siempre, exista o no el usuario: contra el hash
+    // real si existe, contra el hash dummy si no. Normaliza el tiempo de
+    // respuesta entre ambos casos (ver comentario de DUMMY_PASSWORD_HASH).
+    const passwordValid = await bcrypt.compare(
+      dto.password,
+      user?.password ?? DUMMY_PASSWORD_HASH,
+    );
 
-    this.checkLockStatus(user.lockedUntil, dto.email);
+    const isLocked = !!(user?.lockedUntil && user.lockedUntil > new Date());
+    const isInactive = !!user && !user.isActive;
 
-    if (!user.isActive) {
-      this.logger.warn(`Login usuario inactivo: [${dto.email}]`);
-      throw new UnauthorizedException(
-        'El usuario está inactivo. Contacte al administrador.',
-      );
-    }
+    if (!user || !passwordValid || isLocked || isInactive) {
+      this.logFailedLogin(dto.email, {
+        userExists: !!user,
+        passwordValid,
+        isLocked,
+        isInactive,
+      });
 
-    const passwordValid = await bcrypt.compare(dto.password, user.password);
-    if (!passwordValid) {
-      await this.registerFailedAttempt(
-        user.id,
-        user.failedLoginAttempts,
-        dto.email,
-      );
-      throw new UnauthorizedException('Credenciales incorrectas');
+      // Solo se registra el intento fallido (y se evalúa lockout) cuando
+      // el usuario existe, está activo y no estaba ya bloqueado: si ya
+      // está bloqueado o inactivo no tiene sentido seguir sumando
+      // intentos ni extender el bloqueo por esta vía.
+      if (user && !isLocked && !isInactive && !passwordValid) {
+        await this.registerFailedAttempt(
+          user.id,
+          user.failedLoginAttempts,
+          dto.email,
+        );
+      }
+
+      throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
     }
 
     if (user.failedLoginAttempts > 0) {
@@ -246,14 +275,35 @@ export class AuthService {
     return plainToken;
   }
 
-  private checkLockStatus(lockedUntil: Date | null, email: string): void {
-    if (lockedUntil && lockedUntil > new Date()) {
-      this.logger.warn(`Cuenta bloqueada: [${email}]`);
-      // Antes: ForbiddenException (403). Ver comentario en login() sobre
-      // por que se cambia a 401 (evita el masking 403->404 del filter global).
-      throw new UnauthorizedException(
-        'La cuenta está bloqueada temporalmente.',
-      );
+  /**
+   * Centraliza el logging de los distintos motivos de fallo de login. El
+   * detalle real (bloqueado, inactivo, password incorrecto, no existe)
+   * queda únicamente acá, del lado servidor: la respuesta HTTP siempre es
+   * GENERIC_LOGIN_ERROR sin importar el motivo.
+   */
+  private logFailedLogin(
+    email: string,
+    reason: {
+      userExists: boolean;
+      passwordValid: boolean;
+      isLocked: boolean;
+      isInactive: boolean;
+    },
+  ): void {
+    if (!reason.userExists) {
+      this.logger.warn(`Login fallido (no existe): [${email}]`);
+      return;
+    }
+    if (reason.isLocked) {
+      this.logger.warn(`Login rechazado (cuenta bloqueada): [${email}]`);
+      return;
+    }
+    if (reason.isInactive) {
+      this.logger.warn(`Login rechazado (usuario inactivo): [${email}]`);
+      return;
+    }
+    if (!reason.passwordValid) {
+      this.logger.warn(`Login fallido (password incorrecto): [${email}]`);
     }
   }
 
