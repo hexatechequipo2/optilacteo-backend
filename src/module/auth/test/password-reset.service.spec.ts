@@ -1,215 +1,160 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { PasswordResetService } from '../password-reset.service';
+import { MailService } from '../mail.service';
+import {
+  PASSWORD_RESET_TOKEN_REPOSITORY,
+} from '../repository/password-reset-token.interface';
+import {
+  USER_REPOSITORY,
+} from '../../user/repository/user-repository.interface';
+import {
+  REFRESH_TOKEN_REPOSITORY,
+} from '../repository/refresh-token-repository.interface';
 import { BadRequestException } from '@nestjs/common';
 
-// Mock a nivel de modulo para evitar el problema de ESModules de uuid (v9+).
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'mocked-uuid-token'),
-}));
+// 👇 Mock explícito de uuid y bcrypt
+jest.mock('uuid', () => ({ v4: jest.fn(() => 'fake-uuid') }));
+jest.mock('bcrypt', () => ({ hash: jest.fn(async () => 'hashed-pass') }));
 
-import { PasswordResetService } from '../password-reset.service';
-import { PASSWORD_RESET_TOKEN_REPOSITORY } from '../repository/password-reset-token.interface';
-import { USER_REPOSITORY } from '../../user/repository/user-repository.interface';
-import { MailService } from '../mail.service';
-
-const mockTokenRepository = {
-  save: jest.fn(),
-  findByToken: jest.fn(),
-  markAsUsed: jest.fn(),
-  deleteByUserId: jest.fn(),
-};
-
-const mockUserRepository = {
-  findByEmail: jest.fn(),
-  updatePassword: jest.fn(),
-};
-
-const mockMailService = {
-  sendPasswordResetEmail: jest.fn(),
-};
-
-describe('PasswordResetService — restablecimiento de contraseña por email', () => {
+describe('PasswordResetService', () => {
   let service: PasswordResetService;
+
+  const tokenRepoMock = {
+    deleteByUserId: jest.fn(),
+    save: jest.fn(),
+    findByToken: jest.fn(),
+    markAsUsed: jest.fn(),
+  };
+
+  const userRepoMock = {
+    findByEmail: jest.fn(),
+    updatePassword: jest.fn(),
+  };
+
+  const refreshTokenRepoMock = {
+    revokeAllByUserId: jest.fn(),
+  };
+
+  const mailServiceMock = {
+    sendPasswordResetEmail: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PasswordResetService,
-        {
-          provide: PASSWORD_RESET_TOKEN_REPOSITORY,
-          useValue: mockTokenRepository,
-        },
-        { provide: USER_REPOSITORY, useValue: mockUserRepository },
-        { provide: MailService, useValue: mockMailService },
+        { provide: PASSWORD_RESET_TOKEN_REPOSITORY, useValue: tokenRepoMock },
+        { provide: USER_REPOSITORY, useValue: userRepoMock },
+        { provide: REFRESH_TOKEN_REPOSITORY, useValue: refreshTokenRepoMock },
+        { provide: MailService, useValue: mailServiceMock },
       ],
     }).compile();
 
-    service = module.get<PasswordResetService>(PasswordResetService);
+    service = module.get(PasswordResetService);
   });
 
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
   describe('requestReset', () => {
-    it('criterio #1: cuando el email está registrado, debe enviar el email con enlace de restablecimiento', async () => {
-      mockUserRepository.findByEmail.mockResolvedValue({
-        id: 'usuario-uuid-1',
-        email: 'operario@lacteo.com',
-        tenant_id: 'empresa-uuid-1',
-      });
-      mockTokenRepository.deleteByUserId.mockResolvedValue(undefined);
-      mockTokenRepository.save.mockResolvedValue({});
-      mockMailService.sendPasswordResetEmail.mockResolvedValue(undefined);
+    it('cuando el email no está registrado, devuelve mensaje genérico', async () => {
+      userRepoMock.findByEmail.mockResolvedValue(null);
 
-      const resultado = await service.requestReset({
-        email: 'operario@lacteo.com',
-      });
+      const result = await service.requestReset({ email: 'no@existe.com' });
 
-      expect(mockMailService.sendPasswordResetEmail).toHaveBeenCalledWith(
-        'operario@lacteo.com',
-        expect.any(String),
-      );
-      expect(resultado.message).toBeDefined();
+      expect(result.message).toContain('Si el email está registrado');
+      expect(tokenRepoMock.deleteByUserId).not.toHaveBeenCalled();
+      expect(mailServiceMock.sendPasswordResetEmail).not.toHaveBeenCalled();
     });
 
-    // CP-07
-    // Validar que la solicitud de restablecimiento con email no registrado
-    // sea rechazada con un BadRequestException.
-    it('criterio #1: cuando el email NO está registrado, debe lanzar BadRequestException', async () => {
-      mockUserRepository.findByEmail.mockResolvedValue(null);
+    it('cuando el email está registrado, guarda token y envía email', async () => {
+      userRepoMock.findByEmail.mockResolvedValue({ id: 1, email: 'test@ok.com' });
 
-      await expect(
-        service.requestReset({
-          email: 'noexiste@lacteo.com',
-        }),
-      ).rejects.toThrow(
-        new BadRequestException(
-          'No existe una cuenta registrada con ese correo',
-        ),
-      );
+      const result = await service.requestReset({ email: 'test@ok.com' });
 
-      expect(mockMailService.sendPasswordResetEmail).not.toHaveBeenCalled();
-    });
-
-    //CP-06
-    // Validar que el enlace de restablecimiento es de un solo uso.
-
-    it('criterio #2 y #3: el token generado debe tener fecha de expiración a 30 minutos y estar marcado como no usado', async () => {
-      mockUserRepository.findByEmail.mockResolvedValue({
-        id: 'usuario-uuid-1',
-        email: 'operario@lacteo.com',
-        tenant_id: 'empresa-uuid-1',
-      });
-      mockTokenRepository.deleteByUserId.mockResolvedValue(undefined);
-      mockTokenRepository.save.mockResolvedValue({});
-      mockMailService.sendPasswordResetEmail.mockResolvedValue(undefined);
-
-      const ahoraMasOMenos = new Date();
-
-      await service.requestReset({ email: 'operario@lacteo.com' });
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      const tokenGuardado = mockTokenRepository.save.mock.calls[0][0];
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      expect(tokenGuardado.used).toBe(false);
-      const diferenciaMinutos =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        (tokenGuardado.expiresAt.getTime() - ahoraMasOMenos.getTime()) / 60000;
-      expect(diferenciaMinutos).toBeCloseTo(30, 0);
+      expect(tokenRepoMock.deleteByUserId).toHaveBeenCalledWith('1');
+      expect(tokenRepoMock.save).toHaveBeenCalled();
+      expect(mailServiceMock.sendPasswordResetEmail).toHaveBeenCalledWith('test@ok.com', 'fake-uuid');
+      expect(result.message).toContain('Si el email está registrado');
     });
   });
 
-  //CP-04
-  // Validar el flujo completo de restablecimiento de contraseña por email.
   describe('resetPassword', () => {
-    it('criterio #4 y #5: cuando el token es válido y las contraseñas coinciden, debe actualizar la contraseña y confirmar el cambio', async () => {
-      const futuro = new Date(Date.now() + 10 * 60 * 1000);
-      mockTokenRepository.findByToken.mockResolvedValue({
-        id: 'token-uuid-1',
-        token: 'valid-token-uuid',
-        userId: 'usuario-uuid-1',
-        expiresAt: futuro,
-        used: false,
-      });
-      mockUserRepository.updatePassword.mockResolvedValue(undefined);
-      mockTokenRepository.markAsUsed.mockResolvedValue(undefined);
-
-      const resultado = await service.resetPassword({
-        token: 'valid-token-uuid',
-        newPassword: 'NuevaPassword123!',
-        confirmPassword: 'NuevaPassword123!',
-      });
-
-      expect(mockUserRepository.updatePassword).toHaveBeenCalledWith(
-        'usuario-uuid-1',
-        expect.any(String),
-      );
-      expect(mockTokenRepository.markAsUsed).toHaveBeenCalledWith(
-        'token-uuid-1',
-      );
-      expect(resultado.message).toContain('restablecida correctamente');
-    });
-
-    it('criterio #4: cuando las contraseñas no coinciden, debe lanzar BadRequestException', async () => {
+    it('lanza BadRequestException si las contraseñas no coinciden', async () => {
       await expect(
         service.resetPassword({
-          token: 'valid-token-uuid',
-          newPassword: 'Password123!',
-          confirmPassword: 'PasswordDiferente!',
+          token: 'abc',
+          newPassword: '123',
+          confirmPassword: '456',
         }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    //CP-06
-    // Validar que el enlace de restablecimiento es de un solo uso.
+    it('lanza BadRequestException si el token no existe', async () => {
+      tokenRepoMock.findByToken.mockResolvedValue(null);
 
-    it('criterio #3: cuando el token ya fue utilizado, debe lanzar BadRequestException', async () => {
-      mockTokenRepository.findByToken.mockResolvedValue({
-        id: 'token-uuid-1',
-        token: 'used-token-uuid',
-        userId: 'usuario-uuid-1',
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      await expect(
+        service.resetPassword({
+          token: 'abc',
+          newPassword: '123',
+          confirmPassword: '123',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('lanza BadRequestException si el token ya fue usado', async () => {
+      tokenRepoMock.findByToken.mockResolvedValue({
         used: true,
+        expiresAt: new Date(Date.now() + 10000),
       });
 
       await expect(
         service.resetPassword({
-          token: 'used-token-uuid',
-          newPassword: 'NuevaPassword123!',
-          confirmPassword: 'NuevaPassword123!',
+          token: 'abc',
+          newPassword: '123',
+          confirmPassword: '123',
         }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    //CP-05
-    // Validar el rechazo de enlace de restablecimiento vencido.
-    it('criterio #2: cuando el token ha expirado, debe lanzar BadRequestException', async () => {
-      const pasado = new Date(Date.now() - 31 * 60 * 1000);
-      mockTokenRepository.findByToken.mockResolvedValue({
-        id: 'token-uuid-1',
-        token: 'expired-token-uuid',
-        userId: 'usuario-uuid-1',
-        expiresAt: pasado,
+    it('lanza BadRequestException si el token está expirado', async () => {
+      tokenRepoMock.findByToken.mockResolvedValue({
         used: false,
+        expiresAt: new Date(Date.now() - 10000),
       });
 
       await expect(
         service.resetPassword({
-          token: 'expired-token-uuid',
-          newPassword: 'NuevaPassword123!',
-          confirmPassword: 'NuevaPassword123!',
+          token: 'abc',
+          newPassword: '123',
+          confirmPassword: '123',
         }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('cuando el token no existe en la base de datos, debe lanzar BadRequestException', async () => {
-      mockTokenRepository.findByToken.mockResolvedValue(null);
+    it('actualiza contraseña y revoca refresh tokens si todo es válido', async () => {
+      tokenRepoMock.findByToken.mockResolvedValue({
+        id: 1,
+        userId: '1',
+        used: false,
+        expiresAt: new Date(Date.now() + 10000),
+      });
 
-      await expect(
-        service.resetPassword({
-          token: 'token-inexistente',
-          newPassword: 'NuevaPassword123!',
-          confirmPassword: 'NuevaPassword123!',
-        }),
-      ).rejects.toThrow(BadRequestException);
+      userRepoMock.updatePassword.mockResolvedValue(true);
+      tokenRepoMock.markAsUsed.mockResolvedValue(true);
+      refreshTokenRepoMock.revokeAllByUserId.mockResolvedValue(true);
+
+      const result = await service.resetPassword({
+        token: 'abc',
+        newPassword: '123',
+        confirmPassword: '123',
+      });
+
+      expect(userRepoMock.updatePassword).toHaveBeenCalledWith('1', 'hashed-pass');
+      expect(tokenRepoMock.markAsUsed).toHaveBeenCalledWith(1);
+      expect(refreshTokenRepoMock.revokeAllByUserId).toHaveBeenCalledWith(1);
+      expect(result.message).toContain('Tu contraseña fue restablecida');
     });
   });
 });

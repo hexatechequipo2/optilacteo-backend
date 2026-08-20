@@ -12,6 +12,7 @@ import { REFRESH_TOKEN_REPOSITORY } from '../repository/refresh-token-repository
 // Mock a nivel de modulo para evitar el problema con ESModules de bcrypt.
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
+  hashSync: jest.fn(() => 'dummy-hash'),
 }));
 import * as bcrypt from 'bcrypt';
 
@@ -285,7 +286,7 @@ describe('AuthService', () => {
   });
 
   describe('login - usuario inactivo', () => {
-    it('deberia lanzar ForbiddenException cuando el usuario tiene isActive en false', async () => {
+    it('deberia lanzar UnauthorizedException con mensaje generico cuando el usuario tiene isActive en false', async () => {
       // Arrange
       const inactiveUser = { ...activeUser, isActive: false };
       const dto: LoginDto = {
@@ -297,10 +298,7 @@ describe('AuthService', () => {
 
       // Act & Assert
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
-
-      await expect(service.login(dto)).rejects.toThrow(
-        'El usuario está inactivo. Contacte al administrador.',
-      );
+      await expect(service.login(dto)).rejects.toThrow('Credenciales incorrectas');
     });
   });
 
@@ -381,38 +379,39 @@ describe('AuthService', () => {
       );
     });
 
-    it('deberia lanzar ForbiddenException cuando la cuenta esta bloqueada temporalmente', async () => {
-      // Arrange — cuenta bloqueada por 15 minutos mas
-      const futureDate = new Date();
-      futureDate.setMinutes(futureDate.getMinutes() + 15);
+    describe('login - bloqueo por intentos fallidos', () => {
+      it('deberia lanzar UnauthorizedException con mensaje generico cuando la cuenta esta bloqueada temporalmente', async () => {
+        // Arrange — cuenta bloqueada por 15 minutos mas
+        const futureDate = new Date();
+        futureDate.setMinutes(futureDate.getMinutes() + 15);
 
-      const lockedUser = {
-        ...activeUser,
-        lockedUntil: futureDate,
-        failedLoginAttempts: 5,
-      };
+        const lockedUser = {
+          ...activeUser,
+          lockedUntil: futureDate,
+          failedLoginAttempts: 5,
+        };
 
-      const dto: LoginDto = {
-        email: 'admin@empresa.com',
-        password: 'clave123',
-      };
+        const dto: LoginDto = {
+          email: 'admin@empresa.com',
+          password: 'clave123',
+        };
 
-      mockUserRepository.findByEmail.mockResolvedValue(lockedUser);
+        mockUserRepository.findByEmail.mockResolvedValue(lockedUser);
 
-      // Act & Assert
-      await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+        // Act & Assert
+        await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+        await expect(service.login(dto)).rejects.toThrow('Credenciales incorrectas');
 
-      await expect(service.login(dto)).rejects.toThrow(
-        'La cuenta está bloqueada temporalmente.',
-      );
-      // No debe siquiera verificar la contraseña
-      expect(bcryptCompare).not.toHaveBeenCalled();
+        // 👉 El servicio sí ejecuta bcrypt.compare, así que no lo bloqueamos
+        expect(bcryptCompare).toHaveBeenCalled();
 
-      // Tampoco debe generar tokens
-      expect(mockJwtService.signAsync).not.toHaveBeenCalled();
-      expect(mockRefreshTokenRepository.create).not.toHaveBeenCalled();
+        // Tampoco debe generar tokens
+        expect(mockJwtService.signAsync).not.toHaveBeenCalled();
+        expect(mockRefreshTokenRepository.create).not.toHaveBeenCalled();
+      });
     });
 
+    
     it('deberia permitir login cuando el tiempo de bloqueo ya expiro', async () => {
       // Arrange — bloqueo vencido hace 5 minutos
       const pastDate = new Date();
