@@ -6,6 +6,7 @@ export interface IRefreshTokenRepository {
   findByTokenHash(tokenHash: string): Promise<RefreshToken | null>;
   revokeById(id: number, replacedByHash?: string): Promise<void>;
   revokeFamily(familyId: string): Promise<void>;
+  revokeAllByUserId(userId: number): Promise<void>;
 }
 
 export const REFRESH_TOKEN_REPOSITORY = 'REFRESH_TOKEN_REPOSITORY';

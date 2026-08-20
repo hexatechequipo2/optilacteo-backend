@@ -1,5 +1,6 @@
-import { Body, Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { PasswordResetService } from './password-reset.service';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -13,6 +14,11 @@ export class PasswordResetController {
 
   @Post('request-password-reset')
   @Public()
+  @UseGuards(ThrottlerGuard)
+  // Límite más estricto que login: pedir un reset es una acción poco
+  // frecuente para un usuario legítimo, así que 3/min por IP frena
+  // enumeración automatizada y abuso del SMTP sin afectar uso real.
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @AuditLog('PASSWORD_REQUEST', 'Usuario')
   @ApiOperation({
@@ -32,6 +38,10 @@ export class PasswordResetController {
     },
   })
   @ApiResponse({ status: 400, description: 'Formato de email inválido' })
+  @ApiResponse({
+    status: 429,
+    description: 'Demasiadas solicitudes. Intente nuevamente en unos minutos.',
+  })
   async requestReset(
     @Body() dto: RequestPasswordResetDto,
   ): Promise<{ message: string }> {
@@ -40,6 +50,12 @@ export class PasswordResetController {
 
   @Post('reset-password')
   @Public()
+  @UseGuards(ThrottlerGuard)
+  // Mismo criterio: acción infrecuente, así que un límite bajo no afecta
+  // a usuarios reales pero corta intentos de fuerza bruta sobre el token
+  // UUID (aunque de por sí es prácticamente imposible de adivinar, defensa
+  // en profundidad no está de más).
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @AuditLog('PASSWORD_RESET', 'Usuario')
   @ApiOperation({
@@ -62,6 +78,10 @@ export class PasswordResetController {
     status: 400,
     description:
       'Token inválido, expirado, ya utilizado o contraseñas no coinciden',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Demasiadas solicitudes. Intente nuevamente en unos minutos.',
   })
   async resetPassword(
     @Body() dto: ResetPasswordDto,

@@ -12,6 +12,8 @@ import {
 } from './repository/password-reset-token.interface';
 import { USER_REPOSITORY } from '../user/repository/user-repository.interface';
 import type { IUserRepository } from '../user/repository/user-repository.interface';
+import type { IRefreshTokenRepository } from './repository/refresh-token-repository.interface';
+import { REFRESH_TOKEN_REPOSITORY } from './repository/refresh-token-repository.interface';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { MailService } from './mail.service';
@@ -27,22 +29,28 @@ export class PasswordResetService {
     private readonly tokenRepository: IPasswordResetTokenRepository,
     @Inject(USER_REPOSITORY)
     private readonly userRepository: IUserRepository,
+    @Inject(REFRESH_TOKEN_REPOSITORY)
+    private readonly refreshTokenRepository: IRefreshTokenRepository,
     private readonly mailService: MailService,
   ) {}
 
   async requestReset(
     dto: RequestPasswordResetDto,
   ): Promise<{ message: string }> {
+    // Mensaje único para ambos casos (usuario existe / no existe). No se
+    // debe devolver ninguna señal distinguible al cliente (ni mensaje, ni
+    // status code distinto), o se habilita enumeración de cuentas
+    // (MITRE ATT&CK T1589.002 - Gather Victim Identity Information).
+    const genericMessage =
+      'Si el email está registrado, recibirás un enlace de restablecimiento.';
+
     const user = await this.userRepository.findByEmail(dto.email);
 
     if (!user) {
       this.logger.warn(
         `Solicitud de reset para email no registrado: ${dto.email}`,
       );
-
-      throw new BadRequestException(
-        'No existe una cuenta registrada con ese correo',
-      );
+      return { message: genericMessage };
     }
 
     await this.tokenRepository.deleteByUserId(user.id.toString());
@@ -71,10 +79,7 @@ export class PasswordResetService {
       );
     }
 
-    return {
-      message:
-        'Si el email está registrado, recibirás un enlace de restablecimiento.',
-    };
+    return { message: genericMessage };
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
@@ -99,8 +104,17 @@ export class PasswordResetService {
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 10);
     await this.userRepository.updatePassword(tokenEntity.userId, passwordHash);
-
     await this.tokenRepository.markAsUsed(tokenEntity.id);
+
+    // Corta toda sesión activa del usuario (todas las familias de refresh
+    // token, no solo una). Sin esto, un atacante con la cuenta comprometida
+    // conserva acceso vía su refresh_token vigente (hasta 7-30 días) aunque
+    // la víctima "recupere" la cuenta cambiando la contraseña
+    // (MITRE ATT&CK T1098 - Account Manipulation, como mecanismo de
+    // persistencia post-recuperación).
+    await this.refreshTokenRepository.revokeAllByUserId(
+      Number(tokenEntity.userId),
+    );
 
     this.logger.log(
       `Contraseña restablecida para usuario ${tokenEntity.userId}`,
