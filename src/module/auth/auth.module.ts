@@ -81,6 +81,6 @@ import { PASSWORD_RESET_TOKEN_REPOSITORY } from './repository/password-reset-tok
   ],
   // JwtModule se reexporta para que otros módulos (ej. el gateway WS de
   // HU-13) puedan validar tokens sin duplicar la configuración de JWT_SECRET.
-  exports: [JwtModule],
+  exports: [JwtModule, USER_REPOSITORY, REVOKED_TOKEN_REPOSITORY],
 })
 export class AuthModule {}

@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { LoteController } from '../lote.controller';
 import { LoteService } from '../lote.service';
+import { LoteConsumoService } from '../lote-consumo.service';
+import { LoteTrazabilidadService } from '../lote-trazabilidad.service';
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
@@ -22,6 +24,16 @@ describe('LoteController', () => {
     compararConHistorico: jest.fn(),
   };
 
+  const loteConsumoServiceMock = {
+    findLotesProduccion: jest.fn(),
+    registrarConsumo: jest.fn(),
+    historial: jest.fn(),
+  };
+
+  const loteTrazabilidadServiceMock = {
+    getTrazabilidad: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LoteController],
@@ -29,6 +41,14 @@ describe('LoteController', () => {
         {
           provide: LoteService,
           useValue: loteServiceMock,
+        },
+        {
+          provide: LoteConsumoService,
+          useValue: loteConsumoServiceMock,
+        },
+        {
+          provide: LoteTrazabilidadService,
+          useValue: loteTrazabilidadServiceMock,
         },
       ],
     }).compile();

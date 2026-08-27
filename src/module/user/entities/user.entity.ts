@@ -18,8 +18,8 @@ export class User {
 
   @Column({ unique: true })
   email!: string;
-
-  @Column()
+  
+  @Column({ select: false })
   password!: string;
 
   @Column({ default: true })
@@ -34,7 +34,11 @@ export class User {
   @ManyToOne(() => Empresa, (empresa) => empresa.users, { nullable: true })
   empresa?: Empresa | null;
 
-  @ManyToOne(() => Rol, { nullable: true })
-  @JoinColumn({ name: 'rol' })
+  // 👇 Aquí la corrección: columna rolId + relación clara
+  @Column({ name: 'rolId', nullable: true })
+  rolId?: number | null;
+
+  @ManyToOne(() => Rol, (rol) => rol.users, { nullable: true })
+  @JoinColumn({ name: 'rolId' })
   rol?: Rol | null;
 }

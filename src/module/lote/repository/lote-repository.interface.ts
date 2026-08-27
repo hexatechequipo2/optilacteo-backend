@@ -21,4 +21,9 @@ export interface ILoteRepository {
     cantidad: number,
     excluirLoteId: number,
   ): Promise<Lote[]>;
+  // HU-66
+  findConDesvioByProveedor(
+    proveedorId: number,
+    empresaId: number,
+  ): Promise<Lote[]>;
 }

@@ -16,6 +16,7 @@ import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 import { LoteService } from './lote.service';
+import { LoteTrazabilidadService } from './lote-trazabilidad.service'; // <-- NUEVO (HU-32)
 import { CreateLoteDto } from './dto/create-lote.dto';
 import { UpdateLoteDto } from './dto/update-lote.dto';
 import { LoteFilterQueryDto } from './dto/lote-filter-query.dto';
@@ -25,13 +26,19 @@ import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { RevisarLoteDto } from './dto/revisar-lote.dto';
 import { FinalizarLoteDto } from './dto/finalizar-lote.dto';
+import { CreateLoteConsumoDto } from './dto/create-lote-consumo.dto';
+import { LoteConsumoService } from './lote-consumo.service';
 
 @ApiTags('lote')
 @ApiBearerAuth()
 @Controller('lotes')
 @UseGuards(RolesGuard, PermissionsGuard)
 export class LoteController {
-  constructor(private readonly loteService: LoteService) {}
+  constructor(
+    private readonly loteService: LoteService,
+    private readonly loteConsumoService: LoteConsumoService,
+    private readonly loteTrazabilidadService: LoteTrazabilidadService, // <-- NUEVO (HU-32)
+  ) {}
 
   // HU-60: registro de lotes — solo Responsable de calidad.
   @Post()
@@ -74,6 +81,38 @@ export class LoteController {
     return this.loteService.findNoAptos(tenant);
   }
 
+    // HU-68: selector de lotes de producción existentes para el frontend.
+  @Get('producciones')
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  findLotesProduccion(@CurrentEmpresa() tenant: TenantContext) {
+    return this.loteConsumoService.findLotesProduccion(tenant);
+  }
+
+  // HU-66: histórico de desvíos entre lo comprometido (remito) y lo real
+  // recibido, agrupado por proveedor. Va ANTES de @Get(':id') por el mismo
+  // motivo que 'no-aptos' y 'producciones' — si no, Nest interpreta
+  // 'proveedor' como el :id.
+  @Get('proveedor/:proveedorId/desvios')
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
+  getDesviosPorProveedor(
+    @Param('proveedorId') proveedorId: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteService.getDesviosPorProveedor(+proveedorId, tenant);
+  }
+
   @Get(':id')
   @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
@@ -99,6 +138,19 @@ export class LoteController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.loteService.getMetricasCalidad(+id, tenant);
+  }
+
+  // HU-32: historial completo de trazabilidad del lote — cronológico e
+  // inmutable, desde la recepción hasta el producto terminado. Solo
+  // lectura agregada de tablas append-only, no se toca ningún dato.
+  @Get(':id/trazabilidad')
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  getTrazabilidad(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteTrazabilidadService.getTrazabilidad(+id, tenant);
   }
 
   @Patch(':id')
@@ -181,5 +233,38 @@ export class LoteController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.loteService.compararConHistorico(+id, tenant);
+  }
+
+  // HU-68: registrar consumo parcial de un lote de ingreso.
+  @Post(':id/consumos')
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @AuditLog('LOTE_CONSUMO_REGISTRAR', 'LoteConsumo')
+  registrarConsumo(
+    @Param('id') id: string,
+    @Body() dto: CreateLoteConsumoDto,
+    @CurrentEmpresa() tenant: TenantContext,
+    @Req() req: any,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const usuarioId = req.user.sub;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return this.loteConsumoService.registrarConsumo(+id, dto, usuarioId, tenant);
+  }
+
+  // HU-68 (criterios 2 y 4): historial de consumos parciales de un lote de ingreso.
+  @Get(':id/consumos')
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  getHistorialConsumos(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteConsumoService.historial(+id, tenant);
   }
 }

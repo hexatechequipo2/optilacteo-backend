@@ -12,6 +12,7 @@ import { TipoProveedor } from '../enums/tipo-proveedor.enum';
 import { EstadoProveedor } from '../enums/estado-proveedor.enum';
 import { Empresa } from '../../empresa/entities/empresa.entity';
 import { Lote } from '../../lote/entities/lote.entity';
+import { Tambo } from '../../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 
 @Entity('proveedores')
 export class Proveedor {
@@ -66,6 +67,10 @@ export class Proveedor {
 
   @OneToMany(() => Lote, (lote) => lote.empresa)
   lotes!: Lote[];
+
+  // --- NUEVO (HU-36): relación inversa hacia Tambo ---
+  @OneToMany(() => Tambo, (tambo) => tambo.proveedor)
+  tambos!: Tambo[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

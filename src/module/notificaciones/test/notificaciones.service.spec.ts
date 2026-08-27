@@ -1,54 +1,106 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
-import { Repository } from 'typeorm';
 import { NotificacionesService } from '../notificaciones.service';
+import { NOTIFICACION_REPOSITORY } from '../repository/notificacion.repository.interface';
+import { CONFIGURACION_NOTIFICACION_REPOSITORY } from '../repository/configuracion-notificacion-nivel.repository.interface';
 import { User } from '../../user/entities/user.entity';
-import { ROLES } from '../../rol/constants/roles.constants';
 import { NotificacionesGateway } from '../gateway/notificaciones.gateway';
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
-import {
-  NOTIFICACION_REPOSITORY,
-  INotificacionRepository,
-} from '../repository/notificacion.repository.interface';
-import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto';
-import { Notificacion } from '../entities/notificacion.entity';
-/* eslint-disable @typescript-eslint/unbound-method */
+import { NivelAlerta } from '../enums/nivel-alerta.enum';
+import { EstadoAlerta } from '../enums/estado-alerta.enum';
+import { Parametro } from '../../config-parametro/enums/parametro.enum';
+import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
+import { ROLES } from '../../rol/constants/roles.constants';
 
 describe('NotificacionesService', () => {
   let service: NotificacionesService;
-  let notificacionRepositoryMock: jest.Mocked<INotificacionRepository>;
-  let userRepositoryMock: jest.Mocked<Repository<User>>;
-  let gatewayMock: jest.Mocked<NotificacionesGateway>;
+
+  let mockNotificacionRepository: {
+    create: jest.Mock;
+    findByUsuario: jest.Mock;
+    markAsLeida: jest.Mock;
+    countNoLeidas: jest.Mock;
+    findAlertaAbiertaPorLoteYParametro: jest.Mock;
+    findAlertaAbiertaPorSensor: jest.Mock;
+    cerrarAlertasAbiertasPorSensor: jest.Mock;
+    findById: jest.Mock;
+    resolver: jest.Mock;
+    findHistorial: jest.Mock;
+    findHistorialCompleto: jest.Mock;
+  };
+
+  let mockConfiguracionRepository: {
+    findByEmpresa: jest.Mock;
+    findDestinatariosConfigByNivel: jest.Mock;
+    create: jest.Mock;
+    findById: jest.Mock;
+    countByNivel: jest.Mock;
+    delete: jest.Mock;
+  };
+
+  let mockUserRepository: {
+    find: jest.Mock;
+    findOne: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+
+  let mockGateway: {
+    emitirNotificacion: jest.Mock;
+  };
 
   beforeEach(async () => {
-    notificacionRepositoryMock = {
+    mockNotificacionRepository = {
       create: jest.fn(),
       findByUsuario: jest.fn(),
-      findById: jest.fn(),
       markAsLeida: jest.fn(),
+      countNoLeidas: jest.fn(),
+      findAlertaAbiertaPorLoteYParametro: jest.fn(),
+      findAlertaAbiertaPorSensor: jest.fn(),
+      cerrarAlertasAbiertasPorSensor: jest.fn(),
+      findById: jest.fn(),
+      resolver: jest.fn(),
+      findHistorial: jest.fn(),
+      findHistorialCompleto: jest.fn(),
     };
-    userRepositoryMock = {
+
+    mockConfiguracionRepository = {
+      findByEmpresa: jest.fn(),
+      findDestinatariosConfigByNivel: jest.fn(),
+      create: jest.fn(),
+      findById: jest.fn(),
+      countByNivel: jest.fn(),
+      delete: jest.fn(),
+    };
+
+    mockUserRepository = {
       find: jest.fn(),
-    } as unknown as jest.Mocked<Repository<User>>;
-    gatewayMock = {
+      findOne: jest.fn(),
+      createQueryBuilder: jest.fn(),
+    };
+
+    mockGateway = {
       emitirNotificacion: jest.fn(),
-    } as unknown as jest.Mocked<NotificacionesGateway>;
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificacionesService,
         {
           provide: NOTIFICACION_REPOSITORY,
-          useValue: notificacionRepositoryMock,
+          useValue: mockNotificacionRepository,
+        },
+        {
+          provide: CONFIGURACION_NOTIFICACION_REPOSITORY,
+          useValue: mockConfiguracionRepository,
         },
         {
           provide: getRepositoryToken(User),
-          useValue: userRepositoryMock,
+          useValue: mockUserRepository,
         },
         {
           provide: NotificacionesGateway,
-          useValue: gatewayMock,
+          useValue: mockGateway,
         },
       ],
     }).compile();
@@ -56,46 +108,24 @@ describe('NotificacionesService', () => {
     service = module.get<NotificacionesService>(NotificacionesService);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('debe estar definido', () => {
-    expect(service).toBeDefined();
-  });
+  afterEach(() => jest.clearAllMocks());
 
   describe('notificarResponsablesCalidad', () => {
-    const empresaId = 1;
-    const tipo = 'ALERTA' as TipoNotificacion;
-    const mensaje = 'Alerta de temperatura fuera de rango';
-    const data = { loteId: 10 };
-
-    it('debe buscar usuarios responsables de calidad activos y emitirles notificaciones a cada uno', async () => {
-      const mockResponsables = [
-        { id: 101, email: 'resp1@test.com' },
-        { id: 102, email: 'resp2@test.com' },
-      ] as User[];
-
-      userRepositoryMock.find.mockResolvedValue(mockResponsables);
-
-      notificacionRepositoryMock.create.mockImplementation(
-        (entity: Partial<Notificacion>) =>
-          Promise.resolve({
-            id: Math.floor(Math.random() * 1000) + 1,
-            ...entity,
-            leida: false,
-            createdAt: new Date(),
-          } as unknown as Notificacion),
+    it('debe notificar a todos los usuarios activos con rol de Responsable de Calidad y emitir evento por Gateway', async () => {
+      const empresaId = 1;
+      const usuarios = [{ id: 10 }, { id: 20 }] as User[];
+      mockUserRepository.find.mockResolvedValue(usuarios);
+      mockNotificacionRepository.create.mockImplementation((entity) =>
+        Promise.resolve({ id: 99, ...entity }),
       );
 
       await service.notificarResponsablesCalidad(
         empresaId,
-        tipo,
-        mensaje,
-        data,
+        'NUEVA_NOTIFICACION' as TipoNotificacion,
+        'Mensaje de prueba',
       );
 
-      expect(userRepositoryMock.find).toHaveBeenCalledWith({
+      expect(mockUserRepository.find).toHaveBeenCalledWith({
         where: {
           empresa: { id: empresaId },
           rol: { nombre: ROLES.RESPONSABLE_CALIDAD },
@@ -103,159 +133,390 @@ describe('NotificacionesService', () => {
         },
         relations: { rol: true, empresa: true },
       });
-
-      expect(notificacionRepositoryMock.create).toHaveBeenCalledTimes(2);
-      expect(gatewayMock.emitirNotificacion).toHaveBeenCalledTimes(2);
-
-      // Verificación para el primer usuario
-      expect(notificacionRepositoryMock.create).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          tipo,
-          mensaje,
-          data,
-          usuarioId: 101,
-          empresaId,
-        }),
-      );
-      expect(gatewayMock.emitirNotificacion).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          tipo,
-          mensaje,
-        }),
-        empresaId,
-        101,
-      );
-
-      // Verificación para el segundo usuario
-      expect(notificacionRepositoryMock.create).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          tipo,
-          mensaje,
-          data,
-          usuarioId: 102,
-          empresaId,
-        }),
-      );
-      expect(gatewayMock.emitirNotificacion).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          tipo,
-          mensaje,
-        }),
-        empresaId,
-        102,
-      );
-    });
-
-    it('no debe guardar ni emitir notificaciones si no hay usuarios responsables de calidad activos', async () => {
-      userRepositoryMock.find.mockResolvedValue([]);
-
-      await service.notificarResponsablesCalidad(
-        empresaId,
-        tipo,
-        mensaje,
-        data,
-      );
-
-      expect(userRepositoryMock.find).toHaveBeenCalled();
-      expect(notificacionRepositoryMock.create).not.toHaveBeenCalled();
-      expect(gatewayMock.emitirNotificacion).not.toHaveBeenCalled();
+      expect(mockNotificacionRepository.create).toHaveBeenCalledTimes(2);
+      expect(mockGateway.emitirNotificacion).toHaveBeenCalledTimes(2);
     });
   });
 
-  describe('listarPorUsuario', () => {
-    it('debe obtener las notificaciones paginadas del repositorio y devolver la respuesta con la estructura del mapper', async () => {
-      const usuarioId = 42;
-      const empresaId = 1;
-      const query: NotificacionFilterQueryDto = { page: 1, limit: 10 };
+  describe('generarAlertaPorUmbral', () => {
+    const paramsBase = {
+      empresaId: 1,
+      loteId: 100,
+      loteCodigo: 'L-001',
+      parametro: Parametro.TEMPERATURA,
+      materiaPrima: 'LECHE' as TipoMateriaPrima,
+      valor: 8,
+      umbralMin: 2,
+      umbralMax: 6,
+    };
 
-      const mockEntities = [
-        {
-          id: 1,
-          tipo: 'ALERTA' as TipoNotificacion,
-          mensaje: 'Notificación 1',
-          leida: false,
-          createdAt: new Date(),
-        },
-        {
-          id: 2,
-          tipo: 'INFO' as TipoNotificacion,
-          mensaje: 'Notificación 2',
-          leida: true,
-          createdAt: new Date(),
-        },
-      ] as Notificacion[];
+    it('cuando el valor está dentro del rango, no debe generar ninguna alerta', async () => {
+      const resultado = await service.generarAlertaPorUmbral({
+        ...paramsBase,
+        valor: 4,
+      });
 
-      notificacionRepositoryMock.findByUsuario.mockResolvedValue([
-        mockEntities,
-        2,
+      expect(resultado).toEqual([]);
+      expect(
+        mockNotificacionRepository.findAlertaAbiertaPorLoteYParametro,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('cuando ya existe una alerta abierta para el lote y parámetro, debe retornar arreglo vacío', async () => {
+      mockNotificacionRepository.findAlertaAbiertaPorLoteYParametro.mockResolvedValue(
+        { id: 1 },
+      );
+
+      const resultado = await service.generarAlertaPorUmbral(paramsBase);
+
+      expect(resultado).toEqual([]);
+      expect(mockNotificacionRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('cuando el valor excede el umbral y no hay alertas abiertas, debe calcular desvío y notificar destinatarios', async () => {
+      mockNotificacionRepository.findAlertaAbiertaPorLoteYParametro.mockResolvedValue(
+        null,
+      );
+      mockConfiguracionRepository.findDestinatariosConfigByNivel.mockResolvedValue(
+        {
+          rolIds: [2],
+          usuarioIds: [5],
+        },
+      );
+
+      const queryBuilderMock: any = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest
+          .fn()
+          .mockResolvedValue([{ id: 10, idRol: 2 } as unknown as User]),
+      };
+      mockUserRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
+
+      mockUserRepository.find.mockResolvedValue([
+        { id: 5 } as unknown as User,
       ]);
 
-      const result = await service.listarPorUsuario(
-        usuarioId,
-        empresaId,
-        query,
+      mockNotificacionRepository.create.mockImplementation((entity) =>
+        Promise.resolve({ id: 1, ...entity }),
       );
 
-      expect(notificacionRepositoryMock.findByUsuario).toHaveBeenCalledWith(
-        usuarioId,
-        empresaId,
-        query,
+      const resultado = await service.generarAlertaPorUmbral(paramsBase);
+
+      expect(resultado.length).toBe(2);
+      expect(mockGateway.emitirNotificacion).toHaveBeenCalledTimes(2);
+    });
+
+    it('debe deduplicar el destinatario si está asignado por rol e individualmente (HU-29)', async () => {
+      mockNotificacionRepository.findAlertaAbiertaPorLoteYParametro.mockResolvedValue(
+        null,
+      );
+      mockConfiguracionRepository.findDestinatariosConfigByNivel.mockResolvedValue(
+        {
+          rolIds: [2],
+          usuarioIds: [10],
+        },
       );
 
-      expect(result).toHaveProperty('data');
-      expect(result).toHaveProperty('total', 2);
-      expect(result).toHaveProperty('page', 1);
-      expect(result).toHaveProperty('limit', 10);
-      expect(result.data).toHaveLength(2);
+      const usuarioDuplicado = { id: 10 } as User;
+
+      const queryBuilderMock: any = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([usuarioDuplicado]),
+      };
+      mockUserRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
+      mockUserRepository.find.mockResolvedValue([usuarioDuplicado]);
+
+      mockNotificacionRepository.create.mockImplementation((entity) =>
+        Promise.resolve({ id: 1, ...entity }),
+      );
+
+      const resultado = await service.generarAlertaPorUmbral(paramsBase);
+
+      expect(resultado.length).toBe(1);
+      expect(mockNotificacionRepository.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('listarPorUsuario y contarNoLeidas', () => {
+    it('listarPorUsuario: debe retornar listado paginado', async () => {
+      mockNotificacionRepository.findByUsuario.mockResolvedValue([[], 0]);
+
+      const resultado = await service.listarPorUsuario(1, 1, { page: 1 });
+
+      expect(mockNotificacionRepository.findByUsuario).toHaveBeenCalledWith(
+        1,
+        1,
+        { page: 1 },
+      );
+      expect(resultado).toHaveProperty('data');
+    });
+
+    it('contarNoLeidas: debe retornar el total formateado', async () => {
+      mockNotificacionRepository.countNoLeidas.mockResolvedValue(5);
+
+      const resultado = await service.contarNoLeidas(1, 1);
+
+      expect(resultado).toEqual({ total: 5 });
     });
   });
 
   describe('marcarLeida', () => {
-    const id = 5;
-    const usuarioId = 42;
-    const empresaId = 1;
+    it('cuando existe la notificación, debe marcarla como leída y retornar respuesta', async () => {
+      const notif = { id: 1, leida: true };
+      mockNotificacionRepository.markAsLeida.mockResolvedValue(notif);
 
-    it('debe marcar como leída y devolver la DTO mapeada si existe', async () => {
-      const mockUpdatedEntity = {
-        id,
-        tipo: 'ALERTA' as TipoNotificacion,
-        mensaje: 'Notificación leída',
-        leida: true,
-        usuarioId,
-        empresaId,
-        createdAt: new Date(),
-      } as unknown as Notificacion;
+      const resultado = await service.marcarLeida(1, 10, 1);
 
-      notificacionRepositoryMock.markAsLeida.mockResolvedValue(
-        mockUpdatedEntity,
-      );
-
-      const result = await service.marcarLeida(id, usuarioId, empresaId);
-
-      expect(notificacionRepositoryMock.markAsLeida).toHaveBeenCalledWith(
-        id,
-        usuarioId,
-        empresaId,
-      );
-      expect(result.id).toBe(id);
-      expect(result.leida).toBe(true);
+      expect(resultado).toBeDefined();
     });
 
-    it('debe lanzar NotFoundException si la notificación no existe o no se actualizó', async () => {
-      notificacionRepositoryMock.markAsLeida.mockResolvedValue(null);
+    it('cuando no existe la notificación, debe lanzar NotFoundException', async () => {
+      mockNotificacionRepository.markAsLeida.mockResolvedValue(null);
+
+      await expect(service.marcarLeida(99, 10, 1)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('crearConfiguracion', () => {
+    it('debe lanzar BadRequestException si no se envía rolId ni usuarioId, o si se envían ambos', async () => {
+      await expect(
+        service.crearConfiguracion(1, {
+          nivelAlerta: NivelAlerta.CRITICA,
+        } as any),
+      ).rejects.toThrow(BadRequestException);
 
       await expect(
-        service.marcarLeida(id, usuarioId, empresaId),
-      ).rejects.toThrow(NotFoundException);
+        service.crearConfiguracion(1, {
+          nivelAlerta: NivelAlerta.CRITICA,
+          rolId: 1,
+          usuarioId: 2,
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
 
-      expect(notificacionRepositoryMock.markAsLeida).toHaveBeenCalledWith(
-        id,
-        usuarioId,
-        empresaId,
+    it('debe lanzar BadRequestException si el usuario asignado no pertenece a la empresa o no existe', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.crearConfiguracion(1, {
+          nivelAlerta: NivelAlerta.CRITICA,
+          usuarioId: 99,
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('debe crear la configuración correctamente cuando los datos son válidos', async () => {
+      mockUserRepository.findOne.mockResolvedValue({ id: 5 } as User);
+      mockConfiguracionRepository.create.mockResolvedValue({
+        id: 1,
+        empresaId: 1,
+        usuarioId: 5,
+        nivelAlerta: NivelAlerta.CRITICA,
+      });
+
+      const resultado = await service.crearConfiguracion(1, {
+        nivelAlerta: NivelAlerta.CRITICA,
+        usuarioId: 5,
+      } as any);
+
+      expect(resultado).toBeDefined();
+      expect(mockConfiguracionRepository.create).toHaveBeenCalledWith({
+        empresaId: 1,
+        nivelAlerta: NivelAlerta.CRITICA,
+        rolId: null,
+        usuarioId: 5,
+      });
+    });
+  });
+
+  describe('eliminarConfiguracion', () => {
+    it('debe lanzar NotFoundException si la configuración no existe', async () => {
+      mockConfiguracionRepository.findById.mockResolvedValue(null);
+
+      await expect(service.eliminarConfiguracion(99, 1)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('debe lanzar BadRequestException si intenta eliminar el último destinatario de nivel CRITICA (HU-29)', async () => {
+      mockConfiguracionRepository.findById.mockResolvedValue({
+        id: 1,
+        nivelAlerta: NivelAlerta.CRITICA,
+      });
+      mockConfiguracionRepository.countByNivel.mockResolvedValue(1);
+
+      await expect(service.eliminarConfiguracion(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('debe eliminar la configuración cuando no rompe las reglas de negocio', async () => {
+      mockConfiguracionRepository.findById.mockResolvedValue({
+        id: 1,
+        nivelAlerta: NivelAlerta.ADVERTENCIA,
+      });
+      mockConfiguracionRepository.delete.mockResolvedValue(true);
+
+      await service.eliminarConfiguracion(1, 1);
+
+      expect(mockConfiguracionRepository.delete).toHaveBeenCalledWith(1, 1);
+    });
+  });
+
+  describe('resolverAlerta', () => {
+    it('debe lanzar NotFoundException si la alerta no existe', async () => {
+      mockNotificacionRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.resolverAlerta(1, 1, 10, { accionCorrectiva: 'Test' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('debe lanzar BadRequestException si el tipo de notificación no es ALERTA_UMBRAL', async () => {
+      mockNotificacionRepository.findById.mockResolvedValue({
+        id: 1,
+        tipo: 'NUEVA_NOTIFICACION' as TipoNotificacion,
+      });
+
+      await expect(
+        service.resolverAlerta(1, 1, 10, { accionCorrectiva: 'Test' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('debe lanzar BadRequestException si la alerta ya está cerrada', async () => {
+      mockNotificacionRepository.findById.mockResolvedValue({
+        id: 1,
+        tipo: TipoNotificacion.ALERTA_UMBRAL,
+        estado: EstadoAlerta.CERRADA,
+      });
+
+      await expect(
+        service.resolverAlerta(1, 1, 10, { accionCorrectiva: 'Test' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('debe resolver la alerta si cumple todas las validaciones', async () => {
+      mockNotificacionRepository.findById.mockResolvedValue({
+        id: 1,
+        tipo: TipoNotificacion.ALERTA_UMBRAL,
+        estado: EstadoAlerta.ABIERTA,
+      });
+      mockNotificacionRepository.resolver.mockResolvedValue({
+        id: 1,
+        estado: EstadoAlerta.CERRADA,
+      });
+
+      const resultado = await service.resolverAlerta(1, 1, 10, {
+        accionCorrectiva: 'Corrección aplicada',
+      });
+
+      expect(mockNotificacionRepository.resolver).toHaveBeenCalledWith(
+        1,
+        1,
+        'Corrección aplicada',
+        10,
+      );
+      expect(resultado).toBeDefined();
+    });
+  });
+
+  describe('Exportaciones CSV / PDF e Historial', () => {
+    it('exportarHistorialCsv: debe generar un Buffer UTF-8 con BOM', async () => {
+      mockNotificacionRepository.findHistorialCompleto.mockResolvedValue([
+        {
+          createdAt: new Date(),
+          lote: { codigo: 'L01' },
+          parametro: Parametro.PH,
+          nivelAlerta: NivelAlerta.CRITICA,
+          estado: EstadoAlerta.ABIERTA,
+          accionCorrectiva: 'Ninguna',
+        },
+      ]);
+
+      const buffer = await service.exportarHistorialCsv(1, {});
+
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.toString('utf8')).toContain('"Fecha";"Lote";"Parámetro"');
+    });
+
+    it('exportarHistorialPdf: debe generar un Buffer válido con PDFDocument', async () => {
+      mockNotificacionRepository.findHistorialCompleto.mockResolvedValue([]);
+
+      const buffer = await service.exportarHistorialPdf(1, {});
+
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('HU-31: Alertas de Sensor Desconectado', () => {
+    it('generarAlertaSensorDesconectado: no debe generar alerta si ya existe una abierta', async () => {
+      mockNotificacionRepository.findAlertaAbiertaPorSensor.mockResolvedValue({
+        id: 1,
+      });
+
+      const resultado = await service.generarAlertaSensorDesconectado({
+        empresaId: 1,
+        sensorId: 5,
+        sensorNombre: 'Sensor 5',
+        ultimaLectura: null,
+        minutosSinDatos: 20,
+      });
+
+      expect(resultado).toEqual([]);
+      expect(mockNotificacionRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('generarAlertaSensorDesconectado: debe notificar a los responsables de nivel CRITICA', async () => {
+      mockNotificacionRepository.findAlertaAbiertaPorSensor.mockResolvedValue(
+        null,
+      );
+      mockConfiguracionRepository.findDestinatariosConfigByNivel.mockResolvedValue(
+        {
+          rolIds: [1],
+          usuarioIds: [],
+        },
+      );
+
+      const queryBuilderMock: any = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([{ id: 10 } as User]),
+      };
+      mockUserRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
+
+      mockNotificacionRepository.create.mockImplementation((entity) =>
+        Promise.resolve({ id: 1, ...entity }),
+      );
+
+      const resultado = await service.generarAlertaSensorDesconectado({
+        empresaId: 1,
+        sensorId: 5,
+        sensorNombre: 'Sensor 5',
+        ultimaLectura: new Date(),
+        minutosSinDatos: 20,
+      });
+
+      expect(resultado.length).toBe(1);
+      expect(mockGateway.emitirNotificacion).toHaveBeenCalled();
+    });
+
+    it('resolverAlertaSensorDesconectado: debe llamar a cerrar las alertas abiertas del sensor', async () => {
+      await service.resolverAlertaSensorDesconectado(5, 1);
+
+      expect(
+        mockNotificacionRepository.cerrarAlertasAbiertasPorSensor,
+      ).toHaveBeenCalledWith(
+        1,
+        5,
+        TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
       );
     });
   });

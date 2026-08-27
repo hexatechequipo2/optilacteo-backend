@@ -9,6 +9,8 @@ import {
   IsString,
   ArrayMinSize,
   ValidateNested,
+  IsNumber,
+  IsPositive,
 } from 'class-validator';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
@@ -27,6 +29,11 @@ export class CreateLoteDto {
   @ApiProperty()
   @IsInt()
   proveedorId!: number;
+
+  // --- NUEVO (HU-36): tambo de origen, obligatorio ---
+  @ApiProperty({ description: 'Tambo de origen del lote (debe pertenecer al proveedorId indicado)' })
+  @IsInt()
+  tamboId!: number;
 
   @ApiProperty({ enum: TipoMateriaPrima })
   @IsEnum(TipoMateriaPrima)
@@ -52,4 +59,20 @@ export class CreateLoteDto {
   @ValidateNested({ each: true })
   @Type(() => CreateLoteParametroDto)
   parametros!: CreateLoteParametroDto[];
+
+  @ApiProperty({ example: 500, description: 'Cantidad total ingresada del lote' })
+  @IsNumber()
+  @IsPositive()
+  cantidad!: number;
+
+  // HU-66: cantidad comprometida según remito del proveedor. Opcional (AC4) —
+  // puede no estar disponible al momento de la carga si aún no llegó el remito.
+  @ApiPropertyOptional({
+    example: 500,
+    description: 'Cantidad comprometida según remito del proveedor',
+  })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  cantidadComprometidaKg?: number;
 }

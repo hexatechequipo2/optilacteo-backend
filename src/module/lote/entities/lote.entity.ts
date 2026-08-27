@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Empresa } from '../../empresa/entities/empresa.entity';
 import { Proveedor } from '../../proveedores/entities/proveedor.entity';
+import { Tambo } from '../../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 import { LoteParametro } from './lote-parametro.entity';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
@@ -40,6 +41,14 @@ export class Lote {
   @ManyToOne(() => Proveedor, (proveedor) => proveedor.lotes)
   @JoinColumn({ name: 'proveedorId' })
   proveedor!: Proveedor;
+
+  // --- NUEVO (HU-36): tambo de origen, obligatorio ---
+  @Column()
+  tamboId!: number;
+
+  @ManyToOne(() => Tambo, (tambo) => tambo.lotes, { nullable: false })
+  @JoinColumn({ name: 'tamboId' })
+  tambo!: Tambo;
 
   @Column({ name: 'tipo_materia_prima', type: 'enum', enum: TipoMateriaPrima })
   materiaPrima!: TipoMateriaPrima;
@@ -73,6 +82,21 @@ export class Lote {
   // HU-62 (extensión): unidad del valor de rendimiento cargado.
   @Column({ type: 'enum', enum: UnidadRendimiento, nullable: true })
   unidadRendimiento?: UnidadRendimiento | null;
+
+  // HU-68: cantidad total ingresada y saldo remanente para consumo parcial.
+  // Nullable: lotes registrados antes de HU-68 no tienen este dato y no
+  // soportan consumo parcial hasta que se les cargue manualmente (fuera de
+  // alcance de esta HU).
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  cantidad?: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  cantidadDisponible?: number | null;
+
+  // HU-66: cantidad comprometida según remito del proveedor. Opcional (AC4) —
+  // puede no estar disponible al momento de la carga si aún no llegó el remito.
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  cantidadComprometidaKg?: number | null;
 
   @CreateDateColumn()
   createdAt!: Date;

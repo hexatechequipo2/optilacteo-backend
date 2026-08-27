@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Proveedor } from '../proveedores/entities/proveedor.entity';
+import { Tambo } from '../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { LoteParametro } from './entities/lote-parametro.entity';
@@ -19,6 +20,7 @@ import { FinalizarLoteDto } from './dto/finalizar-lote.dto';
 import { LoteResponseDto } from './dto/lote-response.dto';
 import { LoteCreateResponseDto } from './dto/lote-create-response.dto';
 import { MetricasCalidadResponseDto } from './dto/metricas-calidad-response.dto';
+import { DesvioProveedorResponseDto } from './dto/desvio-proveedor-response.dto';
 import { LoteMapper } from './mappers/lote.mapper';
 import { EstadoLote } from './enums/estado-lote.enum';
 import type { ILoteRepository } from './repository/lote-repository.interface';
@@ -47,6 +49,8 @@ export class LoteService {
     private readonly loteRepository: ILoteRepository,
     @InjectRepository(Proveedor)
     private readonly proveedorRepository: Repository<Proveedor>,
+    @InjectRepository(Tambo) // <-- NUEVO (HU-36)
+    private readonly tamboRepository: Repository<Tambo>,
     @InjectRepository(ConfiguracionParametro)
     private readonly configParametroRepository: Repository<ConfiguracionParametro>,
     @InjectRepository(SensorLectura)
@@ -85,6 +89,31 @@ export class LoteService {
       );
     }
 
+    // --- NUEVO (HU-36): validar tambo de origen ---
+    // El tambo tiene que existir, pertenecer a la empresa del usuario
+    // autenticado, y pertenecer efectivamente al proveedor indicado en
+    // el mismo request (evita que llegue una combinación inconsistente
+    // si el request no viene del formulario normal con el select
+    // encadenado proveedor -> tambo).
+    const tambo = await this.tamboRepository.findOne({
+      where: { id: dto.tamboId, empresaId },
+    });
+    if (!tambo) {
+      throw new NotFoundException(
+        `El tambo ${dto.tamboId} no existe o no pertenece a la empresa`,
+      );
+    }
+    if (tambo.proveedorId !== dto.proveedorId) {
+      throw new BadRequestException(
+        `El tambo "${tambo.nombre}" no pertenece al proveedor "${proveedor.razonSocial}"`,
+      );
+    }
+    if (!tambo.activo) {
+      throw new BadRequestException(
+        `El tambo "${tambo.nombre}" está dado de baja y no puede asociarse a un lote nuevo.`,
+      );
+    }
+
     const { warnings } = await this.validarParametros(dto, empresaId);
 
     const codigo = dto.codigo ?? (await this.generarCodigo(empresaId));
@@ -99,6 +128,7 @@ export class LoteService {
       const parametro = new LoteParametro();
       parametro.parametro = p.parametro;
       parametro.valor = p.valor;
+      parametro.valorComprometido = p.valorComprometido ?? null; // HU-66
       return parametro;
     });
 
@@ -106,6 +136,7 @@ export class LoteService {
       codigo,
       empresaId,
       proveedorId: dto.proveedorId,
+      tamboId: dto.tamboId, // <-- NUEVO (HU-36)
       materiaPrima: dto.materiaPrima,
       fechaIngreso: new Date(dto.fechaIngreso),
       clasificacion: null,
@@ -113,6 +144,9 @@ export class LoteService {
       ubicacionInicial: dto.ubicacionInicial ?? null,
       estado: EstadoLote.REGISTRADO,
       parametros,
+      cantidad: dto.cantidad,
+      cantidadDisponible: dto.cantidad,
+      cantidadComprometidaKg: dto.cantidadComprometidaKg ?? null, // HU-66
     });
 
     const saved = await this.loteRepository.save(lote);
@@ -202,6 +236,11 @@ export class LoteService {
     if (dto.destinoInicial !== undefined)
       lote.destinoInicial = dto.destinoInicial;
 
+    // Nota (HU-36): a propósito NO se permite reasignar proveedorId ni
+    // tamboId desde update(), igual que ya pasaba con proveedorId antes
+    // de esta HU — el origen de un lote ya registrado no se edita, para
+    // no romper la trazabilidad histórica.
+
     const saved = await this.loteRepository.save(lote);
     return LoteMapper.toResponseDto(saved);
   }
@@ -218,9 +257,14 @@ export class LoteService {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
 
-    if (lote.estado === EstadoLote.FINALIZADO) {
+    // HU-62 + HU-68: el lote puede llegar a FINALIZADO por dos caminos —
+    // manualmente vía este endpoint, o automáticamente cuando el consumo
+    // parcial agota el saldo disponible (ver LoteConsumoService). En el
+    // segundo caso el rendimiento todavía no se cargó, así que la guardia
+    // no bloquea por estado sino por si el rendimiento ya está cargado.
+    if (lote.estado === EstadoLote.FINALIZADO && lote.rendimiento != null) {
       throw new BadRequestException(
-        `El lote ${id} ya está finalizado y no puede modificarse`,
+        `El lote ${id} ya está finalizado con rendimiento cargado y no puede modificarse`,
       );
     }
 
@@ -443,5 +487,28 @@ export class LoteService {
     );
 
     return ComparacionHistoricaMapper.build(lote, historicos, config);
+  }
+
+  // HU-66: histórico de desvíos entre lo comprometido (remito) y lo real recibido.
+  async getDesviosPorProveedor(
+    proveedorId: number,
+    tenant: TenantContext,
+  ): Promise<DesvioProveedorResponseDto[]> {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    const proveedor = await this.proveedorRepository.findOne({
+      where: { id: proveedorId, empresaId },
+    });
+    if (!proveedor) {
+      throw new NotFoundException(
+        `El proveedor ${proveedorId} no existe o no pertenece a la empresa`,
+      );
+    }
+
+    const lotes = await this.loteRepository.findConDesvioByProveedor(
+      proveedorId,
+      empresaId,
+    );
+    return LoteMapper.toDesvioResponseDtoList(lotes);
   }
 }

@@ -12,15 +12,16 @@ export class UserRepository implements IUserRepository {
     @InjectRepository(User)
     private readonly repository: Repository<User>,
   ) {}
-
+  
   async findByEmail(email: string): Promise<User | null> {
-    return this.repository.findOne({
-      where: { email },
-      relations: {
-        empresa: true,
-        rol: { permisos: true },
-      },
-    });
+    return this.repository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .leftJoinAndSelect('user.empresa', 'empresa')
+      .leftJoinAndSelect('user.rol', 'rol')
+      .leftJoinAndSelect('rol.permisos', 'permisos')
+      .where('user.email = :email', { email })
+      .getOne();
   }
 
   async findById(id: number): Promise<User | null> {

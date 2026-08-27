@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not } from 'typeorm';
+import { Repository, Between, Not, IsNull } from 'typeorm';
 import { Lote } from '../entities/lote.entity';
 import { LoteFilterQueryDto } from '../dto/lote-filter-query.dto';
 import type { ILoteRepository } from './lote-repository.interface';
@@ -102,6 +102,23 @@ export class LoteRepository implements ILoteRepository {
       relations: { parametros: true },
       order: { createdAt: 'DESC' },
       take: cantidad,
+    });
+  }
+
+  // HU-66: lotes de un proveedor que tienen valor comprometido cargado
+  // (única condición para entrar al histórico de desvíos).
+  findConDesvioByProveedor(
+    proveedorId: number,
+    empresaId: number,
+  ): Promise<Lote[]> {
+    return this.repository.find({
+      where: {
+        proveedorId,
+        empresaId,
+        cantidadComprometidaKg: Not(IsNull()),
+      },
+      relations: { parametros: true },
+      order: { fechaIngreso: 'DESC' },
     });
   }
 }

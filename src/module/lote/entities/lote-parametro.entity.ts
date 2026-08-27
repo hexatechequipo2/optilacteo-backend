@@ -25,4 +25,8 @@ export class LoteParametro {
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   valor!: number;
+
+  // HU-66: valor de este parámetro comprometido por remito del proveedor.
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  valorComprometido?: number | null;
 }

@@ -43,4 +43,11 @@ export class RefreshTokenRepository implements IRefreshTokenRepository {
       { revokedAt: new Date() },
     );
   }
+
+  async revokeAllByUserId(userId: number): Promise<void> {
+    await this.repository.update(
+      { userId, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
+  }
 }

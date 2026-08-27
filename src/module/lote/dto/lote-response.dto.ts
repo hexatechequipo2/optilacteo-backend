@@ -14,6 +14,10 @@ export class LoteParametroResponseDto {
 
   @ApiProperty()
   valor!: number;
+
+  // HU-66: valor comprometido por remito para este parámetro (si se cargó).
+  @ApiPropertyOptional({ nullable: true })
+  valorComprometido?: number | null;
 }
 
 export class LoteResponseDto {
@@ -28,6 +32,10 @@ export class LoteResponseDto {
 
   @ApiProperty()
   proveedorId!: number;
+
+  // --- NUEVO (HU-36): tambo de origen ---
+  @ApiProperty({ description: 'Tambo de origen del lote' })
+  tamboId!: number;
 
   @ApiProperty({ enum: TipoMateriaPrima })
   materiaPrima!: TipoMateriaPrima;
@@ -51,6 +59,20 @@ export class LoteResponseDto {
     description: 'Rendimiento registrado al finalizar el lote',
   })
   rendimiento?: number | null;
+
+  @ApiPropertyOptional({ description: 'Cantidad total ingresada del lote' })
+  cantidad?: number | null;
+
+  @ApiPropertyOptional({ description: 'Saldo remanente disponible para consumo' })
+  cantidadDisponible?: number | null;
+
+  // HU-66: cantidad comprometida según remito del proveedor. Null si no se cargó (AC4).
+  @ApiPropertyOptional({
+    nullable: true,
+    example: 500,
+    description: 'Cantidad comprometida según remito del proveedor',
+  })
+  cantidadComprometidaKg?: number | null;
 
   @ApiProperty({ type: [LoteParametroResponseDto] })
   parametros!: LoteParametroResponseDto[];
