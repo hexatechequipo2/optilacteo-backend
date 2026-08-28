@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 @Injectable()
 export class MailService {
@@ -15,11 +16,10 @@ export class MailService {
     connectionTimeout: 60000, // 1 minuto
     greetingTimeout: 60000,
     socketTimeout: 60000,
-  });
+    family: 4, // fuerza IPv4, evita ENETUNREACH por falta de ruta IPv6
+  } as SMTPTransport.Options);
 
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
-    // FRONTEND_URL puede traer varios origenes separados por coma (ver
-    // main.ts); para un link de email se usa el primero como canonico.
     const frontendUrl = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
       .split(',')[0]
       .trim();
