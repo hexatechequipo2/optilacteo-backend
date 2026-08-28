@@ -1,33 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // STARTTLS
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    connectionTimeout: 60000, // 1 minuto
-    greetingTimeout: 60000,
-    socketTimeout: 60000,
-    family: 4, // fuerza IPv4, evita ENETUNREACH por falta de ruta IPv6
-  } as SMTPTransport.Options);
+  private readonly resend = new Resend(process.env.RESEND_API_KEY);
 
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
+    // FRONTEND_URL puede traer varios origenes separados por coma (ver
+    // main.ts); para un link de email se usa el primero como canonico.
     const frontendUrl = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
       .split(',')[0]
       .trim();
     const resetUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
 
     try {
-      await this.transporter.sendMail({
-        from: `"Optilacteo" <${process.env.SMTP_USER}>`,
+      await this.resend.emails.send({
+        from: 'Optilacteo <onboarding@resend.dev>',
         to,
         subject: 'Restablecimiento de contraseña - Optilacteo',
         html: `
