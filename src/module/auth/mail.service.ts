@@ -5,11 +5,16 @@ import * as nodemailer from 'nodemailer';
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // STARTTLS
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    connectionTimeout: 60000, // 1 minuto
+    greetingTimeout: 60000,
+    socketTimeout: 60000,
   });
 
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
