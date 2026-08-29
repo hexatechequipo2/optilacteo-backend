@@ -1,20 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PasswordResetService } from '../password-reset.service';
 import { MailService } from '../mail.service';
-import {
-  PASSWORD_RESET_TOKEN_REPOSITORY,
-} from '../repository/password-reset-token.interface';
-import {
-  USER_REPOSITORY,
-} from '../../user/repository/user-repository.interface';
-import {
-  REFRESH_TOKEN_REPOSITORY,
-} from '../repository/refresh-token-repository.interface';
+import { PASSWORD_RESET_TOKEN_REPOSITORY } from '../repository/password-reset-token.interface';
+import { USER_REPOSITORY } from '../../user/repository/user-repository.interface';
+import { REFRESH_TOKEN_REPOSITORY } from '../repository/refresh-token-repository.interface';
 import { BadRequestException } from '@nestjs/common';
 
 // 👇 Mock explícito de uuid y bcrypt
 jest.mock('uuid', () => ({ v4: jest.fn(() => 'fake-uuid') }));
-jest.mock('bcrypt', () => ({ hash: jest.fn(async () => 'hashed-pass') }));
+jest.mock('bcrypt', () => ({ hash: jest.fn(() => 'hashed-pass') }));
 
 describe('PasswordResetService', () => {
   let service: PasswordResetService;
@@ -69,13 +63,19 @@ describe('PasswordResetService', () => {
     });
 
     it('cuando el email está registrado, guarda token y envía email', async () => {
-      userRepoMock.findByEmail.mockResolvedValue({ id: 1, email: 'test@ok.com' });
+      userRepoMock.findByEmail.mockResolvedValue({
+        id: 1,
+        email: 'test@ok.com',
+      });
 
       const result = await service.requestReset({ email: 'test@ok.com' });
 
       expect(tokenRepoMock.deleteByUserId).toHaveBeenCalledWith('1');
       expect(tokenRepoMock.save).toHaveBeenCalled();
-      expect(mailServiceMock.sendPasswordResetEmail).toHaveBeenCalledWith('test@ok.com', 'fake-uuid');
+      expect(mailServiceMock.sendPasswordResetEmail).toHaveBeenCalledWith(
+        'test@ok.com',
+        'fake-uuid',
+      );
       expect(result.message).toContain('Si el email está registrado');
     });
   });
@@ -151,7 +151,10 @@ describe('PasswordResetService', () => {
         confirmPassword: '123',
       });
 
-      expect(userRepoMock.updatePassword).toHaveBeenCalledWith('1', 'hashed-pass');
+      expect(userRepoMock.updatePassword).toHaveBeenCalledWith(
+        '1',
+        'hashed-pass',
+      );
       expect(tokenRepoMock.markAsUsed).toHaveBeenCalledWith(1);
       expect(refreshTokenRepoMock.revokeAllByUserId).toHaveBeenCalledWith(1);
       expect(result.message).toContain('Tu contraseña fue restablecida');

@@ -5,9 +5,7 @@ import { ConfiguracionAlertaDesconexion } from '../entities/configuracion-alerta
 import { IConfiguracionAlertaDesconexionRepository } from './configuracion-alerta-desconexion.repository.interface';
 
 @Injectable()
-export class ConfiguracionAlertaDesconexionRepository
-  implements IConfiguracionAlertaDesconexionRepository
-{
+export class ConfiguracionAlertaDesconexionRepository implements IConfiguracionAlertaDesconexionRepository {
   constructor(
     @InjectRepository(ConfiguracionAlertaDesconexion)
     private readonly repo: Repository<ConfiguracionAlertaDesconexion>,

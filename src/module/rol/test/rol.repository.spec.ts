@@ -12,6 +12,7 @@ function buildRol(overrides: Partial<Rol> = {}): Rol {
     isActive: true,
     empresa: { id: 1, name: 'Lacteos Norte' } as Rol['empresa'],
     permisos: [],
+    users: [],
     ...overrides,
   };
 }

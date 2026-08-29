@@ -8,6 +8,11 @@ import { EstadoAlerta } from '../enums/estado-alerta.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { NivelAlerta } from '../enums/nivel-alerta.enum';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('NotificacionRepository', () => {
   let repository: NotificacionRepository;
   let typeOrmRepository: jest.Mocked<Repository<Notificacion>>;
@@ -65,7 +70,11 @@ describe('NotificacionRepository', () => {
   });
 
   it('markAsLeida: debe retornar null si no se actualizó nada', async () => {
-    typeOrmRepository.update.mockResolvedValue({ affected: 0, raw: [], generatedMaps: [] });
+    typeOrmRepository.update.mockResolvedValue({
+      affected: 0,
+      raw: [],
+      generatedMaps: [],
+    });
 
     const result = await repository.markAsLeida(1, 2, 10);
 
@@ -73,7 +82,11 @@ describe('NotificacionRepository', () => {
   });
 
   it('markAsLeida: debe actualizar y retornar la entidad', async () => {
-    typeOrmRepository.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+    typeOrmRepository.update.mockResolvedValue({
+      affected: 1,
+      raw: [],
+      generatedMaps: [],
+    });
     typeOrmRepository.findOne.mockResolvedValue({ id: 1, leida: true } as any);
 
     const result = await repository.markAsLeida(1, 2, 10);
@@ -117,8 +130,15 @@ describe('NotificacionRepository', () => {
   });
 
   it('resolver: debe actualizar a estado CERRADA y retornar entidad con relaciones', async () => {
-    typeOrmRepository.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
-    typeOrmRepository.findOne.mockResolvedValue({ id: 1, estado: EstadoAlerta.CERRADA } as any);
+    typeOrmRepository.update.mockResolvedValue({
+      affected: 1,
+      raw: [],
+      generatedMaps: [],
+    });
+    typeOrmRepository.findOne.mockResolvedValue({
+      id: 1,
+      estado: EstadoAlerta.CERRADA,
+    } as any);
 
     const result = await repository.resolver(1, 10, 'Acción tomada', 5);
 
@@ -228,7 +248,11 @@ describe('NotificacionRepository', () => {
   });
 
   it('cerrarAlertasAbiertasPorSensor: debe ejecutar update con estado CERRADA', async () => {
-    typeOrmRepository.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+    typeOrmRepository.update.mockResolvedValue({
+      affected: 1,
+      raw: [],
+      generatedMaps: [],
+    });
 
     await repository.cerrarAlertasAbiertasPorSensor(
       10,

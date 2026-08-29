@@ -25,7 +25,11 @@ export class Sku {
   @Column()
   nombre!: string;
 
-  @Column({ type: 'enum', enum: UnidadMedidaSku, default: UnidadMedidaSku.UNIDADES })
+  @Column({
+    type: 'enum',
+    enum: UnidadMedidaSku,
+    default: UnidadMedidaSku.UNIDADES,
+  })
   unidadMedida!: UnidadMedidaSku;
 
   // Soft-delete, consistente con el patrón de HU-65 (sensores).

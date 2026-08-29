@@ -33,11 +33,7 @@ export class IngresoCamaraController {
   }
 
   @Get()
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
   findAll(
     @Query() query: IngresoCamaraFilterQueryDto,

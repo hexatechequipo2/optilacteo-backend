@@ -6,9 +6,7 @@ import { IConfiguracionNotificacionRepository } from './configuracion-notificaci
 import { NivelAlerta } from '../enums/nivel-alerta.enum';
 
 @Injectable()
-export class ConfiguracionNotificacionRepository
-  implements IConfiguracionNotificacionRepository
-{
+export class ConfiguracionNotificacionRepository implements IConfiguracionNotificacionRepository {
   constructor(
     @InjectRepository(ConfiguracionNotificacionNivel)
     private readonly repository: Repository<ConfiguracionNotificacionNivel>,
@@ -46,8 +44,6 @@ export class ConfiguracionNotificacionRepository
         .map((r) => r.usuarioId as number),
     };
   }
-
-
 
   countByNivel(empresaId: number, nivelAlerta: NivelAlerta): Promise<number> {
     return this.repository.count({ where: { empresaId, nivelAlerta } });

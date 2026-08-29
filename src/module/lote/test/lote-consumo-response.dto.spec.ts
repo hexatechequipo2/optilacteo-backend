@@ -10,7 +10,7 @@ describe('LoteConsumoParametroResponseDto', () => {
   it('debería permitir construir correctamente un parámetro de consumo', () => {
     const dto = new LoteConsumoParametroResponseDto();
 
-    dto.parametro = Object.values(Parametro)[0] as Parametro;
+    dto.parametro = Object.values(Parametro)[0];
     dto.valor = 25.5;
 
     expect(dto.parametro).toBeDefined();
@@ -21,7 +21,7 @@ describe('LoteConsumoParametroResponseDto', () => {
 describe('LoteConsumoResponseDto', () => {
   it('debería permitir construir correctamente una respuesta de consumo', () => {
     const parametro = new LoteConsumoParametroResponseDto();
-    parametro.parametro = Object.values(Parametro)[0] as Parametro;
+    parametro.parametro = Object.values(Parametro)[0];
     parametro.valor = 3.5;
 
     const createdAt = new Date('2026-08-20T10:00:00');

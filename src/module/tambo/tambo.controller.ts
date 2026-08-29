@@ -46,10 +46,7 @@ export class TamboController {
     'canWrite',
   )
   @AuditLog('TAMBO_REGISTRAR', 'Tambo')
-  create(
-    @Body() dto: CreateTamboDto,
-    @CurrentEmpresa() tenant: TenantContext,
-  ) {
+  create(@Body() dto: CreateTamboDto, @CurrentEmpresa() tenant: TenantContext) {
     return this.tamboService.create(dto, tenant);
   }
 

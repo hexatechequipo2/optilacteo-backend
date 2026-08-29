@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { SkuRepository } from '../repository/sku.repository';
 import { Sku } from '../entities/sku.entity';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('SkuRepository', () => {
   let repository: SkuRepository;
   let typeormRepo: jest.Mocked<Repository<Sku>>;
@@ -34,7 +36,10 @@ describe('SkuRepository', () => {
 
   describe('create', () => {
     it('cuando se crea una instancia de SKU, debe invocar repo.create con los valores recibidos', () => {
-      const partialData: Partial<Sku> = { nombre: 'Leche Entera', empresaId: 1 };
+      const partialData: Partial<Sku> = {
+        nombre: 'Leche Entera',
+        empresaId: 1,
+      };
       const expectedSku = { id: 1, ...partialData } as Sku;
       typeormRepo.create.mockReturnValue(expectedSku);
 

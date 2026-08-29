@@ -70,7 +70,7 @@ export class SkuController {
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.skuService.deactivate(+id, tenant);
   }
-  
+
   @Patch(':id/activar')
   @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')

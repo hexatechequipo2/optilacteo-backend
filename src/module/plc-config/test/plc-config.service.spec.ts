@@ -5,6 +5,10 @@ import { PLC_CONFIG_REPOSITORY } from '../repository/plc-config-repository.inter
 import { PlcConfig } from '../entities/plc-config.entity';
 import { TenantContext } from '../../../common/types/tenant-context.type';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 describe('PlcConfigService', () => {
   let service: PlcConfigService;
   let repository: any;
@@ -37,7 +41,9 @@ describe('PlcConfigService', () => {
 
   describe('resolveEmpresaId', () => {
     it('debe arrojar BadRequestException si empresaId es nulo o indefinido', async () => {
-      const invalidTenant = { empresaId: undefined } as unknown as TenantContext;
+      const invalidTenant = {
+        empresaId: undefined,
+      } as unknown as TenantContext;
 
       await expect(service.obtenerConfig(invalidTenant)).rejects.toThrow(
         BadRequestException,
@@ -48,7 +54,11 @@ describe('PlcConfigService', () => {
   describe('obtenerConfig', () => {
     it('debe retornar la respuesta mapeada correctamente', async () => {
       const tenant = { empresaId: 10 } as TenantContext;
-      const configMock = { id: 1, empresaId: 10, url: 'http://192.168.1.50' } as PlcConfig;
+      const configMock = {
+        id: 1,
+        empresaId: 10,
+        url: 'http://192.168.1.50',
+      } as PlcConfig;
 
       repository.findByEmpresa.mockResolvedValue(configMock);
       repository.existsSensorDigitalOAnalogico.mockResolvedValue(true);
@@ -66,15 +76,21 @@ describe('PlcConfigService', () => {
     const dto = { url: 'http://192.168.1.100' };
 
     it('debe actualizar una configuración existente', async () => {
-      const existente = { id: 1, empresaId: 10, url: 'http://192.168.1.50' } as PlcConfig;
-      
+      const existente = {
+        id: 1,
+        empresaId: 10,
+        url: 'http://192.168.1.50',
+      } as PlcConfig;
+
       repository.findByEmpresa.mockResolvedValue(existente);
       repository.save.mockResolvedValue({ ...existente, url: dto.url });
       repository.existsSensorDigitalOAnalogico.mockResolvedValue(false);
 
       const result = await service.guardarUrl(dto, tenant);
 
-      expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({ url: dto.url }));
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ url: dto.url }),
+      );
       expect(repository.create).not.toHaveBeenCalled();
       expect(result).toEqual({ url: dto.url, requierePlc: false });
     });

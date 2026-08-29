@@ -5,6 +5,8 @@ import { TenantContext } from '../../../common/types/tenant-context.type';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('PlcConfigController', () => {
   let controller: PlcConfigController;
   let service: jest.Mocked<PlcConfigService>;
@@ -62,7 +64,10 @@ describe('PlcConfigController', () => {
 
   it('testConexion: debe verificar el estado de la conexión', async () => {
     const dto = { url: 'http://192.168.1.50' };
-    const mockResponse = { ok: true, mensaje: 'Conexión exitosa. El PLC respondió correctamente.' };
+    const mockResponse = {
+      ok: true,
+      mensaje: 'Conexión exitosa. El PLC respondió correctamente.',
+    };
     service.testConexion.mockResolvedValue(mockResponse);
 
     const result = await controller.testConexion(dto);

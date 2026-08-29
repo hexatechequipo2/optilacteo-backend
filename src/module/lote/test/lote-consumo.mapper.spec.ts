@@ -11,16 +11,22 @@ describe('LoteConsumoMapper', () => {
         id: 'consumo-uuid-1',
         loteIngresoId: 'lote-ingreso-1',
         loteProduccionId: 'lote-prod-1',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         cantidad: '250.75' as any,
         usuarioId: 'user-uuid-1',
         parametros: [
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           { parametro: 'Grasa', valor: '3.8' as any },
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           { parametro: 'Proteína', valor: '3.2' as any },
         ],
         createdAt: new Date('2026-08-20'),
       } as unknown as LoteConsumo;
 
-      const resultado = LoteConsumoMapper.toResponseDto(mockConsumo, 'PROD-2026-A');
+      const resultado = LoteConsumoMapper.toResponseDto(
+        mockConsumo,
+        'PROD-2026-A',
+      );
 
       expect(resultado).toEqual({
         id: 'consumo-uuid-1',
@@ -40,11 +46,16 @@ describe('LoteConsumoMapper', () => {
     it('cuando los parámetros son nulos o undefined, debe retornar un array vacío de parámetros', () => {
       const mockConsumo: LoteConsumo = {
         id: 'consumo-uuid-2',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         cantidad: '100' as any,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         parametros: null as any,
       } as unknown as LoteConsumo;
 
-      const resultado = LoteConsumoMapper.toResponseDto(mockConsumo, 'PROD-2026-B');
+      const resultado = LoteConsumoMapper.toResponseDto(
+        mockConsumo,
+        'PROD-2026-B',
+      );
 
       expect(resultado.parametros).toEqual([]);
     });
@@ -55,11 +66,13 @@ describe('LoteConsumoMapper', () => {
       const mockConsumos: LoteConsumo[] = [
         {
           id: 'consumo-1',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           cantidad: '50' as any,
           loteProduccion: { codigo: 'LP-001' } as LoteProduccion,
         } as unknown as LoteConsumo,
         {
           id: 'consumo-2',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           cantidad: '100' as any,
           loteProduccion: undefined,
         } as unknown as LoteConsumo,
@@ -76,13 +89,17 @@ describe('LoteConsumoMapper', () => {
       const mockConsumos: LoteConsumo[] = [
         {
           id: 'consumo-1',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           cantidad: '50' as any,
           loteProduccion: { codigo: 'LP-001' } as LoteProduccion,
         } as unknown as LoteConsumo,
       ];
       const customGetCodigo = (lp: LoteProduccion) => `CUSTOM-${lp.codigo}`;
 
-      const resultado = LoteConsumoMapper.toResponseDtoList(mockConsumos, customGetCodigo);
+      const resultado = LoteConsumoMapper.toResponseDtoList(
+        mockConsumos,
+        customGetCodigo,
+      );
 
       expect(resultado[0].loteProduccionCodigo).toBe('CUSTOM-LP-001');
     });

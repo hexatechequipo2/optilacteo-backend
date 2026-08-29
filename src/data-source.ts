@@ -50,7 +50,7 @@ export default new DataSource({
     SensorEvento,
     Notificacion,
     LoteClasificacionHistorial,
-    Tambo
+    Tambo,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,

@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { LoteTrazabilidadService } from '../lote-trazabilidad.service';
 import { LOTE_REPOSITORY } from '../repository/lote-repository.interface';
@@ -73,9 +70,7 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
       ],
     }).compile();
 
-    service = module.get<LoteTrazabilidadService>(
-      LoteTrazabilidadService,
-    );
+    service = module.get<LoteTrazabilidadService>(LoteTrazabilidadService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -162,9 +157,10 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
 
       expect(mockLoteRepository.findById).toHaveBeenCalledWith(5, 1);
 
-      expect(
-        mockClasificacionLoteService.historialDeLote,
-      ).toHaveBeenCalledWith(5, 1);
+      expect(mockClasificacionLoteService.historialDeLote).toHaveBeenCalledWith(
+        5,
+        1,
+      );
 
       expect(mockLoteRevisionRepository.find).toHaveBeenCalledWith({
         where: {
@@ -176,9 +172,7 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
         },
       });
 
-      expect(
-        mockUbicacionHistorialRepository.find,
-      ).toHaveBeenCalledWith({
+      expect(mockUbicacionHistorialRepository.find).toHaveBeenCalledWith({
         where: {
           loteId: 5,
           empresaId: 1,
@@ -201,28 +195,21 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
         },
       });
 
-      expect(mockLoteConsumoService.historial).toHaveBeenCalledWith(
-        5,
-        tenant,
-      );
+      expect(mockLoteConsumoService.historial).toHaveBeenCalledWith(5, tenant);
 
       expect(result.loteId).toBe(5);
       expect(result.codigoLote).toBe('LOT-001');
 
       expect(result.eventos).toHaveLength(7);
 
-      expect(result.eventos[0].tipo).toBe(
-        TipoEventoTrazabilidad.RECEPCION,
-      );
+      expect(result.eventos[0].tipo).toBe(TipoEventoTrazabilidad.RECEPCION);
 
       expect(result.eventos.at(-1)?.tipo).toBe(
         TipoEventoTrazabilidad.FINALIZACION,
       );
 
       for (let i = 1; i < result.eventos.length; i++) {
-        expect(
-          result.eventos[i].fecha.getTime(),
-        ).toBeGreaterThanOrEqual(
+        expect(result.eventos[i].fecha.getTime()).toBeGreaterThanOrEqual(
           result.eventos[i - 1].fecha.getTime(),
         );
       }
@@ -235,9 +222,9 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
 
       mockLoteRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.getTrazabilidad(999, tenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getTrazabilidad(999, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(
         mockClasificacionLoteService.historialDeLote,
@@ -247,9 +234,9 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
     it('cuando el usuario no tiene una empresa determinada, debe lanzar BadRequestException', async () => {
       const tenant = {} as TenantContext;
 
-      await expect(
-        service.getTrazabilidad(5, tenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.getTrazabilidad(5, tenant)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(mockLoteRepository.findById).not.toHaveBeenCalled();
     });
@@ -281,14 +268,11 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
 
       expect(result.eventos).toHaveLength(1);
 
-      expect(result.eventos[0].tipo).toBe(
-        TipoEventoTrazabilidad.RECEPCION,
-      );
+      expect(result.eventos[0].tipo).toBe(TipoEventoTrazabilidad.RECEPCION);
 
       expect(
         result.eventos.some(
-          (evento) =>
-            evento.tipo === TipoEventoTrazabilidad.FINALIZACION,
+          (evento) => evento.tipo === TipoEventoTrazabilidad.FINALIZACION,
         ),
       ).toBe(false);
     });

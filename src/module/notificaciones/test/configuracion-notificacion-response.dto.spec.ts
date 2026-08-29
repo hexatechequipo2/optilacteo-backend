@@ -18,7 +18,10 @@ describe('ConfiguracionNotificacionResponseDto', () => {
       createdAt: new Date(),
     };
 
-    const dto = plainToInstance(ConfiguracionNotificacionResponseDto, plainData);
+    const dto = plainToInstance(
+      ConfiguracionNotificacionResponseDto,
+      plainData,
+    );
 
     expect(dto).toBeInstanceOf(ConfiguracionNotificacionResponseDto);
     expect(dto.id).toBe(1);

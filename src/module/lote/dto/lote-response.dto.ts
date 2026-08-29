@@ -63,7 +63,9 @@ export class LoteResponseDto {
   @ApiPropertyOptional({ description: 'Cantidad total ingresada del lote' })
   cantidad?: number | null;
 
-  @ApiPropertyOptional({ description: 'Saldo remanente disponible para consumo' })
+  @ApiPropertyOptional({
+    description: 'Saldo remanente disponible para consumo',
+  })
   cantidadDisponible?: number | null;
 
   // HU-66: cantidad comprometida según remito del proveedor. Null si no se cargó (AC4).

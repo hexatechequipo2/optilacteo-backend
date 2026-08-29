@@ -20,7 +20,9 @@ export class LoteMapper {
       unidadRendimiento: lote.unidadRendimiento ?? null,
       cantidad: lote.cantidad != null ? Number(lote.cantidad) : null,
       cantidadDisponible:
-        lote.cantidadDisponible != null ? Number(lote.cantidadDisponible) : null,
+        lote.cantidadDisponible != null
+          ? Number(lote.cantidadDisponible)
+          : null,
       // HU-66
       cantidadComprometidaKg:
         lote.cantidadComprometidaKg != null
@@ -54,7 +56,10 @@ export class LoteMapper {
       fechaIngreso: lote.fechaIngreso,
       cantidadComprometidaKg: cantidadComprometida,
       cantidadReal,
-      desvioCantidadPorcentaje: this.calcularDesvio(cantidadComprometida, cantidadReal),
+      desvioCantidadPorcentaje: this.calcularDesvio(
+        cantidadComprometida,
+        cantidadReal,
+      ),
       parametros: (lote.parametros ?? [])
         .filter((p) => p.valorComprometido != null)
         .map((p) => {

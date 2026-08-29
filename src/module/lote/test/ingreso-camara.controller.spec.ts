@@ -24,9 +24,7 @@ describe('IngresoCamaraController — gestión de ingresos a cámara', () => {
       ],
     }).compile();
 
-    controller = module.get<IngresoCamaraController>(
-      IngresoCamaraController,
-    );
+    controller = module.get<IngresoCamaraController>(IngresoCamaraController);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -55,10 +53,7 @@ describe('IngresoCamaraController — gestión de ingresos a cámara', () => {
 
       const result = await controller.create(dto, tenant);
 
-      expect(mockIngresoCamaraService.create).toHaveBeenCalledWith(
-        dto,
-        tenant,
-      );
+      expect(mockIngresoCamaraService.create).toHaveBeenCalledWith(dto, tenant);
 
       expect(mockIngresoCamaraService.create).toHaveBeenCalledTimes(1);
 

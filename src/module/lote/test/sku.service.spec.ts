@@ -65,6 +65,7 @@ describe('SkuService — gestión del catálogo de SKU', () => {
 
       const mapperSpy = jest
         .spyOn(SkuMapper, 'toResponseDto')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(skuCreado as any);
 
       const result = await service.create(dto, tenant);
@@ -80,9 +81,7 @@ describe('SkuService — gestión del catálogo de SKU', () => {
         activo: true,
       });
 
-      expect(mockSkuRepository.save).toHaveBeenCalledWith(
-        skuCreado,
-      );
+      expect(mockSkuRepository.save).toHaveBeenCalledWith(skuCreado);
 
       expect(result).toEqual(skuCreado);
 
@@ -103,9 +102,9 @@ describe('SkuService — gestión del catálogo de SKU', () => {
         nombre: dto.nombre,
       });
 
-      await expect(
-        service.create(dto, tenant),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.create(dto, tenant)).rejects.toThrow(
+        ConflictException,
+      );
 
       expect(mockSkuRepository.create).not.toHaveBeenCalled();
       expect(mockSkuRepository.save).not.toHaveBeenCalled();
@@ -141,19 +140,16 @@ describe('SkuService — gestión del catálogo de SKU', () => {
         },
       ];
 
-      mockSkuRepository.findAllActivosByEmpresa.mockResolvedValue(
-        skus,
-      );
+      mockSkuRepository.findAllActivosByEmpresa.mockResolvedValue(skus);
 
       const mapperSpy = jest
         .spyOn(SkuMapper, 'toResponseDtoList')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(skus as any);
 
       const result = await service.findAll(tenant);
 
-      expect(
-        mockSkuRepository.findAllActivosByEmpresa,
-      ).toHaveBeenCalledWith(1);
+      expect(mockSkuRepository.findAllActivosByEmpresa).toHaveBeenCalledWith(1);
 
       expect(mapperSpy).toHaveBeenCalledWith(skus);
 
@@ -186,19 +182,15 @@ describe('SkuService — gestión del catálogo de SKU', () => {
         ...dto,
       });
 
-      const mapperSpy = jest
-        .spyOn(SkuMapper, 'toResponseDto')
-        .mockReturnValue({
-          ...sku,
-          ...dto,
-        } as any);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      const mapperSpy = jest.spyOn(SkuMapper, 'toResponseDto').mockReturnValue({
+        ...sku,
+        ...dto,
+      } as any);
 
       const result = await service.update(5, dto, tenant);
 
-      expect(mockSkuRepository.findById).toHaveBeenCalledWith(
-        5,
-        1,
-      );
+      expect(mockSkuRepository.findById).toHaveBeenCalledWith(5, 1);
 
       expect(mockSkuRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -227,7 +219,7 @@ describe('SkuService — gestión del catálogo de SKU', () => {
           999,
           {
             nombre: 'Nuevo SKU',
-          } as UpdateSkuDto,
+          },
           tenant,
         ),
       ).rejects.toThrow(NotFoundException);
@@ -255,6 +247,7 @@ describe('SkuService — gestión del catálogo de SKU', () => {
 
       const mapperSpy = jest
         .spyOn(SkuMapper, 'toResponseDto')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(saved as any);
 
       const result = await service.deactivate(5, tenant);
@@ -275,9 +268,9 @@ describe('SkuService — gestión del catálogo de SKU', () => {
 
       mockSkuRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.deactivate(999, tenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.deactivate(999, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -302,6 +295,7 @@ describe('SkuService — gestión del catálogo de SKU', () => {
 
       const mapperSpy = jest
         .spyOn(SkuMapper, 'toResponseDto')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(saved as any);
 
       const result = await service.activate(5, tenant);
@@ -325,9 +319,9 @@ describe('SkuService — gestión del catálogo de SKU', () => {
         activo: true,
       });
 
-      await expect(
-        service.activate(5, tenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.activate(5, tenant)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(mockSkuRepository.save).not.toHaveBeenCalled();
     });
@@ -339,9 +333,9 @@ describe('SkuService — gestión del catálogo de SKU', () => {
 
       mockSkuRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.activate(999, tenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.activate(999, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

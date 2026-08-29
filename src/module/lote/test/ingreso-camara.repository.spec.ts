@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository } from 'typeorm';
 import { IngresoCamaraRepository } from '../repository/ingreso-camara.repository';
 import { IngresoCamara } from '../entities/ingreso-camara.entity';
 
@@ -45,12 +45,16 @@ describe('IngresoCamaraRepository', () => {
 
   describe('create', () => {
     it('cuando se instancia un ingreso a cámara, debe llamar a repo.create con los datos parciales', () => {
-      const partialData: Partial<IngresoCamara> = { cantidad: 100 as any, skuId: 1 };
+      const partialData: Partial<IngresoCamara> = {
+        cantidad: 100,
+        skuId: 1,
+      };
       const expectedEntity = { id: 1, ...partialData } as IngresoCamara;
       typeormRepo.create.mockReturnValue(expectedEntity);
 
       const resultado = repository.create(partialData);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeormRepo.create).toHaveBeenCalledWith(partialData);
       expect(resultado).toEqual(expectedEntity);
     });
@@ -63,6 +67,7 @@ describe('IngresoCamaraRepository', () => {
 
       const resultado = await repository.save(mockIngreso);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeormRepo.save).toHaveBeenCalledWith(mockIngreso);
       expect(resultado).toEqual(mockIngreso);
     });
@@ -75,6 +80,7 @@ describe('IngresoCamaraRepository', () => {
 
       const resultado = await repository.findById(10, 1);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeormRepo.findOne).toHaveBeenCalledWith({
         where: { id: 10, empresaId: 1 },
         relations: { sku: true, lote: true },
@@ -90,11 +96,24 @@ describe('IngresoCamaraRepository', () => {
 
       const resultado = await repository.findAll({}, 1);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeormRepo.createQueryBuilder).toHaveBeenCalledWith('ingreso');
-      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('ingreso.sku', 'sku');
-      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('ingreso.lote', 'lote');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('ingreso.empresaId = :empresaId', { empresaId: 1 });
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('ingreso.fechaIngreso', 'DESC');
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+        'ingreso.sku',
+        'sku',
+      );
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+        'ingreso.lote',
+        'lote',
+      );
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'ingreso.empresaId = :empresaId',
+        { empresaId: 1 },
+      );
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'ingreso.fechaIngreso',
+        'DESC',
+      );
       expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0); // (page 1 - 1) * 20
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(20);
       expect(resultado).toEqual([mockIngresos, 2]);
@@ -108,7 +127,10 @@ describe('IngresoCamaraRepository', () => {
 
       expect(mockQueryBuilder.skip).toHaveBeenCalledWith(10); // (page 2 - 1) * 10
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('ingreso.skuId = :skuId', { skuId: 5 });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'ingreso.skuId = :skuId',
+        { skuId: 5 },
+      );
     });
   });
 });

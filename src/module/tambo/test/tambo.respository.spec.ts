@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { TamboRepository } from '../repository/tambo.repository';
 import { Tambo } from '../entities/tambo.entity';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('TamboRepository', () => {
   let repository: TamboRepository;
   let typeOrmRepo: jest.Mocked<Repository<Tambo>>;
@@ -117,7 +119,13 @@ describe('TamboRepository', () => {
   describe('findByProveedor', () => {
     it('debe buscar tambos activos por proveedorId y empresaId ordenados por nombre', async () => {
       const listMock = [
-        { id: 1, nombre: 'Tambo San Antonio', proveedorId: 5, empresaId: 10, activo: true },
+        {
+          id: 1,
+          nombre: 'Tambo San Antonio',
+          proveedorId: 5,
+          empresaId: 10,
+          activo: true,
+        },
       ] as Tambo[];
 
       mockTypeOrmRepo.find.mockResolvedValue(listMock);

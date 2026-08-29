@@ -10,9 +10,12 @@ describe('IngresoCamaraMapper', () => {
         id: 'ingreso-uuid-1',
         empresaId: 'tenant-uuid-1',
         skuId: 'sku-uuid-1',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         sku: { id: 'sku-uuid-1', nombre: 'Queso Cremoso' } as any,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         cantidad: '150.50' as any, // Simulamos tipo decimal que TypeORM/Postgres devuelve como string
         loteId: 'lote-uuid-1',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         lote: { id: 'lote-uuid-1', codigo: 'LOT-2026-001' } as any,
         fechaIngreso: new Date('2026-08-20'),
         createdAt: new Date('2026-08-20'),
@@ -39,8 +42,11 @@ describe('IngresoCamaraMapper', () => {
         empresaId: 'tenant-uuid-1',
         skuId: 'sku-uuid-2',
         sku: undefined,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         cantidad: '50' as any,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         loteId: null as any,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         lote: null as any,
         fechaIngreso: new Date('2026-08-20'),
         createdAt: new Date('2026-08-20'),
@@ -61,11 +67,13 @@ describe('IngresoCamaraMapper', () => {
       const mockIngresos: IngresoCamara[] = [
         {
           id: 'ingreso-1',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           cantidad: '10' as any,
           sku: { nombre: 'SKU 1' },
         } as unknown as IngresoCamara,
         {
           id: 'ingreso-2',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           cantidad: '20' as any,
           sku: { nombre: 'SKU 2' },
         } as unknown as IngresoCamara,

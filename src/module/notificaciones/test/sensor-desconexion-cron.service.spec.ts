@@ -8,6 +8,10 @@ import { EstadoSensor } from '../../sensor/enums/estado-sensor.enum';
 import { ConfiguracionAlertaDesconexionService } from '../configuracion-alerta-desconexion.service';
 import { NotificacionesService } from '../notificaciones.service';
 
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('SensorDesconexionCronService', () => {
   let service: SensorDesconexionCronService;
   let sensorRepository: jest.Mocked<Repository<Sensor>>;
@@ -235,7 +239,7 @@ describe('SensorDesconexionCronService', () => {
 
       notificacionesService.generarAlertaSensorDesconectado
         .mockRejectedValueOnce(new Error('Fallo simulado en la BD'))
-        .mockResolvedValueOnce([] as any);
+        .mockResolvedValueOnce([]);
 
       await service.verificarDesconexiones();
 

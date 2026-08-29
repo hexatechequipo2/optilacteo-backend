@@ -114,10 +114,7 @@ export class LecturaSensorService {
   // INGRESO DE LECTURA AUTOMÁTICA
   // ============================================================
 
-  async ingresar(
-    dto: IngresarLecturaDto,
-    tenant: TenantContext,
-  ) {
+  async ingresar(dto: IngresarLecturaDto, tenant: TenantContext) {
     const empresaId = this.resolveEmpresaId(tenant);
 
     // ------------------------------------------------------------
@@ -130,54 +127,38 @@ export class LecturaSensorService {
     );
 
     if (!sensor) {
-      await this.registrarEvento(
-        TipoEvento.SENSOR_NO_ENCONTRADO,
-        empresaId,
-        {
-          sensorIdRecibido: dto.sensor_id,
-          loteIdRecibido: dto.lote_id,
-        },
-      );
+      await this.registrarEvento(TipoEvento.SENSOR_NO_ENCONTRADO, empresaId, {
+        sensorIdRecibido: dto.sensor_id,
+        loteIdRecibido: dto.lote_id,
+      });
 
-      throw new NotFoundException(
-        `Sensor "${dto.sensor_id}" no encontrado.`,
-      );
+      throw new NotFoundException(`Sensor "${dto.sensor_id}" no encontrado.`);
     }
 
     // ------------------------------------------------------------
     // Paso 3: existencia del lote
     // ------------------------------------------------------------
 
-    const lote = await this.loteRepository.findByCodigo(
-      dto.lote_id,
-      empresaId,
-    );
+    const lote = await this.loteRepository.findByCodigo(dto.lote_id, empresaId);
 
     if (!lote) {
-      await this.registrarEvento(
-        TipoEvento.LOTE_NO_ENCONTRADO,
-        empresaId,
-        {
-          sensorId: sensor.id,
-          sensorIdRecibido: dto.sensor_id,
-          loteIdRecibido: dto.lote_id,
-        },
-      );
+      await this.registrarEvento(TipoEvento.LOTE_NO_ENCONTRADO, empresaId, {
+        sensorId: sensor.id,
+        sensorIdRecibido: dto.sensor_id,
+        loteIdRecibido: dto.lote_id,
+      });
 
-      throw new NotFoundException(
-        `Lote "${dto.lote_id}" no encontrado.`,
-      );
+      throw new NotFoundException(`Lote "${dto.lote_id}" no encontrado.`);
     }
 
     // ------------------------------------------------------------
     // Verificación de asociación actual sensor -> lote
     // ------------------------------------------------------------
 
-    const ultimaAsociacion =
-      await this.historialRepository.findUltimoPorSensor(
-        sensor.id,
-        empresaId,
-      );
+    const ultimaAsociacion = await this.historialRepository.findUltimoPorSensor(
+      sensor.id,
+      empresaId,
+    );
 
     if (ultimaAsociacion?.loteIdNuevo !== lote.id) {
       await this.registrarEvento(
@@ -202,21 +183,14 @@ export class LecturaSensorService {
 
     const rango = RANGOS_FISICOS[sensor.parametro];
 
-    if (
-      rango &&
-      (dto.valor < rango.min || dto.valor > rango.max)
-    ) {
-      await this.registrarEvento(
-        TipoEvento.VALOR_FUERA_DE_RANGO,
-        empresaId,
-        {
-          sensorId: sensor.id,
-          sensorIdRecibido: dto.sensor_id,
-          loteId: lote.id,
-          loteIdRecibido: dto.lote_id,
-          valorRecibido: dto.valor,
-        },
-      );
+    if (rango && (dto.valor < rango.min || dto.valor > rango.max)) {
+      await this.registrarEvento(TipoEvento.VALOR_FUERA_DE_RANGO, empresaId, {
+        sensorId: sensor.id,
+        sensorIdRecibido: dto.sensor_id,
+        loteId: lote.id,
+        loteIdRecibido: dto.lote_id,
+        valorRecibido: dto.valor,
+      });
 
       // HU-14:
       // Una lectura fuera del rango físico posible indica una
@@ -252,16 +226,14 @@ export class LecturaSensorService {
       empresaId,
     );
 
-    const creada =
-      await this.lecturaRepository.create(lectura);
+    const creada = await this.lecturaRepository.create(lectura);
 
     // ------------------------------------------------------------
     // HU-14:
     // Una lectura válida recupera automáticamente el sensor.
     // ------------------------------------------------------------
 
-    const noEstabaActivo =
-      sensor.estado !== EstadoSensor.ACTIVO;
+    const noEstabaActivo = sensor.estado !== EstadoSensor.ACTIVO;
 
     sensor.ultimaLectura = timestampLectura;
 
@@ -272,16 +244,12 @@ export class LecturaSensorService {
     await this.sensorRepository.save(sensor);
 
     if (noEstabaActivo) {
-      await this.registrarEvento(
-        TipoEvento.SENSOR_RECUPERADO,
-        empresaId,
-        {
-          sensorId: sensor.id,
-          sensorIdRecibido: dto.sensor_id,
-          loteId: lote.id,
-          loteIdRecibido: dto.lote_id,
-        },
-      );
+      await this.registrarEvento(TipoEvento.SENSOR_RECUPERADO, empresaId, {
+        sensorId: sensor.id,
+        sensorIdRecibido: dto.sensor_id,
+        loteId: lote.id,
+        loteIdRecibido: dto.lote_id,
+      });
 
       this.lecturasGateway.emitirSensorRecuperado(
         {
@@ -314,13 +282,9 @@ export class LecturaSensorService {
     // Response + WebSocket
     // ------------------------------------------------------------
 
-    const responseDto =
-      LecturaMapper.toResponseDto(creada);
+    const responseDto = LecturaMapper.toResponseDto(creada);
 
-    this.lecturasGateway.emitirLectura(
-      responseDto,
-      empresaId,
-    );
+    this.lecturasGateway.emitirLectura(responseDto, empresaId);
 
     // ------------------------------------------------------------
     // HU-25:
@@ -336,12 +300,9 @@ export class LecturaSensorService {
     // - estado físico del sensor
     // ------------------------------------------------------------
 
-    const mapaUmbrales =
-      await this.construirMapaUmbrales(empresaId);
+    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
 
-    const umbral = mapaUmbrales.get(
-      `${sensor.parametro}|${lote.materiaPrima}`,
-    );
+    const umbral = mapaUmbrales.get(`${sensor.parametro}|${lote.materiaPrima}`);
 
     if (umbral) {
       this.notificacionesService
@@ -372,14 +333,9 @@ export class LecturaSensorService {
     // ------------------------------------------------------------
 
     this.clasificacionLoteService
-      .evaluarYClasificar(
-        lote.id,
-        empresaId,
-      )
+      .evaluarYClasificar(lote.id, empresaId)
       .catch((err) =>
-        this.logger.error(
-          `Error al clasificar lote ${lote.id}: ${err}`,
-        ),
+        this.logger.error(`Error al clasificar lote ${lote.id}: ${err}`),
       );
 
     return responseDto;
@@ -415,15 +371,10 @@ export class LecturaSensorService {
     // Sensor
     // ------------------------------------------------------------
 
-    const sensor = await this.sensorRepository.findOne(
-      dto.sensorId,
-      empresaId,
-    );
+    const sensor = await this.sensorRepository.findOne(dto.sensorId, empresaId);
 
     if (!sensor) {
-      throw new NotFoundException(
-        `Sensor ${dto.sensorId} no encontrado.`,
-      );
+      throw new NotFoundException(`Sensor ${dto.sensorId} no encontrado.`);
     }
 
     // ------------------------------------------------------------
@@ -441,11 +392,10 @@ export class LecturaSensorService {
     // Asociación actual sensor -> lote
     // ------------------------------------------------------------
 
-    const ultimaAsociacion =
-      await this.historialRepository.findUltimoPorSensor(
-        sensor.id,
-        empresaId,
-      );
+    const ultimaAsociacion = await this.historialRepository.findUltimoPorSensor(
+      sensor.id,
+      empresaId,
+    );
 
     if (!ultimaAsociacion?.loteIdNuevo) {
       throw new NotFoundException(
@@ -453,8 +403,7 @@ export class LecturaSensorService {
       );
     }
 
-    const loteId =
-      ultimaAsociacion.loteIdNuevo;
+    const loteId = ultimaAsociacion.loteIdNuevo;
 
     // ------------------------------------------------------------
     // Obtener lote
@@ -465,16 +414,10 @@ export class LecturaSensorService {
     // - HU-25
     // ------------------------------------------------------------
 
-    const lote =
-      await this.loteRepository.findById(
-        loteId,
-        empresaId,
-      );
+    const lote = await this.loteRepository.findById(loteId, empresaId);
 
     if (!lote) {
-      throw new NotFoundException(
-        `Lote ${loteId} no encontrado.`,
-      );
+      throw new NotFoundException(`Lote ${loteId} no encontrado.`);
     }
 
     // ------------------------------------------------------------
@@ -484,10 +427,7 @@ export class LecturaSensorService {
 
     const rango = RANGOS_FISICOS[sensor.parametro];
 
-    if (
-      rango &&
-      (dto.valor < rango.min || dto.valor > rango.max)
-    ) {
+    if (rango && (dto.valor < rango.min || dto.valor > rango.max)) {
       throw new UnprocessableEntityException(
         `El valor ${dto.valor} está fuera del rango físico posible para ${sensor.parametro} (${rango.min}-${rango.max}).`,
       );
@@ -509,20 +449,15 @@ export class LecturaSensorService {
       usuarioId,
     );
 
-    const creada =
-      await this.lecturaRepository.create(lectura);
+    const creada = await this.lecturaRepository.create(lectura);
 
     // ------------------------------------------------------------
     // WebSocket
     // ------------------------------------------------------------
 
-    const responseDto =
-      LecturaMapper.toResponseDto(creada);
+    const responseDto = LecturaMapper.toResponseDto(creada);
 
-    this.lecturasGateway.emitirLectura(
-      responseDto,
-      empresaId,
-    );
+    this.lecturasGateway.emitirLectura(responseDto, empresaId);
 
     // ------------------------------------------------------------
     // HU-25:
@@ -532,12 +467,9 @@ export class LecturaSensorService {
     // No se hace otra consulta dentro de la generación de alerta.
     // ------------------------------------------------------------
 
-    const mapaUmbrales =
-      await this.construirMapaUmbrales(empresaId);
+    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
 
-    const umbral = mapaUmbrales.get(
-      `${sensor.parametro}|${lote.materiaPrima}`,
-    );
+    const umbral = mapaUmbrales.get(`${sensor.parametro}|${lote.materiaPrima}`);
 
     if (umbral) {
       this.notificacionesService
@@ -565,14 +497,9 @@ export class LecturaSensorService {
     // ------------------------------------------------------------
 
     this.clasificacionLoteService
-      .evaluarYClasificar(
-        loteId,
-        empresaId,
-      )
+      .evaluarYClasificar(loteId, empresaId)
       .catch((err) =>
-        this.logger.error(
-          `Error al clasificar lote ${loteId}: ${err}`,
-        ),
+        this.logger.error(`Error al clasificar lote ${loteId}: ${err}`),
       );
 
     return responseDto;
@@ -592,20 +519,15 @@ export class LecturaSensorService {
     evento.tipoEvento = tipoEvento;
     evento.empresaId = empresaId;
 
-    evento.sensorId =
-      datos.sensorId ?? null;
+    evento.sensorId = datos.sensorId ?? null;
 
-    evento.sensorIdRecibido =
-      datos.sensorIdRecibido ?? null;
+    evento.sensorIdRecibido = datos.sensorIdRecibido ?? null;
 
-    evento.loteId =
-      datos.loteId ?? null;
+    evento.loteId = datos.loteId ?? null;
 
-    evento.loteIdRecibido =
-      datos.loteIdRecibido ?? null;
+    evento.loteIdRecibido = datos.loteIdRecibido ?? null;
 
-    evento.valorRecibido =
-      datos.valorRecibido ?? null;
+    evento.valorRecibido = datos.valorRecibido ?? null;
 
     await this.eventoRepository.create(evento);
   }
@@ -618,21 +540,15 @@ export class LecturaSensorService {
     query: HistorialLecturaFilterQueryDto,
     tenant: TenantContext,
   ): Promise<HistorialLecturaResponseDto> {
-    const empresaId =
-      this.resolveEmpresaId(tenant);
+    const empresaId = this.resolveEmpresaId(tenant);
 
     const fechaInicio = query.fechaInicio
       ? new Date(query.fechaInicio)
       : undefined;
 
-    const fechaFin =
-      this.normalizarFechaFin(query.fechaFin);
+    const fechaFin = this.normalizarFechaFin(query.fechaFin);
 
-    if (
-      fechaInicio &&
-      fechaFin &&
-      fechaFin < fechaInicio
-    ) {
+    if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
       throw new BadRequestException(
         'La fecha de fin no puede ser anterior a la fecha de inicio.',
       );
@@ -644,11 +560,10 @@ export class LecturaSensorService {
     let loteId: number | undefined;
 
     if (query.loteCodigo) {
-      const lote =
-        await this.loteRepository.findByCodigo(
-          query.loteCodigo,
-          empresaId,
-        );
+      const lote = await this.loteRepository.findByCodigo(
+        query.loteCodigo,
+        empresaId,
+      );
 
       if (!lote) {
         return {
@@ -663,34 +578,29 @@ export class LecturaSensorService {
       loteId = lote.id;
     }
 
-    const [lecturas, total] =
-      await this.lecturaRepository.findHistorial(
-        {
-          loteId,
-          fechaInicio,
-          fechaFin,
-          page,
-          limit,
-        },
-        empresaId,
-      );
+    const [lecturas, total] = await this.lecturaRepository.findHistorial(
+      {
+        loteId,
+        fechaInicio,
+        fechaFin,
+        page,
+        limit,
+      },
+      empresaId,
+    );
 
-    const mapaUmbrales =
-      await this.construirMapaUmbrales(
-        empresaId,
-      );
+    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
 
-    const data = lecturas.map(
-      (lectura) =>
-        LecturaMapper.toHistorialItemDto(
-          lectura,
-          this.calcularEstado(
-            lectura.valor,
-            lectura.sensor.parametro,
-            lectura.lote.materiaPrima,
-            mapaUmbrales,
-          ),
+    const data = lecturas.map((lectura) =>
+      LecturaMapper.toHistorialItemDto(
+        lectura,
+        this.calcularEstado(
+          lectura.valor,
+          lectura.sensor.parametro,
+          lectura.lote.materiaPrima,
+          mapaUmbrales,
         ),
+      ),
     );
 
     // ------------------------------------------------------------
@@ -699,16 +609,14 @@ export class LecturaSensorService {
     // ------------------------------------------------------------
 
     if (this.puedeVerAuditoria(tenant)) {
-      const trazabilidadMap =
-        await this.auditLogService.getTrazabilidadBatch(
-          'SensorLectura',
-          lecturas.map((l) => l.id),
-          empresaId,
-        );
+      const trazabilidadMap = await this.auditLogService.getTrazabilidadBatch(
+        'SensorLectura',
+        lecturas.map((l) => l.id),
+        empresaId,
+      );
 
       data.forEach((item) => {
-        item.auditoria =
-          trazabilidadMap.get(item.id);
+        item.auditoria = trazabilidadMap.get(item.id);
       });
     }
 
@@ -717,21 +625,12 @@ export class LecturaSensorService {
       total,
       page,
       limit,
-      rangoAmplio:
-        this.esRangoAmplio(
-          fechaInicio,
-          fechaFin,
-        ),
+      rangoAmplio: this.esRangoAmplio(fechaInicio, fechaFin),
     };
   }
 
-  private puedeVerAuditoria(
-    tenant: TenantContext,
-  ): boolean {
-    return (
-      tenant.rolNombre ===
-      ROLES.GERENTE
-    );
+  private puedeVerAuditoria(tenant: TenantContext): boolean {
+    return tenant.rolNombre === ROLES.GERENTE;
   }
 
   // ============================================================
@@ -742,23 +641,15 @@ export class LecturaSensorService {
     query: HistorialLecturaFilterQueryDto,
     tenant: TenantContext,
   ): Promise<string> {
-    const empresaId =
-      this.resolveEmpresaId(tenant);
+    const empresaId = this.resolveEmpresaId(tenant);
 
     const fechaInicio = query.fechaInicio
       ? new Date(query.fechaInicio)
       : undefined;
 
-    const fechaFin =
-      this.normalizarFechaFin(
-        query.fechaFin,
-      );
+    const fechaFin = this.normalizarFechaFin(query.fechaFin);
 
-    if (
-      fechaInicio &&
-      fechaFin &&
-      fechaFin < fechaInicio
-    ) {
+    if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
       throw new BadRequestException(
         'La fecha de fin no puede ser anterior a la fecha de inicio.',
       );
@@ -767,11 +658,10 @@ export class LecturaSensorService {
     let loteId: number | undefined;
 
     if (query.loteCodigo) {
-      const lote =
-        await this.loteRepository.findByCodigo(
-          query.loteCodigo,
-          empresaId,
-        );
+      const lote = await this.loteRepository.findByCodigo(
+        query.loteCodigo,
+        empresaId,
+      );
 
       if (!lote) {
         return this.aCsv([]);
@@ -780,32 +670,27 @@ export class LecturaSensorService {
       loteId = lote.id;
     }
 
-    const lecturas =
-      await this.lecturaRepository.findHistorialCompleto(
-        {
-          loteId,
-          fechaInicio,
-          fechaFin,
-        },
-        empresaId,
-      );
+    const lecturas = await this.lecturaRepository.findHistorialCompleto(
+      {
+        loteId,
+        fechaInicio,
+        fechaFin,
+      },
+      empresaId,
+    );
 
-    const mapaUmbrales =
-      await this.construirMapaUmbrales(
-        empresaId,
-      );
+    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
 
-    const data = lecturas.map(
-      (lectura) =>
-        LecturaMapper.toHistorialItemDto(
-          lectura,
-          this.calcularEstado(
-            lectura.valor,
-            lectura.sensor.parametro,
-            lectura.lote.materiaPrima,
-            mapaUmbrales,
-          ),
+    const data = lecturas.map((lectura) =>
+      LecturaMapper.toHistorialItemDto(
+        lectura,
+        this.calcularEstado(
+          lectura.valor,
+          lectura.sensor.parametro,
+          lectura.lote.materiaPrima,
+          mapaUmbrales,
         ),
+      ),
     );
 
     return this.aCsv(data);
@@ -815,110 +700,105 @@ export class LecturaSensorService {
   // UTILIDADES DE FECHAS
   // ============================================================
 
-  private normalizarFechaFin(
-    fechaFin?: string,
-  ): Date | undefined {
+  private normalizarFechaFin(fechaFin?: string): Date | undefined {
     if (!fechaFin) {
       return undefined;
     }
 
     const fecha = new Date(fechaFin);
 
-    if (
-      /^\d{4}-\d{2}-\d{2}$/.test(
-        fechaFin,
-      )
-    ) {
-      fecha.setUTCHours(
-        23,
-        59,
-        59,
-        999,
-      );
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaFin)) {
+      fecha.setUTCHours(23, 59, 59, 999);
     }
 
     return fecha;
   }
 
-  private esRangoAmplio(
-    fechaInicio?: Date,
-    fechaFin?: Date,
-  ): boolean {
+  private esRangoAmplio(fechaInicio?: Date, fechaFin?: Date): boolean {
     if (!fechaInicio || !fechaFin) {
       return false;
     }
 
     const dias =
-      (fechaFin.getTime() -
-        fechaInicio.getTime()) /
-      (1000 * 60 * 60 * 24);
+      (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24);
 
     return dias > RANGO_DIAS_SLA;
   }
 
   // ============================================================
-// CONFIGURACIÓN DE UMBRALES
-// ============================================================
-private async construirMapaUmbrales(
-  empresaId: number,
-): Promise<Map<string, { umbralMin: number; umbralMax: number }>> {
-  const configs = await this.configParametroRepository.find({ where: { empresaId } });
-  const mapa = new Map<string, { umbralMin: number; umbralMax: number }>();
-  for (const config of configs) {
-    mapa.set(`${config.parametro}|${config.tipoMateriaPrima}`, {
-      umbralMin: config.umbralMin,
-      umbralMax: config.umbralMax,
+  // CONFIGURACIÓN DE UMBRALES
+  // ============================================================
+  private async construirMapaUmbrales(
+    empresaId: number,
+  ): Promise<Map<string, { umbralMin: number; umbralMax: number }>> {
+    const configs = await this.configParametroRepository.find({
+      where: { empresaId },
     });
+    const mapa = new Map<string, { umbralMin: number; umbralMax: number }>();
+    for (const config of configs) {
+      mapa.set(`${config.parametro}|${config.tipoMateriaPrima}`, {
+        umbralMin: config.umbralMin,
+        umbralMax: config.umbralMax,
+      });
+    }
+    return mapa;
   }
-  return mapa;
-}
 
-// ============================================================
-// ESTADO DE MEDICIÓN
-// ============================================================
-private calcularEstado(
-  valor: number,
-  parametro: Parametro,
-  materiaPrima: TipoMateriaPrima,
-  mapa: Map<string, { umbralMin: number; umbralMax: number }>,
-): EstadoMedicion {
-  const umbral = mapa.get(`${parametro}|${materiaPrima}`);
-  if (!umbral) return EstadoMedicion.SIN_UMBRAL_CONFIGURADO;
-  if (valor < umbral.umbralMin || valor > umbral.umbralMax) return EstadoMedicion.FUERA_DE_RANGO;
-  return EstadoMedicion.NORMAL;
-}
+  // ============================================================
+  // ESTADO DE MEDICIÓN
+  // ============================================================
+  private calcularEstado(
+    valor: number,
+    parametro: Parametro,
+    materiaPrima: TipoMateriaPrima,
+    mapa: Map<string, { umbralMin: number; umbralMax: number }>,
+  ): EstadoMedicion {
+    const umbral = mapa.get(`${parametro}|${materiaPrima}`);
+    if (!umbral) return EstadoMedicion.SIN_UMBRAL_CONFIGURADO;
+    if (valor < umbral.umbralMin || valor > umbral.umbralMax)
+      return EstadoMedicion.FUERA_DE_RANGO;
+    return EstadoMedicion.NORMAL;
+  }
 
-// ============================================================
-// CSV
-// ============================================================
-private aCsv(
-  data: {
-    id: number;
-    valor: number;
-    unidad: string;
-    sensorNombre: string;
-    parametro: string;
-    loteCodigo: string;
-    timestampLectura: Date;
-    estado: string;
-  }[],
-): string {
-  const headers = ['id', 'valor', 'unidad', 'sensor', 'parametro', 'lote', 'fechaHora', 'estado'];
-  const filas = data.map((d) =>
-    [
-      d.id,
-      d.valor,
-      d.unidad,
-      d.sensorNombre,
-      d.parametro,
-      d.loteCodigo,
-      d.timestampLectura.toISOString(),
-      d.estado,
-    ]
-      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-      .join(','),
-  );
-  return [headers.join(','), ...filas].join('\n');
-}
-
+  // ============================================================
+  // CSV
+  // ============================================================
+  private aCsv(
+    data: {
+      id: number;
+      valor: number;
+      unidad: string;
+      sensorNombre: string;
+      parametro: string;
+      loteCodigo: string;
+      timestampLectura: Date;
+      estado: string;
+    }[],
+  ): string {
+    const headers = [
+      'id',
+      'valor',
+      'unidad',
+      'sensor',
+      'parametro',
+      'lote',
+      'fechaHora',
+      'estado',
+    ];
+    const filas = data.map((d) =>
+      [
+        d.id,
+        d.valor,
+        d.unidad,
+        d.sensorNombre,
+        d.parametro,
+        d.loteCodigo,
+        d.timestampLectura.toISOString(),
+        d.estado,
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(','),
+    );
+    return [headers.join(','), ...filas].join('\n');
+  }
 }

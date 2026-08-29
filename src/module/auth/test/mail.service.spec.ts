@@ -14,7 +14,7 @@ describe('MailService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     process.env = { ...originalEnv };
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
 
     // Config valida por defecto; cada test la sobreescribe si lo necesita.
     process.env.BREVO_API_KEY = 'xkeysib-test';

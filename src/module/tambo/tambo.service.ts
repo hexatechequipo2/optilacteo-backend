@@ -154,7 +154,9 @@ export class TamboService {
       throw new NotFoundException(`Tambo ${id} no encontrado`);
     }
     if (tambo.activo) {
-      throw new BadRequestException(`El tambo "${tambo.nombre}" ya está activo`);
+      throw new BadRequestException(
+        `El tambo "${tambo.nombre}" ya está activo`,
+      );
     }
 
     // No tiene sentido reactivar un tambo si su proveedor sigue dado de

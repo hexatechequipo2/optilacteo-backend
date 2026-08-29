@@ -17,7 +17,9 @@ export class CreateIngresoCamaraDto {
   @IsPositive()
   cantidad!: number;
 
-  @ApiPropertyOptional({ description: 'Lote de producción de origen (opcional)' })
+  @ApiPropertyOptional({
+    description: 'Lote de producción de origen (opcional)',
+  })
   @IsOptional()
   @IsInt()
   loteId?: number;

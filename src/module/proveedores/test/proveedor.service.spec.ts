@@ -44,6 +44,7 @@ function buildProveedor(overrides: Partial<Proveedor> = {}): Proveedor {
     empresaId: 1,
     empresa: undefined as never,
     lotes: [],
+    tambos: [],
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
     ...overrides,

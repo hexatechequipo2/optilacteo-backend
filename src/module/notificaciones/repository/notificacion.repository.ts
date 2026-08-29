@@ -13,19 +13,14 @@ import { EstadoAlerta } from '../enums/estado-alerta.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 
 @Injectable()
-export class NotificacionRepository
-  implements INotificacionRepository
-{
+export class NotificacionRepository implements INotificacionRepository {
   constructor(
     @InjectRepository(Notificacion)
     private readonly repository: Repository<Notificacion>,
   ) {}
 
-  create(
-    notificacion: Partial<Notificacion>,
-  ): Promise<Notificacion> {
-    const entity =
-      this.repository.create(notificacion);
+  create(notificacion: Partial<Notificacion>): Promise<Notificacion> {
+    const entity = this.repository.create(notificacion);
 
     return this.repository.save(entity);
   }
@@ -51,10 +46,7 @@ export class NotificacionRepository
     });
   }
 
-  findById(
-    id: number,
-    empresaId: number,
-  ): Promise<Notificacion | null> {
+  findById(id: number, empresaId: number): Promise<Notificacion | null> {
     return this.repository.findOne({
       where: {
         id,
@@ -68,17 +60,16 @@ export class NotificacionRepository
     usuarioId: number,
     empresaId: number,
   ): Promise<Notificacion | null> {
-    const result =
-      await this.repository.update(
-        {
-          id,
-          usuarioId,
-          empresaId,
-        },
-        {
-          leida: true,
-        },
-      );
+    const result = await this.repository.update(
+      {
+        id,
+        usuarioId,
+        empresaId,
+      },
+      {
+        leida: true,
+      },
+    );
 
     if (!result.affected) {
       return null;
@@ -93,10 +84,7 @@ export class NotificacionRepository
     });
   }
 
-  countNoLeidas(
-    usuarioId: number,
-    empresaId: number,
-  ): Promise<number> {
+  countNoLeidas(usuarioId: number, empresaId: number): Promise<number> {
     return this.repository.count({
       where: {
         usuarioId,
@@ -132,21 +120,20 @@ export class NotificacionRepository
     accionCorrectiva: string,
     resueltaPorId: number,
   ): Promise<Notificacion | null> {
-    const result =
-      await this.repository.update(
-        {
-          id,
-          empresaId,
-          tipo: TipoNotificacion.ALERTA_UMBRAL,
-          estado: EstadoAlerta.ABIERTA,
-        },
-        {
-          estado: EstadoAlerta.CERRADA,
-          accionCorrectiva,
-          resueltaPorId,
-          fechaResolucion: new Date(),
-        },
-      );
+    const result = await this.repository.update(
+      {
+        id,
+        empresaId,
+        tipo: TipoNotificacion.ALERTA_UMBRAL,
+        estado: EstadoAlerta.ABIERTA,
+      },
+      {
+        estado: EstadoAlerta.CERRADA,
+        accionCorrectiva,
+        resueltaPorId,
+        fechaResolucion: new Date(),
+      },
+    );
 
     if (!result.affected) {
       return null;
@@ -174,11 +161,7 @@ export class NotificacionRepository
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    const qb =
-      this.crearQueryHistorial(
-        empresaId,
-        query,
-      );
+    const qb = this.crearQueryHistorial(empresaId, query);
 
     qb.skip((page - 1) * limit);
     qb.take(limit);
@@ -195,10 +178,7 @@ export class NotificacionRepository
     empresaId: number,
     query: HistorialAlertasQueryDto,
   ): Promise<Notificacion[]> {
-    const qb = this.crearQueryHistorial(
-      empresaId,
-      query,
-    );
+    const qb = this.crearQueryHistorial(empresaId, query);
 
     const alertas = await qb.getMany();
 
@@ -222,112 +202,70 @@ export class NotificacionRepository
   private crearQueryHistorial(
     empresaId: number,
     query: HistorialAlertasQueryDto,
-  ) 
-  {
+  ) {
     console.log('FILTROS RECIBIDOS:', query);
     const qb = this.repository
       .createQueryBuilder('notificacion')
-      .leftJoinAndSelect(
-        'notificacion.lote',
-        'lote',
-      )
-      .where(
-        'notificacion.empresaId = :empresaId',
-        {
-          empresaId,
-        },
-      )
-      qb.andWhere('notificacion.tipo IN (:...tipos)', {
-        tipos: [
-          TipoNotificacion.ALERTA_UMBRAL,
-          TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
-        ],
+      .leftJoinAndSelect('notificacion.lote', 'lote')
+      .where('notificacion.empresaId = :empresaId', {
+        empresaId,
       });
-
+    qb.andWhere('notificacion.tipo IN (:...tipos)', {
+      tipos: [
+        TipoNotificacion.ALERTA_UMBRAL,
+        TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
+      ],
+    });
 
     if (query.estado) {
-      qb.andWhere(
-        'notificacion.estado = :estado',
-        {
-          estado: query.estado,
-        },
-      );
+      qb.andWhere('notificacion.estado = :estado', {
+        estado: query.estado,
+      });
     }
 
     if (query.loteId !== undefined) {
-      qb.andWhere(
-        'notificacion.loteId = :loteId',
-        {
-          loteId: query.loteId,
-        },
-      );
+      qb.andWhere('notificacion.loteId = :loteId', {
+        loteId: query.loteId,
+      });
     }
 
     if (query.nivelAlerta) {
-      qb.andWhere(
-        'notificacion.nivelAlerta = :nivelAlerta',
-        {
-          nivelAlerta: query.nivelAlerta,
-        },
-      );
+      qb.andWhere('notificacion.nivelAlerta = :nivelAlerta', {
+        nivelAlerta: query.nivelAlerta,
+      });
     }
 
     if (query.fechaInicio) {
-      qb.andWhere(
-        'notificacion.createdAt >= :fechaInicio',
-        {
-          fechaInicio: new Date(
-            query.fechaInicio,
-          ),
-        },
-      );
+      qb.andWhere('notificacion.createdAt >= :fechaInicio', {
+        fechaInicio: new Date(query.fechaInicio),
+      });
     }
 
     if (query.fechaFin) {
-      const fechaFin =
-        this.normalizarFechaFin(
-          query.fechaFin,
-        );
+      const fechaFin = this.normalizarFechaFin(query.fechaFin);
 
-      qb.andWhere(
-        'notificacion.createdAt <= :fechaFin',
-        {
-          fechaFin,
-        },
-      );
+      qb.andWhere('notificacion.createdAt <= :fechaFin', {
+        fechaFin,
+      });
     }
 
-    qb.orderBy(
-      'notificacion.createdAt',
-      'DESC',
-    );
+    qb.orderBy('notificacion.createdAt', 'DESC');
     console.log('SQL:', qb.getSql());
     console.log('PARAMETROS:', qb.getParameters());
     return qb;
   }
 
-  private normalizarFechaFin(
-    fechaFin: string,
-  ): Date {
+  private normalizarFechaFin(fechaFin: string): Date {
     const fecha = new Date(fechaFin);
 
-    if (
-      /^\d{4}-\d{2}-\d{2}$/.test(
-        fechaFin,
-      )
-    ) {
-      fecha.setUTCHours(
-        23,
-        59,
-        59,
-        999,
-      );
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaFin)) {
+      fecha.setUTCHours(23, 59, 59, 999);
     }
 
     return fecha;
   }
 
-   findAlertaAbiertaPorSensor(
+  findAlertaAbiertaPorSensor(
     empresaId: number,
     sensorId: number,
     tipo: TipoNotificacion,

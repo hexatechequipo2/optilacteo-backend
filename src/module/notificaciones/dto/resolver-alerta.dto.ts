@@ -8,6 +8,8 @@ export class ResolverAlertaDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'La acción correctiva es obligatoria' })
-  @MinLength(5, { message: 'La acción correctiva debe tener al menos 5 caracteres' })
+  @MinLength(5, {
+    message: 'La acción correctiva debe tener al menos 5 caracteres',
+  })
   accionCorrectiva!: string;
 }

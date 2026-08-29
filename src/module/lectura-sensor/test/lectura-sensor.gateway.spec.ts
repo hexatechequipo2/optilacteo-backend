@@ -33,6 +33,7 @@ describe('LecturasGateway', () => {
     }).compile();
 
     gateway = module.get(LecturasGateway);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     (gateway as any).server = serverMock;
     jest.clearAllMocks();
   });
@@ -45,7 +46,9 @@ describe('LecturasGateway', () => {
         handshake: { auth: {}, query: {} },
         disconnect: jest.fn(),
       };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await gateway.handleConnection(client);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(client.disconnect).toHaveBeenCalledWith(true);
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
@@ -62,9 +65,12 @@ describe('LecturasGateway', () => {
         disconnect: jest.fn(),
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await gateway.handleConnection(client);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(client.disconnect).toHaveBeenCalledWith(true);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(client.join).not.toHaveBeenCalled();
     });
 
@@ -78,8 +84,10 @@ describe('LecturasGateway', () => {
         disconnect: jest.fn(),
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await gateway.handleConnection(client);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(client.disconnect).toHaveBeenCalledWith(true);
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
@@ -96,9 +104,12 @@ describe('LecturasGateway', () => {
         disconnect: jest.fn(),
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await gateway.handleConnection(client);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(client.disconnect).toHaveBeenCalledWith(true);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(client.join).not.toHaveBeenCalled();
     });
   });
@@ -112,6 +123,7 @@ describe('LecturasGateway', () => {
   describe('emitirLectura', () => {
     it('debe emitir el evento lectura:nueva', () => {
       const payload = { id: 1 };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       gateway.emitirLectura(payload as any, 3);
       expect(serverMock.to).toHaveBeenCalledWith('empresa:3');
       expect(serverMock.emit).toHaveBeenCalledWith('lectura:nueva', payload);
@@ -141,7 +153,10 @@ describe('LecturasGateway', () => {
       const payload = { sensorId: 5 };
       gateway.emitirSensorRecuperado(payload, 11);
       expect(serverMock.to).toHaveBeenCalledWith('empresa:11');
-      expect(serverMock.emit).toHaveBeenCalledWith('sensor:recuperado', payload);
+      expect(serverMock.emit).toHaveBeenCalledWith(
+        'sensor:recuperado',
+        payload,
+      );
     });
   });
 });

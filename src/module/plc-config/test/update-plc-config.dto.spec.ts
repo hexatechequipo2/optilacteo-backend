@@ -26,7 +26,9 @@ describe('UpdatePlcConfigDto', () => {
 
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].property).toBe('url');
-    expect(errors[0].constraints?.isUrl).toBe('La URL del PLC no tiene un formato válido');
+    expect(errors[0].constraints?.isUrl).toBe(
+      'La URL del PLC no tiene un formato válido',
+    );
   });
 
   it('debe fallar si se utiliza un protocolo no permitido (ej. mqtt o ftp)', async () => {

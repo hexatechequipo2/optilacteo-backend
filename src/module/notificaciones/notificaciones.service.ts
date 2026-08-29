@@ -20,10 +20,7 @@ import { NotificacionResponseDto } from './dto/notificacion-response.dto';
 import { NotificacionFilterQueryDto } from './dto/notificacion-filter-query.dto';
 import { NotificacionPaginadaResponseDto } from './dto/notificacion-paginada-response.dto';
 
-import {
-  NotificacionMapper,
-  CrearNotificacionParams,
-} from './mappers/notificacion.mapper';
+import { NotificacionMapper } from './mappers/notificacion.mapper';
 
 import type { INotificacionRepository } from './repository/notificacion.repository.interface';
 import { NOTIFICACION_REPOSITORY } from './repository/notificacion.repository.interface';
@@ -44,6 +41,11 @@ import { Parametro } from '../config-parametro/enums/parametro.enum';
 import PDFDocument from 'pdfkit';
 import { ConfiguracionNotificacionResponseDto } from './dto/configuracion-notificacion-response.dto';
 import { ConfiguracionNotificacionMapper } from './mappers/configuracion-notificacion.mapper';
+
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 @Injectable()
 export class NotificacionesService {
@@ -200,11 +202,7 @@ export class NotificacionesService {
 
       const response = NotificacionMapper.toResponse(creada);
 
-      this.gateway.emitirNotificacion(
-        response,
-        empresaId,
-        usuario.id,
-      );
+      this.gateway.emitirNotificacion(response, empresaId, usuario.id);
 
       notificaciones.push(response);
     }
@@ -237,10 +235,14 @@ export class NotificacionesService {
       );
 
     console.log(
-      'DEBUG obtenerDestinatariosPorNivel -> empresaId:', empresaId,
-      'nivelAlerta:', nivelAlerta,
-      'rolIds:', rolIds,
-      'usuarioIds:', usuarioIds,
+      'DEBUG obtenerDestinatariosPorNivel -> empresaId:',
+      empresaId,
+      'nivelAlerta:',
+      nivelAlerta,
+      'rolIds:',
+      rolIds,
+      'usuarioIds:',
+      usuarioIds,
     ); // temporal
 
     if (rolIds.length === 0 && usuarioIds.length === 0) {
@@ -296,10 +298,7 @@ export class NotificacionesService {
         return 100;
       }
 
-      return (
-        ((umbralMin - valor) / Math.abs(umbralMin)) *
-        100
-      );
+      return ((umbralMin - valor) / Math.abs(umbralMin)) * 100;
     }
 
     if (valor > umbralMax) {
@@ -307,18 +306,13 @@ export class NotificacionesService {
         return 100;
       }
 
-      return (
-        ((valor - umbralMax) / Math.abs(umbralMax)) *
-        100
-      );
+      return ((valor - umbralMax) / Math.abs(umbralMax)) * 100;
     }
 
     return 0;
   }
 
-  private determinarNivelAlerta(
-    desvioPorcentaje: number,
-  ): NivelAlerta {
+  private determinarNivelAlerta(desvioPorcentaje: number): NivelAlerta {
     if (desvioPorcentaje <= 5) {
       return NivelAlerta.INFORMATIVA;
     }
@@ -338,14 +332,8 @@ export class NotificacionesService {
     loteCodigo: string;
     nivelAlerta: NivelAlerta;
   }): string {
-    const {
-      parametro,
-      valor,
-      umbralMin,
-      umbralMax,
-      loteCodigo,
-      nivelAlerta,
-    } = params;
+    const { parametro, valor, umbralMin, umbralMax, loteCodigo, nivelAlerta } =
+      params;
 
     return (
       `Alerta ${nivelAlerta}: el parámetro ${parametro} ` +
@@ -367,11 +355,7 @@ export class NotificacionesService {
         query,
       );
 
-    return NotificacionMapper.toPaginatedResponse(
-      notificaciones,
-      total,
-      query,
-    );
+    return NotificacionMapper.toPaginatedResponse(notificaciones, total, query);
   }
 
   async marcarLeida(
@@ -379,17 +363,14 @@ export class NotificacionesService {
     usuarioId: number,
     empresaId: number,
   ): Promise<NotificacionResponseDto> {
-    const actualizada =
-      await this.notificacionRepository.markAsLeida(
-        id,
-        usuarioId,
-        empresaId,
-      );
+    const actualizada = await this.notificacionRepository.markAsLeida(
+      id,
+      usuarioId,
+      empresaId,
+    );
 
     if (!actualizada) {
-      throw new NotFoundException(
-        `Notificación ${id} no encontrada`,
-      );
+      throw new NotFoundException(`Notificación ${id} no encontrada`);
     }
 
     return NotificacionMapper.toResponse(actualizada);
@@ -403,11 +384,10 @@ export class NotificacionesService {
     usuarioId: number,
     empresaId: number,
   ): Promise<{ total: number }> {
-    const total =
-      await this.notificacionRepository.countNoLeidas(
-        usuarioId,
-        empresaId,
-      );
+    const total = await this.notificacionRepository.countNoLeidas(
+      usuarioId,
+      empresaId,
+    );
 
     return { total };
   }
@@ -419,9 +399,7 @@ export class NotificacionesService {
   async listarConfiguracion(
     empresaId: number,
   ): Promise<ConfiguracionNotificacionResponseDto[]> {
-    const configs = await this.configuracionRepository.findByEmpresa(
-      empresaId,
-    );
+    const configs = await this.configuracionRepository.findByEmpresa(empresaId);
     return ConfiguracionNotificacionMapper.toResponseList(configs);
   }
 
@@ -466,28 +444,18 @@ export class NotificacionesService {
    * HU-29 criterio 4:
    * No permite dejar el nivel CRITICA sin destinatarios.
    */
-  async eliminarConfiguracion(
-    id: number,
-    empresaId: number,
-  ): Promise<void> {
-    const config =
-      await this.configuracionRepository.findById(
-        id,
-        empresaId,
-      );
+  async eliminarConfiguracion(id: number, empresaId: number): Promise<void> {
+    const config = await this.configuracionRepository.findById(id, empresaId);
 
     if (!config) {
-      throw new NotFoundException(
-        `Configuración ${id} no encontrada`,
-      );
+      throw new NotFoundException(`Configuración ${id} no encontrada`);
     }
 
     if (config.nivelAlerta === NivelAlerta.CRITICA) {
-      const totalCritica =
-        await this.configuracionRepository.countByNivel(
-          empresaId,
-          NivelAlerta.CRITICA,
-        );
+      const totalCritica = await this.configuracionRepository.countByNivel(
+        empresaId,
+        NivelAlerta.CRITICA,
+      );
 
       if (totalCritica <= 1) {
         throw new BadRequestException(
@@ -496,16 +464,10 @@ export class NotificacionesService {
       }
     }
 
-    const eliminado =
-      await this.configuracionRepository.delete(
-        id,
-        empresaId,
-      );
+    const eliminado = await this.configuracionRepository.delete(id, empresaId);
 
     if (!eliminado) {
-      throw new NotFoundException(
-        `Configuración ${id} no encontrada`,
-      );
+      throw new NotFoundException(`Configuración ${id} no encontrada`);
     }
   }
 
@@ -519,48 +481,34 @@ export class NotificacionesService {
     usuarioId: number,
     dto: ResolverAlertaDto,
   ): Promise<NotificacionResponseDto> {
-    const notificacion =
-      await this.notificacionRepository.findById(
-        id,
-        empresaId,
-      );
+    const notificacion = await this.notificacionRepository.findById(
+      id,
+      empresaId,
+    );
 
     if (!notificacion) {
-      throw new NotFoundException(
-        `Alerta ${id} no encontrada`,
-      );
+      throw new NotFoundException(`Alerta ${id} no encontrada`);
     }
 
-    if (
-      notificacion.tipo !==
-      TipoNotificacion.ALERTA_UMBRAL
-    ) {
+    if (notificacion.tipo !== TipoNotificacion.ALERTA_UMBRAL) {
       throw new BadRequestException(
         'Solo se pueden resolver notificaciones de tipo alerta',
       );
     }
 
-    if (
-      notificacion.estado ===
-      EstadoAlerta.CERRADA
-    ) {
-      throw new BadRequestException(
-        'La alerta ya se encuentra cerrada',
-      );
+    if (notificacion.estado === EstadoAlerta.CERRADA) {
+      throw new BadRequestException('La alerta ya se encuentra cerrada');
     }
 
-    const resuelta =
-      await this.notificacionRepository.resolver(
-        id,
-        empresaId,
-        dto.accionCorrectiva,
-        usuarioId,
-      );
+    const resuelta = await this.notificacionRepository.resolver(
+      id,
+      empresaId,
+      dto.accionCorrectiva,
+      usuarioId,
+    );
 
     if (!resuelta) {
-      throw new NotFoundException(
-        `Alerta ${id} no encontrada`,
-      );
+      throw new NotFoundException(`Alerta ${id} no encontrada`);
     }
 
     return NotificacionMapper.toResponse(resuelta);
@@ -574,17 +522,12 @@ export class NotificacionesService {
     empresaId: number,
     query: HistorialAlertasQueryDto,
   ): Promise<NotificacionPaginadaResponseDto> {
-    const [alertas, total] =
-      await this.notificacionRepository.findHistorial(
-        empresaId,
-        query,
-      );
-
-    return NotificacionMapper.toPaginatedResponse(
-      alertas,
-      total,
+    const [alertas, total] = await this.notificacionRepository.findHistorial(
+      empresaId,
       query,
     );
+
+    return NotificacionMapper.toPaginatedResponse(alertas, total, query);
   }
 
   /**
@@ -595,57 +538,37 @@ export class NotificacionesService {
     empresaId: number,
     query: HistorialAlertasQueryDto,
   ): Promise<Buffer> {
-    const alertas =
-      await this.notificacionRepository.findHistorialCompleto(
-        empresaId,
-        query,
-      );
+    const alertas = await this.notificacionRepository.findHistorialCompleto(
+      empresaId,
+      query,
+    );
 
-    const escaparCsv = (
-      valor: unknown,
-    ): string => {
-      if (
-        valor === null ||
-        valor === undefined
-      ) {
+    const escaparCsv = (valor: unknown): string => {
+      if (valor === null || valor === undefined) {
         return '';
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
       const texto = String(valor);
 
-      return `"${texto.replace(
-        /"/g,
-        '""',
-      )}"`;
+      return `"${texto.replace(/"/g, '""')}"`;
     };
 
     const filas: string[] = [];
 
     filas.push(
-      [
-        'Fecha',
-        'Lote',
-        'Parámetro',
-        'Nivel',
-        'Estado',
-        'Acción correctiva',
-      ]
+      ['Fecha', 'Lote', 'Parámetro', 'Nivel', 'Estado', 'Acción correctiva']
         .map(escaparCsv)
         .join(';'),
     );
 
     for (const alerta of alertas) {
       const lote =
-        alerta.lote?.codigo ??
-        alerta.data?.loteCodigo ??
-        alerta.loteId ??
-        '';
+        alerta.lote?.codigo ?? alerta.data?.loteCodigo ?? alerta.loteId ?? '';
 
       filas.push(
         [
-          this.formatearFecha(
-            alerta.createdAt,
-          ),
+          this.formatearFecha(alerta.createdAt),
           lote,
           alerta.parametro ?? '',
           alerta.nivelAlerta ?? '',
@@ -657,14 +580,9 @@ export class NotificacionesService {
       );
     }
 
-    const contenido =
-      '\uFEFF' +
-      filas.join('\r\n');
+    const contenido = '\uFEFF' + filas.join('\r\n');
 
-    return Buffer.from(
-      contenido,
-      'utf8',
-    );
+    return Buffer.from(contenido, 'utf8');
   }
 
   /**
@@ -675,267 +593,183 @@ export class NotificacionesService {
     empresaId: number,
     query: HistorialAlertasQueryDto,
   ): Promise<Buffer> {
-    const alertas =
-      await this.notificacionRepository.findHistorialCompleto(
-        empresaId,
-        query,
-      );
+    const alertas = await this.notificacionRepository.findHistorialCompleto(
+      empresaId,
+      query,
+    );
 
-    return new Promise<Buffer>(
-      (resolve, reject) => {
-        const doc =
-          new PDFDocument({
-            size: 'A4',
-            layout: 'landscape',
-            margin: 30,
+    return new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({
+        size: 'A4',
+        layout: 'landscape',
+        margin: 30,
+      });
+
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+
+      doc.on('end', () => {
+        resolve(Buffer.concat(chunks));
+      });
+
+      doc.on('error', reject);
+
+      doc.fontSize(18).font('Helvetica-Bold').text('Historial de alertas', {
+        align: 'center',
+      });
+
+      doc.moveDown();
+
+      doc
+        .fontSize(9)
+        .font('Helvetica')
+        .text(`Fecha de generación: ${new Date().toLocaleString('es-AR')}`, {
+          align: 'right',
+        });
+
+      doc.moveDown();
+
+      const startX = 30;
+
+      const columns = [
+        {
+          title: 'Fecha',
+          x: startX,
+          width: 95,
+        },
+        {
+          title: 'Lote',
+          x: startX + 95,
+          width: 85,
+        },
+        {
+          title: 'Parámetro',
+          x: startX + 180,
+          width: 95,
+        },
+        {
+          title: 'Nivel',
+          x: startX + 275,
+          width: 75,
+        },
+        {
+          title: 'Estado',
+          x: startX + 350,
+          width: 75,
+        },
+        {
+          title: 'Acción correctiva',
+          x: startX + 425,
+          width: 360,
+        },
+      ];
+
+      const drawHeader = () => {
+        const y = doc.y;
+
+        doc.fontSize(9).font('Helvetica-Bold');
+
+        for (const column of columns) {
+          doc.text(column.title, column.x, y, {
+            width: column.width,
+            align: 'left',
           });
-
-        const chunks: Buffer[] = [];
-
-        doc.on(
-          'data',
-          (chunk: Buffer) => {
-            chunks.push(chunk);
-          },
-        );
-
-        doc.on(
-          'end',
-          () => {
-            resolve(
-              Buffer.concat(chunks),
-            );
-          },
-        );
-
-        doc.on(
-          'error',
-          reject,
-        );
-
-        doc
-          .fontSize(18)
-          .font('Helvetica-Bold')
-          .text(
-            'Historial de alertas',
-            {
-              align: 'center',
-            },
-          );
+        }
 
         doc.moveDown();
 
         doc
-          .fontSize(9)
-          .font('Helvetica')
-          .text(
-            `Fecha de generación: ${new Date().toLocaleString(
-              'es-AR',
-            )}`,
-            {
-              align: 'right',
-            },
-          );
+          .moveTo(startX, doc.y)
+          .lineTo(startX + 785, doc.y)
+          .stroke();
 
-        doc.moveDown();
+        doc.moveDown(0.5);
+      };
 
-        const startX = 30;
+      const drawRow = (
+        fecha: string,
+        lote: string,
+        parametro: string,
+        nivel: string,
+        estado: string,
+        accionCorrectiva: string,
+      ) => {
+        const y = doc.y;
 
-        const columns = [
-          {
-            title: 'Fecha',
-            x: startX,
-            width: 95,
-          },
-          {
-            title: 'Lote',
-            x: startX + 95,
-            width: 85,
-          },
-          {
-            title: 'Parámetro',
-            x: startX + 180,
-            width: 95,
-          },
-          {
-            title: 'Nivel',
-            x: startX + 275,
-            width: 75,
-          },
-          {
-            title: 'Estado',
-            x: startX + 350,
-            width: 75,
-          },
-          {
-            title: 'Acción correctiva',
-            x: startX + 425,
-            width: 360,
-          },
+        doc.fontSize(8).font('Helvetica');
+
+        const values = [
+          fecha,
+          lote,
+          parametro,
+          nivel,
+          estado,
+          accionCorrectiva,
         ];
 
-        const drawHeader = () => {
-          const y = doc.y;
+        let maxHeight = 0;
 
-          doc
-            .fontSize(9)
-            .font('Helvetica-Bold');
+        columns.forEach((column, index) => {
+          const height = doc.heightOfString(values[index], {
+            width: column.width,
+          });
 
-          for (const column of columns) {
-            doc.text(
-              column.title,
-              column.x,
-              y,
-              {
-                width: column.width,
-                align: 'left',
-              },
-            );
-          }
+          maxHeight = Math.max(maxHeight, height);
 
-          doc.moveDown();
+          doc.text(values[index], column.x, y, {
+            width: column.width,
+            align: 'left',
+          });
+        });
 
-          doc
-            .moveTo(
-              startX,
-              doc.y,
-            )
-            .lineTo(
-              startX + 785,
-              doc.y,
-            )
-            .stroke();
+        doc.y = y + Math.max(maxHeight, 12) + 6;
+      };
 
-          doc.moveDown(0.5);
-        };
+      drawHeader();
 
-        const drawRow = (
-          fecha: string,
-          lote: string,
-          parametro: string,
-          nivel: string,
-          estado: string,
-          accionCorrectiva: string,
-        ) => {
-          const y = doc.y;
-
-          doc
-            .fontSize(8)
-            .font('Helvetica');
-
-          const values = [
-            fecha,
-            lote,
-            parametro,
-            nivel,
-            estado,
-            accionCorrectiva,
-          ];
-
-          let maxHeight = 0;
-
-          columns.forEach(
-            (column, index) => {
-              const height =
-                doc.heightOfString(
-                  values[index],
-                  {
-                    width:
-                      column.width,
-                  },
-                );
-
-              maxHeight =
-                Math.max(
-                  maxHeight,
-                  height,
-                );
-
-              doc.text(
-                values[index],
-                column.x,
-                y,
-                {
-                  width:
-                    column.width,
-                  align: 'left',
-                },
-              );
-            },
-          );
-
-          doc.y =
-            y +
-            Math.max(
-              maxHeight,
-              12,
-            ) +
-            6;
-        };
-
-        drawHeader();
-
-        for (const alerta of alertas) {
-          if (doc.y > 520) {
-            doc.addPage();
-            drawHeader();
-          }
-
-          const lote =
-            alerta.lote?.codigo ??
-            alerta.data?.loteCodigo ??
-            String(
-              alerta.loteId ?? '',
-            );
-
-          drawRow(
-            this.formatearFecha(
-              alerta.createdAt,
-            ),
-            String(lote),
-            String(
-              alerta.parametro ?? '',
-            ),
-            String(
-              alerta.nivelAlerta ?? '',
-            ),
-            String(
-              alerta.estado ?? '',
-            ),
-            String(
-              alerta.accionCorrectiva ??
-                '',
-            ),
-          );
+      for (const alerta of alertas) {
+        if (doc.y > 520) {
+          doc.addPage();
+          drawHeader();
         }
 
-        if (alertas.length === 0) {
-          doc
-            .fontSize(10)
-            .font('Helvetica')
-            .text(
-              'No se encontraron alertas para los filtros seleccionados.',
-              {
-                align: 'center',
-              },
-            );
-        }
+        const lote =
+          alerta.lote?.codigo ??
+          alerta.data?.loteCodigo ??
+          String(alerta.loteId ?? '');
 
-        doc.end();
-      },
-    );
+        drawRow(
+          this.formatearFecha(alerta.createdAt),
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          String(lote),
+          String(alerta.parametro ?? ''),
+          String(alerta.nivelAlerta ?? ''),
+          String(alerta.estado ?? ''),
+          String(alerta.accionCorrectiva ?? ''),
+        );
+      }
+
+      if (alertas.length === 0) {
+        doc
+          .fontSize(10)
+          .font('Helvetica')
+          .text('No se encontraron alertas para los filtros seleccionados.', {
+            align: 'center',
+          });
+      }
+
+      doc.end();
+    });
   }
 
-  private formatearFecha(
-    fecha: Date,
-  ): string {
-    return new Intl.DateTimeFormat(
-      'es-AR',
-      {
-        dateStyle: 'short',
-        timeStyle: 'medium',
-      },
-    ).format(fecha);
+  private formatearFecha(fecha: Date): string {
+    return new Intl.DateTimeFormat('es-AR', {
+      dateStyle: 'short',
+      timeStyle: 'medium',
+    }).format(fecha);
   }
 
   /**
@@ -951,8 +785,13 @@ export class NotificacionesService {
     ultimaLectura: Date | null;
     minutosSinDatos: number;
   }): Promise<NotificacionResponseDto[]> {
-    const { empresaId, sensorId, sensorNombre, ultimaLectura, minutosSinDatos } =
-      params;
+    const {
+      empresaId,
+      sensorId,
+      sensorNombre,
+      ultimaLectura,
+      minutosSinDatos,
+    } = params;
 
     const alertaAbiertaExistente =
       await this.notificacionRepository.findAlertaAbiertaPorSensor(
@@ -984,13 +823,16 @@ export class NotificacionesService {
 
     const notificaciones: NotificacionResponseDto[] = [];
 
-      // 👇 Log para ver qué usuarios devuelve
-    console.log('Responsables nivel crítica:', responsables.map(u => ({
-      id: u.id,
-      name: u.name,
-      rolId: u.rolId,
-      rolNombre: u.rol?.nombre,
-    })));
+    // 👇 Log para ver qué usuarios devuelve
+    console.log(
+      'Responsables nivel crítica:',
+      responsables.map((u) => ({
+        id: u.id,
+        name: u.name,
+        rolId: u.rolId,
+        rolNombre: u.rol?.nombre,
+      })),
+    );
 
     for (const usuario of responsables) {
       const entity = NotificacionMapper.toEntity({

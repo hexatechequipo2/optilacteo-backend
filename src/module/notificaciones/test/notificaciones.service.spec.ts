@@ -188,15 +188,11 @@ describe('NotificacionesService', () => {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
-        getMany: jest
-          .fn()
-          .mockResolvedValue([{ id: 10, idRol: 2 } as unknown as User]),
+        getMany: jest.fn().mockResolvedValue([{ id: 10, idRol: 2 }]),
       };
       mockUserRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
 
-      mockUserRepository.find.mockResolvedValue([
-        { id: 5 } as unknown as User,
-      ]);
+      mockUserRepository.find.mockResolvedValue([{ id: 5 }]);
 
       mockNotificacionRepository.create.mockImplementation((entity) =>
         Promise.resolve({ id: 1, ...entity }),
@@ -286,12 +282,14 @@ describe('NotificacionesService', () => {
   describe('crearConfiguracion', () => {
     it('debe lanzar BadRequestException si no se envía rolId ni usuarioId, o si se envían ambos', async () => {
       await expect(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         service.crearConfiguracion(1, {
           nivelAlerta: NivelAlerta.CRITICA,
         } as any),
       ).rejects.toThrow(BadRequestException);
 
       await expect(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         service.crearConfiguracion(1, {
           nivelAlerta: NivelAlerta.CRITICA,
           rolId: 1,
@@ -304,6 +302,7 @@ describe('NotificacionesService', () => {
       mockUserRepository.findOne.mockResolvedValue(null);
 
       await expect(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         service.crearConfiguracion(1, {
           nivelAlerta: NivelAlerta.CRITICA,
           usuarioId: 99,
@@ -312,7 +311,7 @@ describe('NotificacionesService', () => {
     });
 
     it('debe crear la configuración correctamente cuando los datos son válidos', async () => {
-      mockUserRepository.findOne.mockResolvedValue({ id: 5 } as User);
+      mockUserRepository.findOne.mockResolvedValue({ id: 5 });
       mockConfiguracionRepository.create.mockResolvedValue({
         id: 1,
         empresaId: 1,
@@ -323,7 +322,7 @@ describe('NotificacionesService', () => {
       const resultado = await service.crearConfiguracion(1, {
         nivelAlerta: NivelAlerta.CRITICA,
         usuarioId: 5,
-      } as any);
+      });
 
       expect(resultado).toBeDefined();
       expect(mockConfiguracionRepository.create).toHaveBeenCalledWith({
@@ -513,11 +512,7 @@ describe('NotificacionesService', () => {
 
       expect(
         mockNotificacionRepository.cerrarAlertasAbiertasPorSensor,
-      ).toHaveBeenCalledWith(
-        1,
-        5,
-        TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
-      );
+      ).toHaveBeenCalledWith(1, 5, TipoNotificacion.ALERTA_SENSOR_DESCONECTADO);
     });
   });
 });

@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { IngresoCamaraService } from '../ingreso-camara.service';
 import { INGRESO_CAMARA_REPOSITORY } from '../repository/ingreso-camara-repository.interface';
 import { SKU_REPOSITORY } from '../repository/sku-repository.interface';
@@ -105,16 +102,13 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
 
       mockIngresoCamaraRepository.create.mockReturnValue(ingresoCreado);
 
-      mockIngresoCamaraRepository.save.mockResolvedValue(
-        ingresoGuardado,
-      );
+      mockIngresoCamaraRepository.save.mockResolvedValue(ingresoGuardado);
 
-      mockIngresoCamaraRepository.findById.mockResolvedValue(
-        ingresoCompleto,
-      );
+      mockIngresoCamaraRepository.findById.mockResolvedValue(ingresoCompleto);
 
       const mapperSpy = jest
         .spyOn(IngresoCamaraMapper, 'toResponseDto')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(ingresoCompleto as any);
 
       const result = await service.create(dto, tenant);
@@ -162,9 +156,9 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
         fechaIngreso: '2026-08-20T10:00:00.000Z',
       } as CreateIngresoCamaraDto;
 
-      await expect(
-        service.create(dto, tenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.create(dto, tenant)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(mockSkuRepository.findById).not.toHaveBeenCalled();
       expect(mockIngresoCamaraRepository.create).not.toHaveBeenCalled();
@@ -184,9 +178,9 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
 
       mockSkuRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.create(dto, tenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.create(dto, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(mockSkuRepository.findById).toHaveBeenCalledWith(
         dto.skuId,
@@ -213,9 +207,9 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
         activo: false,
       });
 
-      await expect(
-        service.create(dto, tenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.create(dto, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(mockIngresoCamaraRepository.create).not.toHaveBeenCalled();
       expect(mockIngresoCamaraRepository.save).not.toHaveBeenCalled();
@@ -240,9 +234,9 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
 
       mockLoteRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.create(dto, tenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.create(dto, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(mockLoteRepository.findById).toHaveBeenCalledWith(
         dto.loteId,
@@ -282,17 +276,11 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
         activo: true,
       });
 
-      mockIngresoCamaraRepository.create.mockReturnValue(
-        ingresoCreado,
-      );
+      mockIngresoCamaraRepository.create.mockReturnValue(ingresoCreado);
 
-      mockIngresoCamaraRepository.save.mockResolvedValue(
-        ingresoGuardado,
-      );
+      mockIngresoCamaraRepository.save.mockResolvedValue(ingresoGuardado);
 
-      mockIngresoCamaraRepository.findById.mockResolvedValue(
-        ingresoGuardado,
-      );
+      mockIngresoCamaraRepository.findById.mockResolvedValue(ingresoGuardado);
 
       const mapperSpy = jest
         .spyOn(IngresoCamaraMapper, 'toResponseDto')
@@ -344,13 +332,9 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
         activo: true,
       });
 
-      mockIngresoCamaraRepository.create.mockReturnValue(
-        ingresoCreado,
-      );
+      mockIngresoCamaraRepository.create.mockReturnValue(ingresoCreado);
 
-      mockIngresoCamaraRepository.save.mockResolvedValue(
-        ingresoGuardado,
-      );
+      mockIngresoCamaraRepository.save.mockResolvedValue(ingresoGuardado);
 
       mockIngresoCamaraRepository.findById.mockResolvedValue(null);
 
@@ -407,10 +391,7 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
         },
       ];
 
-      mockIngresoCamaraRepository.findAll.mockResolvedValue([
-        ingresos,
-        total,
-      ]);
+      mockIngresoCamaraRepository.findAll.mockResolvedValue([ingresos, total]);
 
       const mapperSpy = jest
         .spyOn(IngresoCamaraMapper, 'toResponseDtoList')
@@ -442,10 +423,7 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
 
       const query = {} as IngresoCamaraFilterQueryDto;
 
-      mockIngresoCamaraRepository.findAll.mockResolvedValue([
-        [],
-        0,
-      ]);
+      mockIngresoCamaraRepository.findAll.mockResolvedValue([[], 0]);
 
       const mapperSpy = jest
         .spyOn(IngresoCamaraMapper, 'toResponseDtoList')
@@ -471,9 +449,9 @@ describe('IngresoCamaraService — gestión de ingresos a cámara', () => {
         limit: 20,
       } as IngresoCamaraFilterQueryDto;
 
-      await expect(
-        service.findAll(query, tenant),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.findAll(query, tenant)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(mockIngresoCamaraRepository.findAll).not.toHaveBeenCalled();
     });

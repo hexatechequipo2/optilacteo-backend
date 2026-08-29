@@ -14,6 +14,7 @@ function buildRol(overrides: Partial<Rol> = {}): Rol {
     nombre: 'GERENTE',
     isActive: true,
     permisos: [],
+    users: [],
     ...overrides,
   };
 }

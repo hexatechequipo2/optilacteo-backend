@@ -27,7 +27,10 @@ export class LoteConsumoMapper {
     getCodigo: (loteProduccion: LoteProduccion) => string = (lp) => lp.codigo,
   ): LoteConsumoResponseDto[] {
     return consumos.map((c) =>
-      this.toResponseDto(c, c.loteProduccion ? getCodigo(c.loteProduccion) : ''),
+      this.toResponseDto(
+        c,
+        c.loteProduccion ? getCodigo(c.loteProduccion) : '',
+      ),
     );
   }
 }

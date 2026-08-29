@@ -81,7 +81,7 @@ export class LoteController {
     return this.loteService.findNoAptos(tenant);
   }
 
-    // HU-68: selector de lotes de producción existentes para el frontend.
+  // HU-68: selector de lotes de producción existentes para el frontend.
   @Get('producciones')
   @Roles(
     ROLES.RESPONSABLE_CALIDAD,
@@ -248,8 +248,14 @@ export class LoteController {
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const usuarioId = req.user.sub;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    return this.loteConsumoService.registrarConsumo(+id, dto, usuarioId, tenant);
+
+    return this.loteConsumoService.registrarConsumo(
+      +id,
+      dto,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      usuarioId,
+      tenant,
+    );
   }
 
   // HU-68 (criterios 2 y 4): historial de consumos parciales de un lote de ingreso.

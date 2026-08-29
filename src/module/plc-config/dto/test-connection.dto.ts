@@ -7,7 +7,11 @@ export class TestConnectionDto {
     example: 'http://192.168.1.50:8080/api/lecturas',
   })
   @IsUrl(
-    { require_tld: false, require_protocol: true, protocols: ['http', 'https'] },
+    {
+      require_tld: false,
+      require_protocol: true,
+      protocols: ['http', 'https'],
+    },
     { message: 'La URL del PLC no tiene un formato válido' },
   )
   url!: string;

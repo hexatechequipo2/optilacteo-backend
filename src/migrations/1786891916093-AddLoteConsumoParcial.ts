@@ -1,20 +1,20 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddLoteConsumoParcial1786891916093 implements MigrationInterface {
-    name = 'AddLoteConsumoParcial1786891916093'
+  name = 'AddLoteConsumoParcial1786891916093';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // --- lotes: cantidad total y saldo remanente ---
-        // Nullable a propósito: lotes existentes (pre-HU-68) no tienen cantidad
-        // cargada. El service valida esto antes de permitir un consumo.
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // --- lotes: cantidad total y saldo remanente ---
+    // Nullable a propósito: lotes existentes (pre-HU-68) no tienen cantidad
+    // cargada. El service valida esto antes de permitir un consumo.
+    await queryRunner.query(`
             ALTER TABLE "lotes"
             ADD COLUMN "cantidad" numeric(10,2) NULL,
             ADD COLUMN "cantidadDisponible" numeric(10,2) NULL
         `);
 
-        // --- lote_produccion ---
-        await queryRunner.query(`
+    // --- lote_produccion ---
+    await queryRunner.query(`
             CREATE TABLE "lote_produccion" (
                 "id" SERIAL PRIMARY KEY,
                 "empresaId" integer NOT NULL,
@@ -26,8 +26,8 @@ export class AddLoteConsumoParcial1786891916093 implements MigrationInterface {
             )
         `);
 
-        // --- lote_consumo (append-only) ---
-        await queryRunner.query(`
+    // --- lote_consumo (append-only) ---
+    await queryRunner.query(`
             CREATE TABLE "lote_consumo" (
                 "id" SERIAL PRIMARY KEY,
                 "loteIngresoId" integer NOT NULL,
@@ -46,12 +46,12 @@ export class AddLoteConsumoParcial1786891916093 implements MigrationInterface {
                     REFERENCES "users"("id") ON DELETE RESTRICT
             )
         `);
-        await queryRunner.query(`
+    await queryRunner.query(`
             CREATE INDEX "IDX_lote_consumo_lote_ingreso" ON "lote_consumo" ("loteIngresoId")
         `);
 
-        // --- lote_consumo_parametro (parámetros de calidad del remanente) ---
-        await queryRunner.query(`
+    // --- lote_consumo_parametro (parámetros de calidad del remanente) ---
+    await queryRunner.query(`
             CREATE TABLE "lote_consumo_parametro" (
                 "id" SERIAL PRIMARY KEY,
                 "loteConsumoId" integer NOT NULL,
@@ -61,17 +61,17 @@ export class AddLoteConsumoParcial1786891916093 implements MigrationInterface {
                     REFERENCES "lote_consumo"("id") ON DELETE CASCADE
             )
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE "lote_consumo_parametro"`);
-        await queryRunner.query(`DROP INDEX "IDX_lote_consumo_lote_ingreso"`);
-        await queryRunner.query(`DROP TABLE "lote_consumo"`);
-        await queryRunner.query(`DROP TABLE "lote_produccion"`);
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE "lote_consumo_parametro"`);
+    await queryRunner.query(`DROP INDEX "IDX_lote_consumo_lote_ingreso"`);
+    await queryRunner.query(`DROP TABLE "lote_consumo"`);
+    await queryRunner.query(`DROP TABLE "lote_produccion"`);
+    await queryRunner.query(`
             ALTER TABLE "lotes"
             DROP COLUMN "cantidadDisponible",
             DROP COLUMN "cantidad"
         `);
-    }
+  }
 }

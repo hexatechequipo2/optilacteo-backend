@@ -12,7 +12,9 @@ export class ConfiguracionAlertaDesconexionService {
     private readonly repository: IConfiguracionAlertaDesconexionRepository,
   ) {}
 
-  async obtenerOCrear(empresaId: number): Promise<ConfiguracionAlertaDesconexion> {
+  async obtenerOCrear(
+    empresaId: number,
+  ): Promise<ConfiguracionAlertaDesconexion> {
     const existente = await this.repository.findByEmpresa(empresaId);
     if (existente) return existente;
 
