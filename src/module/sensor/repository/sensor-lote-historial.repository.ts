@@ -83,8 +83,10 @@ export class SensorLoteHistorialRepository implements ISensorLoteHistorialReposi
     empresaId: number,
   ): Promise<number[]> {
     // Última fila de cada sensor (DISTINCT ON), filtrando las que apuntan a este lote.
-    // eslint-disable-next-line prettier/prettier
-    const raw = await this.repo.manager.query<{ sensorId: number; loteIdNuevo: number }[]>(
+
+    const raw = await this.repo.manager.query<
+      { sensorId: number; loteIdNuevo: number }[]
+    >(
       `
   SELECT DISTINCT ON ("sensorId") "sensorId", "loteIdNuevo"
   FROM sensor_lote_historial

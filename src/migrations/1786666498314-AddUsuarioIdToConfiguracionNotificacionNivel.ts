@@ -1,9 +1,9 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddUsuarioIdToConfiguracionNotificacionNivel1786666498314 implements MigrationInterface {
-    name = 'AddUsuarioIdToConfiguracionNotificacionNivel1786666498314'
+  name = 'AddUsuarioIdToConfiguracionNotificacionNivel1786666498314';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
+  public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE configuracion_notificacion_nivel
         ALTER COLUMN "rolId" DROP NOT NULL

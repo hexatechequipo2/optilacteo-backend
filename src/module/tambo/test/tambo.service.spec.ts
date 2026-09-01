@@ -11,6 +11,12 @@ import { TenantContext } from '../../../common/types/tenant-context.type';
 import { CreateTamboDto } from '../dto/create-tambo.dto';
 import { UpdateTamboDto } from '../dto/update-tambo.dto';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('TamboService', () => {
   let service: TamboService;
   let tamboRepository: any;
@@ -54,7 +60,9 @@ describe('TamboService', () => {
 
   describe('resolveEmpresaId', () => {
     it('debe lanzar BadRequestException si el tenant no contiene empresaId', async () => {
-      const invalidTenant = { empresaId: undefined } as unknown as TenantContext;
+      const invalidTenant = {
+        empresaId: undefined,
+      } as unknown as TenantContext;
 
       await expect(service.findAll(invalidTenant)).rejects.toThrow(
         BadRequestException,
@@ -182,7 +190,12 @@ describe('TamboService', () => {
     const dto: UpdateTamboDto = { nombre: 'Nombre Editado' };
 
     it('debe actualizar los campos enviados', async () => {
-      const tambo = { id: 1, nombre: 'Viejo Nombre', ubicacion: 'Ruta 1', empresaId: 10 };
+      const tambo = {
+        id: 1,
+        nombre: 'Viejo Nombre',
+        ubicacion: 'Ruta 1',
+        empresaId: 10,
+      };
       tamboRepository.findById.mockResolvedValue(tambo);
       tamboRepository.save.mockImplementation((e) => Promise.resolve(e));
 

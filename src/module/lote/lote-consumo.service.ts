@@ -45,7 +45,10 @@ export class LoteConsumoService {
       throw new NotFoundException(`Lote ${loteIngresoId} no encontrado`);
     }
 
-    if (lote.estado === EstadoLote.FINALIZADO || lote.estado === EstadoLote.RECHAZADO) {
+    if (
+      lote.estado === EstadoLote.FINALIZADO ||
+      lote.estado === EstadoLote.RECHAZADO
+    ) {
       throw new BadRequestException(
         `El lote ${loteIngresoId} está en estado ${lote.estado} y no admite nuevos consumos`,
       );

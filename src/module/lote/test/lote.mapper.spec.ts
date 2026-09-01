@@ -1,6 +1,8 @@
 import { LoteMapper } from '../mappers/lote.mapper';
 import { Lote } from '../entities/lote.entity';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 describe('LoteMapper', () => {
   afterEach(() => jest.clearAllMocks());
 
@@ -24,7 +26,11 @@ describe('LoteMapper', () => {
         cantidadDisponible: '800' as any,
         cantidadComprometidaKg: '200' as any,
         parametros: [
-          { parametro: 'Temperatura', valor: '4.5' as any, valorComprometido: '5.0' as any },
+          {
+            parametro: 'Temperatura',
+            valor: '4.5' as any,
+            valorComprometido: '5.0' as any,
+          },
         ],
         createdAt: new Date('2026-08-20'),
       } as unknown as Lote;
@@ -117,7 +123,11 @@ describe('LoteMapper', () => {
         id: 'lote-desvio-3',
         parametros: [
           { parametro: 'PH', valorComprometido: null, valor: '6.6' as any },
-          { parametro: 'Grasa', valorComprometido: '3.0' as any, valor: '3.0' as any },
+          {
+            parametro: 'Grasa',
+            valorComprometido: '3.0' as any,
+            valor: '3.0' as any,
+          },
         ],
       } as unknown as Lote;
 

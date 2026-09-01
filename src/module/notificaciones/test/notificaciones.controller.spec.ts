@@ -11,6 +11,9 @@ import { HistorialAlertasQueryDto } from '../dto/historial-alertas-query.dto';
 import { ResolverAlertaDto } from '../dto/resolver-alerta.dto';
 import { ActualizarConfiguracionAlertaDesconexionDto } from '../dto/actualizar-configuracion-alerta-desconexion.dto';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('NotificacionesController', () => {
   let controller: NotificacionesController;
   let mockNotificacionesService: Record<string, jest.Mock>;
@@ -68,7 +71,11 @@ describe('NotificacionesController', () => {
       const queryDto: NotificacionFilterQueryDto = { page: 1, limit: 10 };
       mockNotificacionesService.listarPorUsuario.mockResolvedValue([]);
 
-      const resultado = await controller.findMine(queryDto, mockTenantContext, mockReq);
+      const resultado = await controller.findMine(
+        queryDto,
+        mockTenantContext,
+        mockReq,
+      );
 
       expect(mockNotificacionesService.listarPorUsuario).toHaveBeenCalledWith(
         'user-uuid-1',
@@ -81,12 +88,22 @@ describe('NotificacionesController', () => {
 
   describe('marcarLeida', () => {
     it('debe parsear el id a entero y marcar la notificación como leída', async () => {
+      mockNotificacionesService.marcarLeida.mockResolvedValue({
+        id: 5,
+        leida: true,
+      });
 
-      mockNotificacionesService.marcarLeida.mockResolvedValue({ id: 5, leida: true });
+      const resultado = await controller.marcarLeida(
+        '5',
+        mockTenantContext,
+        mockReq,
+      );
 
-      const resultado = await controller.marcarLeida('5', mockTenantContext, mockReq);
-
-      expect(mockNotificacionesService.marcarLeida).toHaveBeenCalledWith(5, 'user-uuid-1', 1);
+      expect(mockNotificacionesService.marcarLeida).toHaveBeenCalledWith(
+        5,
+        'user-uuid-1',
+        1,
+      );
       expect(resultado).toEqual({ id: 5, leida: true });
     });
   });
@@ -95,9 +112,15 @@ describe('NotificacionesController', () => {
     it('debe delegar el conteo de notificaciones no leídas al servicio', async () => {
       mockNotificacionesService.contarNoLeidas.mockResolvedValue({ count: 3 });
 
-      const resultado = await controller.contarNoLeidas(mockTenantContext, mockReq);
+      const resultado = await controller.contarNoLeidas(
+        mockTenantContext,
+        mockReq,
+      );
 
-      expect(mockNotificacionesService.contarNoLeidas).toHaveBeenCalledWith('user-uuid-1', 1);
+      expect(mockNotificacionesService.contarNoLeidas).toHaveBeenCalledWith(
+        'user-uuid-1',
+        1,
+      );
       expect(resultado).toEqual({ count: 3 });
     });
   });
@@ -108,26 +131,44 @@ describe('NotificacionesController', () => {
 
       const resultado = await controller.listarConfiguracion(mockTenantContext);
 
-      expect(mockNotificacionesService.listarConfiguracion).toHaveBeenCalledWith(1);
+      expect(
+        mockNotificacionesService.listarConfiguracion,
+      ).toHaveBeenCalledWith(1);
       expect(resultado).toEqual([]);
     });
 
     it('debe delegar la creación de una configuración de notificación', async () => {
       const dto: CrearConfiguracionNotificacionDto = { canal: 'EMAIL' } as any;
-      mockNotificacionesService.crearConfiguracion.mockResolvedValue({ id: 1, ...dto });
+      mockNotificacionesService.crearConfiguracion.mockResolvedValue({
+        id: 1,
+        ...dto,
+      });
 
-      const resultado = await controller.crearConfiguracion(dto, mockTenantContext);
+      const resultado = await controller.crearConfiguracion(
+        dto,
+        mockTenantContext,
+      );
 
-      expect(mockNotificacionesService.crearConfiguracion).toHaveBeenCalledWith(1, dto);
+      expect(mockNotificacionesService.crearConfiguracion).toHaveBeenCalledWith(
+        1,
+        dto,
+      );
       expect(resultado).toEqual({ id: 1, ...dto });
     });
 
     it('debe eliminar la configuración parseando el ID numérico', async () => {
-      mockNotificacionesService.eliminarConfiguracion.mockResolvedValue({ success: true });
+      mockNotificacionesService.eliminarConfiguracion.mockResolvedValue({
+        success: true,
+      });
 
-      const resultado = await controller.eliminarConfiguracion('10', mockTenantContext);
+      const resultado = await controller.eliminarConfiguracion(
+        '10',
+        mockTenantContext,
+      );
 
-      expect(mockNotificacionesService.eliminarConfiguracion).toHaveBeenCalledWith(10, 1);
+      expect(
+        mockNotificacionesService.eliminarConfiguracion,
+      ).toHaveBeenCalledWith(10, 1);
       expect(resultado).toEqual({ success: true });
     });
   });
@@ -135,18 +176,28 @@ describe('NotificacionesController', () => {
   describe('Historial de Alertas (HU-27 + HU-28)', () => {
     it('obtenerHistorial: debe solicitar el historial con los filtros del DTO y el tenant', async () => {
       const query: HistorialAlertasQueryDto = { page: 1 };
-      mockNotificacionesService.obtenerHistorial.mockResolvedValue({ data: [] });
+      mockNotificacionesService.obtenerHistorial.mockResolvedValue({
+        data: [],
+      });
 
-      const resultado = await controller.obtenerHistorial(query, mockTenantContext);
+      const resultado = await controller.obtenerHistorial(
+        query,
+        mockTenantContext,
+      );
 
-      expect(mockNotificacionesService.obtenerHistorial).toHaveBeenCalledWith(1, query);
+      expect(mockNotificacionesService.obtenerHistorial).toHaveBeenCalledWith(
+        1,
+        query,
+      );
       expect(resultado).toEqual({ data: [] });
     });
 
     it('exportarHistorialCsv: debe configurar los headers HTTP correctos y escribir el buffer en la respuesta', async () => {
       const query: HistorialAlertasQueryDto = {};
       const mockBuffer = Buffer.from('id,alerta\n1,Test');
-      mockNotificacionesService.exportarHistorialCsv.mockResolvedValue(mockBuffer);
+      mockNotificacionesService.exportarHistorialCsv.mockResolvedValue(
+        mockBuffer,
+      );
 
       const mockRes = {
         setHeader: jest.fn(),
@@ -155,28 +206,44 @@ describe('NotificacionesController', () => {
 
       await controller.exportarHistorialCsv(query, mockTenantContext, mockRes);
 
-      expect(mockNotificacionesService.exportarHistorialCsv).toHaveBeenCalledWith(1, query);
-      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
+      expect(
+        mockNotificacionesService.exportarHistorialCsv,
+      ).toHaveBeenCalledWith(1, query);
+      expect(mockRes.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'text/csv; charset=utf-8',
+      );
       expect(mockRes.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
         'attachment; filename="historial-alertas.csv"',
       );
-      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Length', mockBuffer.length);
+      expect(mockRes.setHeader).toHaveBeenCalledWith(
+        'Content-Length',
+        mockBuffer.length,
+      );
       expect(mockRes.end).toHaveBeenCalledWith(mockBuffer);
     });
 
     it('exportarHistorialPdf: debe retornar un StreamableFile con los headers de PDF', async () => {
       const query: HistorialAlertasQueryDto = {};
       const mockBuffer = Buffer.from('PDF_DUMMY_CONTENT');
-      mockNotificacionesService.exportarHistorialPdf.mockResolvedValue(mockBuffer);
+      mockNotificacionesService.exportarHistorialPdf.mockResolvedValue(
+        mockBuffer,
+      );
 
       const mockRes = {
         set: jest.fn(),
       } as unknown as Response;
 
-      const resultado = await controller.exportarHistorialPdf(query, mockTenantContext, mockRes);
+      const resultado = await controller.exportarHistorialPdf(
+        query,
+        mockTenantContext,
+        mockRes,
+      );
 
-      expect(mockNotificacionesService.exportarHistorialPdf).toHaveBeenCalledWith(1, query);
+      expect(
+        mockNotificacionesService.exportarHistorialPdf,
+      ).toHaveBeenCalledWith(1, query);
       expect(mockRes.set).toHaveBeenCalledWith({
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename="historial-alertas.pdf"',
@@ -189,9 +256,17 @@ describe('NotificacionesController', () => {
   describe('resolverAlerta (HU-27)', () => {
     it('debe delegar la resolución de una alerta enviando ID numérico, usuario y DTO', async () => {
       const dto: ResolverAlertaDto = { comentario: 'Resuelto' } as any;
-      mockNotificacionesService.resolverAlerta.mockResolvedValue({ id: 3, resuelta: true });
+      mockNotificacionesService.resolverAlerta.mockResolvedValue({
+        id: 3,
+        resuelta: true,
+      });
 
-      const resultado = await controller.resolverAlerta('3', dto, mockTenantContext, mockReq);
+      const resultado = await controller.resolverAlerta(
+        '3',
+        dto,
+        mockTenantContext,
+        mockReq,
+      );
 
       expect(mockNotificacionesService.resolverAlerta).toHaveBeenCalledWith(
         3,
@@ -205,14 +280,17 @@ describe('NotificacionesController', () => {
 
   describe('Configuración de Alerta de Desconexión (HU-31)', () => {
     it('obtenerConfiguracionAlertaDesconexion: debe solicitar la configuración por empresa', async () => {
-      mockConfiguracionAlertaDesconexionService.obtenerOCrear.mockResolvedValue({
-        empresaId: 1,
-        umbralMinutos: 15,
-      });
-
-      const resultado = await controller.obtenerConfiguracionAlertaDesconexion(
-        mockTenantContext,
+      mockConfiguracionAlertaDesconexionService.obtenerOCrear.mockResolvedValue(
+        {
+          empresaId: 1,
+          umbralMinutos: 15,
+        },
       );
+
+      const resultado =
+        await controller.obtenerConfiguracionAlertaDesconexion(
+          mockTenantContext,
+        );
 
       expect(
         mockConfiguracionAlertaDesconexionService.obtenerOCrear,
@@ -221,16 +299,19 @@ describe('NotificacionesController', () => {
     });
 
     it('actualizarConfiguracionAlertaDesconexion: debe enviar los nuevos parámetros de umbral al servicio', async () => {
-      const dto: ActualizarConfiguracionAlertaDesconexionDto = { umbralMinutos: 25 };
+      const dto: ActualizarConfiguracionAlertaDesconexionDto = {
+        umbralMinutos: 25,
+      };
       mockConfiguracionAlertaDesconexionService.actualizar.mockResolvedValue({
         empresaId: 1,
         umbralMinutos: 25,
       });
 
-      const resultado = await controller.actualizarConfiguracionAlertaDesconexion(
-        dto,
-        mockTenantContext,
-      );
+      const resultado =
+        await controller.actualizarConfiguracionAlertaDesconexion(
+          dto,
+          mockTenantContext,
+        );
 
       expect(
         mockConfiguracionAlertaDesconexionService.actualizar,

@@ -29,7 +29,7 @@ import { MlModule } from './module/ml/ml.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ScheduleModule.forRoot(), 
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -48,7 +48,7 @@ import { MlModule } from './module/ml/ml.module';
     EmpresaModule,
     AuthModule,
     ProveedoresModule,
-    TamboModule, 
+    TamboModule,
     SystemConfigModule,
     RolModule,
     PermisoModule,
@@ -56,7 +56,7 @@ import { MlModule } from './module/ml/ml.module';
     ConfigParametroModule,
     LoteModule,
     SensorModule,
-    PlcConfigModule, 
+    PlcConfigModule,
     LecturaSensorModule,
     MedicionManualModule,
     NotificacionesModule,

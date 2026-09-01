@@ -7,6 +7,9 @@ import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import { CreateTamboDto } from '../dto/create-tambo.dto';
 import { UpdateTamboDto } from '../dto/update-tambo.dto';
 
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('TamboController', () => {
   let controller: TamboController;
   let service: jest.Mocked<TamboService>;

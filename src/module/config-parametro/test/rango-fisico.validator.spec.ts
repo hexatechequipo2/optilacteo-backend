@@ -7,7 +7,9 @@ describe('RangoFisicoValidator', () => {
 
   // Tomamos el primer parámetro definido en la constante real para probar dinamismo
   const parametroExistente = Object.keys(RANGOS_FISICOS)[0] || 'TEMPERATURA';
-  const rangoReal = RANGOS_FISICOS[parametroExistente as keyof typeof RANGOS_FISICOS] || {
+  const rangoReal = RANGOS_FISICOS[
+    parametroExistente as keyof typeof RANGOS_FISICOS
+  ] || {
     min: 0,
     max: 100,
   };
@@ -103,11 +105,13 @@ describe('RangoFisicoValidator', () => {
       const args: ValidationArguments = {
         object: { parametro: parametroExistente },
         property: 'valor',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         value: '50' as any,
         constraints: [],
         targetName: 'TestDto',
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       expect(validator.validate('50' as any, args)).toBe(false);
     });
   });

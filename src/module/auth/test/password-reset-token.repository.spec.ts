@@ -53,6 +53,7 @@ describe('PasswordResetTokenRepository', () => {
         used: false,
         created_at: new Date(),
         tenant_id: null,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         user: {} as any,
         ...tokenData,
       } as PasswordResetTokenEntity;
@@ -61,7 +62,9 @@ describe('PasswordResetTokenRepository', () => {
 
       const result = await repository.save(tokenData);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.save).toHaveBeenCalledWith(tokenData);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.save).toHaveBeenCalledTimes(1);
       expect(result).toEqual(savedEntity);
     });
@@ -81,7 +84,9 @@ describe('PasswordResetTokenRepository', () => {
 
       const result = await repository.findByToken(token);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.findOne).toHaveBeenCalledWith({ where: { token } });
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.findOne).toHaveBeenCalledTimes(1);
       expect(result).toEqual(entity);
     });
@@ -91,6 +96,7 @@ describe('PasswordResetTokenRepository', () => {
 
       const result = await repository.findByToken('token-inexistente');
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.findOne).toHaveBeenCalledWith({
         where: { token: 'token-inexistente' },
       });
@@ -101,11 +107,17 @@ describe('PasswordResetTokenRepository', () => {
   describe('markAsUsed', () => {
     it('debe llamar a repo.update con el id y flag used en true', async () => {
       const tokenId = 'entity-uuid-123';
-      mockTypeOrmRepository.update.mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
+      mockTypeOrmRepository.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
 
       await repository.markAsUsed(tokenId);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.update).toHaveBeenCalledWith(tokenId, { used: true });
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.update).toHaveBeenCalledTimes(1);
     });
   });
@@ -117,7 +129,9 @@ describe('PasswordResetTokenRepository', () => {
 
       await repository.deleteByUserId(userId);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.delete).toHaveBeenCalledWith({ userId });
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(typeOrmRepo.delete).toHaveBeenCalledTimes(1);
     });
   });

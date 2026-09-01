@@ -53,10 +53,7 @@ describe('SkuController — gestión de SKU', () => {
 
       const result = await controller.create(dto, tenant);
 
-      expect(mockSkuService.create).toHaveBeenCalledWith(
-        dto,
-        tenant,
-      );
+      expect(mockSkuService.create).toHaveBeenCalledWith(dto, tenant);
 
       expect(result).toEqual(expectedResult);
     });
@@ -107,11 +104,7 @@ describe('SkuController — gestión de SKU', () => {
 
       const result = await controller.update(id, dto, tenant);
 
-      expect(mockSkuService.update).toHaveBeenCalledWith(
-        5,
-        dto,
-        tenant,
-      );
+      expect(mockSkuService.update).toHaveBeenCalledWith(5, dto, tenant);
 
       expect(result).toEqual(expectedResult);
     });
@@ -134,10 +127,7 @@ describe('SkuController — gestión de SKU', () => {
 
       const result = await controller.deactivate(id, tenant);
 
-      expect(mockSkuService.deactivate).toHaveBeenCalledWith(
-        5,
-        tenant,
-      );
+      expect(mockSkuService.deactivate).toHaveBeenCalledWith(5, tenant);
 
       expect(result).toEqual(expectedResult);
     });
@@ -160,10 +150,7 @@ describe('SkuController — gestión de SKU', () => {
 
       const result = await controller.activate(id, tenant);
 
-      expect(mockSkuService.activate).toHaveBeenCalledWith(
-        5,
-        tenant,
-      );
+      expect(mockSkuService.activate).toHaveBeenCalledWith(5, tenant);
 
       expect(result).toEqual(expectedResult);
     });

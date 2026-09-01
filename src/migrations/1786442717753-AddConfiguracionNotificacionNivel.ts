@@ -1,10 +1,10 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddConfiguracionNotificacionNivel1786442717753 implements MigrationInterface {
-    name = 'AddConfiguracionNotificacionNivel1786442717753'
+  name = 'AddConfiguracionNotificacionNivel1786442717753';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
         CREATE TABLE "configuracion_notificacion_nivel" (
             "id" SERIAL PRIMARY KEY,
             "nivel_alerta" "public"."notificaciones_nivel_alerta_enum" NOT NULL,
@@ -17,14 +17,13 @@ export class AddConfiguracionNotificacionNivel1786442717753 implements Migration
         )
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
         CREATE INDEX "IDX_config_notif_empresa_nivel"
         ON "configuracion_notificacion_nivel" ("empresaId", "nivel_alerta")
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE "configuracion_notificacion_nivel"`);
-    }
-
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE "configuracion_notificacion_nivel"`);
+  }
 }

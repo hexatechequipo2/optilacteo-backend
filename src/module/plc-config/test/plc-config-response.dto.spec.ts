@@ -44,7 +44,9 @@ describe('PLC Config Response DTOs', () => {
 
       expect(dto).toBeInstanceOf(TestConnectionResponseDto);
       expect(dto.ok).toBe(true);
-      expect(dto.mensaje).toBe('Conexión exitosa. El PLC respondió correctamente.');
+      expect(dto.mensaje).toBe(
+        'Conexión exitosa. El PLC respondió correctamente.',
+      );
     });
 
     it('debe instanciar correctamente la clase cuando la conexión falla', () => {

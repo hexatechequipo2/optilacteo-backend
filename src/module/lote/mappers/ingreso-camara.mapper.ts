@@ -16,7 +16,9 @@ export class IngresoCamaraMapper {
     };
   }
 
-  static toResponseDtoList(ingresos: IngresoCamara[]): IngresoCamaraResponseDto[] {
+  static toResponseDtoList(
+    ingresos: IngresoCamara[],
+  ): IngresoCamaraResponseDto[] {
     return ingresos.map((i) => this.toResponseDto(i));
   }
 }

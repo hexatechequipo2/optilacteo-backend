@@ -5,9 +5,15 @@ import { ConfiguracionNotificacionRepository } from '../repository/configuracion
 import { ConfiguracionNotificacionNivel } from '../entities/configuracion-notificacion-nivel.entity';
 import { NivelAlerta } from '../enums/nivel-alerta.enum';
 
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('ConfiguracionNotificacionRepository', () => {
   let repository: ConfiguracionNotificacionRepository;
-  let typeOrmRepository: jest.Mocked<Repository<ConfiguracionNotificacionNivel>>;
+  let typeOrmRepository: jest.Mocked<
+    Repository<ConfiguracionNotificacionNivel>
+  >;
 
   const mockRepo = {
     find: jest.fn(),

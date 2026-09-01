@@ -70,11 +70,13 @@ describe('UmbralCoherenteValidator', () => {
       const args: ValidationArguments = {
         object: { umbralMin: 10 },
         property: 'umbralMax',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         value: '20' as any,
         constraints: [],
         targetName: 'TestDto',
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       expect(validator.validate('20' as any, args)).toBe(true);
     });
   });

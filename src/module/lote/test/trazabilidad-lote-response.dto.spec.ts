@@ -11,9 +11,7 @@ describe('EventoTrazabilidadDto', () => {
 
     const dto = new EventoTrazabilidadDto();
 
-    dto.tipo = Object.values(
-      TipoEventoTrazabilidad,
-    )[0] as TipoEventoTrazabilidad;
+    dto.tipo = Object.values(TipoEventoTrazabilidad)[0];
 
     dto.fecha = fecha;
     dto.descripcion = 'Ingreso de materia prima';
@@ -36,9 +34,7 @@ describe('EventoTrazabilidadDto', () => {
   it('debería permitir distintos tipos de información dentro de detalle', () => {
     const dto = new EventoTrazabilidadDto();
 
-    dto.tipo = Object.values(
-      TipoEventoTrazabilidad,
-    )[0] as TipoEventoTrazabilidad;
+    dto.tipo = Object.values(TipoEventoTrazabilidad)[0];
 
     dto.fecha = new Date();
     dto.descripcion = 'Evento de prueba';
@@ -71,9 +67,7 @@ describe('TrazabilidadLoteResponseDto', () => {
   it('debería permitir construir correctamente la respuesta de trazabilidad de un lote', () => {
     const evento = new EventoTrazabilidadDto();
 
-    evento.tipo = Object.values(
-      TipoEventoTrazabilidad,
-    )[0] as TipoEventoTrazabilidad;
+    evento.tipo = Object.values(TipoEventoTrazabilidad)[0];
 
     evento.fecha = new Date('2026-08-20T10:00:00');
     evento.descripcion = 'Ingreso de materia prima';
@@ -109,9 +103,7 @@ describe('TrazabilidadLoteResponseDto', () => {
   it('debería permitir una trazabilidad con múltiples eventos', () => {
     const eventoRecepcion = new EventoTrazabilidadDto();
 
-    eventoRecepcion.tipo = Object.values(
-      TipoEventoTrazabilidad,
-    )[0] as TipoEventoTrazabilidad;
+    eventoRecepcion.tipo = Object.values(TipoEventoTrazabilidad)[0];
 
     eventoRecepcion.fecha = new Date('2026-08-20T08:00:00');
     eventoRecepcion.descripcion = 'Recepción del lote';
@@ -121,9 +113,7 @@ describe('TrazabilidadLoteResponseDto', () => {
 
     const eventoConsumo = new EventoTrazabilidadDto();
 
-    eventoConsumo.tipo = Object.values(
-      TipoEventoTrazabilidad,
-    )[1] as TipoEventoTrazabilidad;
+    eventoConsumo.tipo = Object.values(TipoEventoTrazabilidad)[1];
 
     eventoConsumo.fecha = new Date('2026-08-20T12:00:00');
     eventoConsumo.descripcion = 'Consumo parcial';

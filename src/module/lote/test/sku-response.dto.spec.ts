@@ -10,7 +10,7 @@ describe('SkuResponseDto', () => {
     dto.id = 1;
     dto.empresaId = 10;
     dto.nombre = 'Leche Entera 1L';
-    dto.unidadMedida = Object.values(UnidadMedidaSku)[0] as UnidadMedidaSku;
+    dto.unidadMedida = Object.values(UnidadMedidaSku)[0];
     dto.activo = true;
     dto.createdAt = createdAt;
 
@@ -30,7 +30,7 @@ describe('SkuResponseDto', () => {
     dto.id = 2;
     dto.empresaId = 10;
     dto.nombre = 'Yogur Natural';
-    dto.unidadMedida = Object.values(UnidadMedidaSku)[0] as UnidadMedidaSku;
+    dto.unidadMedida = Object.values(UnidadMedidaSku)[0];
     dto.activo = false;
     dto.createdAt = new Date();
 

@@ -9,9 +9,7 @@ export class ConfiguracionNotificacionMapper {
       id: config.id,
       nivelAlerta: config.nivelAlerta,
       rolId: config.rolId ?? null,
-      rol: config.rol
-        ? { id: config.rol.id, nombre: config.rol.nombre }
-        : null,
+      rol: config.rol ? { id: config.rol.id, nombre: config.rol.nombre } : null,
       usuarioId: config.usuarioId ?? null,
       usuario: config.usuario
         ? {

@@ -10,13 +10,17 @@ export class CrearConfiguracionNotificacionDto {
   @IsEnum(NivelAlerta)
   nivelAlerta!: NivelAlerta;
 
-  @ApiPropertyOptional({ description: 'Asignar por rol (excluyente con usuarioId)' })
+  @ApiPropertyOptional({
+    description: 'Asignar por rol (excluyente con usuarioId)',
+  })
   @IsOptional()
   @IsInt()
   @IsPositive()
   rolId?: number;
 
-  @ApiPropertyOptional({ description: 'Asignar a un usuario puntual (excluyente con rolId)' })
+  @ApiPropertyOptional({
+    description: 'Asignar a un usuario puntual (excluyente con rolId)',
+  })
   @IsOptional()
   @IsInt()
   @IsPositive()

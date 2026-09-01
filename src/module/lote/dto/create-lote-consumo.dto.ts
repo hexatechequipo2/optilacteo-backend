@@ -20,7 +20,10 @@ export class CreateLoteConsumoDto {
   @IsInt()
   loteProduccionId?: number;
 
-  @ApiProperty({ example: 15.5, description: 'Cantidad a consumir del remanente del lote de ingreso' })
+  @ApiProperty({
+    example: 15.5,
+    description: 'Cantidad a consumir del remanente del lote de ingreso',
+  })
   @IsNumber()
   @IsPositive()
   cantidad!: number;

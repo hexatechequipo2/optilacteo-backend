@@ -59,7 +59,9 @@ describe('PasswordResetController', () => {
 
       const result = await controller.requestReset(dto);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(service.requestReset).toHaveBeenCalledWith(dto);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(service.requestReset).toHaveBeenCalledTimes(1);
       expect(result).toEqual(expectedResponse);
     });
@@ -92,11 +94,15 @@ describe('PasswordResetController', () => {
           'Tu contraseña fue restablecida correctamente. Ya podés iniciar sesión.',
       };
 
-      mockPasswordResetService.resetPassword.mockResolvedValue(expectedResponse);
+      mockPasswordResetService.resetPassword.mockResolvedValue(
+        expectedResponse,
+      );
 
       const result = await controller.resetPassword(dto);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(service.resetPassword).toHaveBeenCalledWith(dto);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(service.resetPassword).toHaveBeenCalledTimes(1);
       expect(result).toEqual(expectedResponse);
     });

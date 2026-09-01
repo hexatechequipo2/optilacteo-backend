@@ -53,7 +53,9 @@ describe('ConfiguracionAlertaDesconexionService', () => {
     it('cuando no existe configuración para la empresa, debe crear una nueva con el umbral por defecto (15 min) y guardarla', async () => {
       const empresaId = 1;
       mockRepository.findByEmpresa.mockResolvedValue(null);
-      mockRepository.save.mockImplementation((entity) => Promise.resolve({ id: 1, ...entity }));
+      mockRepository.save.mockImplementation((entity) =>
+        Promise.resolve({ id: 1, ...entity }),
+      );
 
       const resultado = await service.obtenerOCrear(empresaId);
 
@@ -78,7 +80,9 @@ describe('ConfiguracionAlertaDesconexionService', () => {
       configExistente.umbralMinutos = 15;
 
       mockRepository.findByEmpresa.mockResolvedValue(configExistente);
-      mockRepository.save.mockImplementation((config) => Promise.resolve(config));
+      mockRepository.save.mockImplementation((config) =>
+        Promise.resolve(config),
+      );
 
       const resultado = await service.actualizar(empresaId, nuevoUmbral);
 

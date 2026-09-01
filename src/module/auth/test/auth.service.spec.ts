@@ -298,7 +298,9 @@ describe('AuthService', () => {
 
       // Act & Assert
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
-      await expect(service.login(dto)).rejects.toThrow('Credenciales incorrectas');
+      await expect(service.login(dto)).rejects.toThrow(
+        'Credenciales incorrectas',
+      );
     });
   });
 
@@ -400,7 +402,9 @@ describe('AuthService', () => {
 
         // Act & Assert
         await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
-        await expect(service.login(dto)).rejects.toThrow('Credenciales incorrectas');
+        await expect(service.login(dto)).rejects.toThrow(
+          'Credenciales incorrectas',
+        );
 
         // 👉 El servicio sí ejecuta bcrypt.compare, así que no lo bloqueamos
         expect(bcryptCompare).toHaveBeenCalled();
@@ -411,7 +415,6 @@ describe('AuthService', () => {
       });
     });
 
-    
     it('deberia permitir login cuando el tiempo de bloqueo ya expiro', async () => {
       // Arrange — bloqueo vencido hace 5 minutos
       const pastDate = new Date();

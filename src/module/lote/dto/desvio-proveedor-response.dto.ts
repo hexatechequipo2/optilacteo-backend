@@ -12,7 +12,8 @@ export class DesvioParametroDto {
   valorReal!: number;
 
   @ApiProperty({
-    description: 'Porcentaje de desvío (positivo = por encima de lo comprometido)',
+    description:
+      'Porcentaje de desvío (positivo = por encima de lo comprometido)',
   })
   desvioPorcentaje!: number;
 }

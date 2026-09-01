@@ -14,7 +14,8 @@ export class CreateLoteParametroDto {
   // HU-66: valor comprometido por remito para este parámetro. Opcional (AC4).
   @ApiPropertyOptional({
     example: 6.5,
-    description: 'Valor comprometido por remito del proveedor para este parámetro',
+    description:
+      'Valor comprometido por remito del proveedor para este parámetro',
   })
   @IsOptional()
   @IsNumber()

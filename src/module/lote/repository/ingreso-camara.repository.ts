@@ -26,7 +26,7 @@ export class IngresoCamaraRepository implements IIngresoCamaraRepository {
       relations: { sku: true, lote: true },
     });
   }
-  
+
   async findAll(
     query: IngresoCamaraFilterQueryDto,
     empresaId: number,

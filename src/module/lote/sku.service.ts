@@ -29,10 +29,16 @@ export class SkuService {
     return tenant.empresaId;
   }
 
-  async create(dto: CreateSkuDto, tenant: TenantContext): Promise<SkuResponseDto> {
+  async create(
+    dto: CreateSkuDto,
+    tenant: TenantContext,
+  ): Promise<SkuResponseDto> {
     const empresaId = this.resolveEmpresaId(tenant);
 
-    const existente = await this.skuRepository.findByNombre(dto.nombre, empresaId);
+    const existente = await this.skuRepository.findByNombre(
+      dto.nombre,
+      empresaId,
+    );
     if (existente) {
       throw new ConflictException(
         `Ya existe un SKU llamado '${dto.nombre}' para esta empresa`,

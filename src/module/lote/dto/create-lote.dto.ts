@@ -31,7 +31,10 @@ export class CreateLoteDto {
   proveedorId!: number;
 
   // --- NUEVO (HU-36): tambo de origen, obligatorio ---
-  @ApiProperty({ description: 'Tambo de origen del lote (debe pertenecer al proveedorId indicado)' })
+  @ApiProperty({
+    description:
+      'Tambo de origen del lote (debe pertenecer al proveedorId indicado)',
+  })
   @IsInt()
   tamboId!: number;
 
@@ -60,7 +63,10 @@ export class CreateLoteDto {
   @Type(() => CreateLoteParametroDto)
   parametros!: CreateLoteParametroDto[];
 
-  @ApiProperty({ example: 500, description: 'Cantidad total ingresada del lote' })
+  @ApiProperty({
+    example: 500,
+    description: 'Cantidad total ingresada del lote',
+  })
   @IsNumber()
   @IsPositive()
   cantidad!: number;

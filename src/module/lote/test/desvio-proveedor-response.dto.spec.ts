@@ -9,7 +9,7 @@ describe('DesvioProveedorResponseDto', () => {
   it('debería permitir construir correctamente un desvío de parámetro', () => {
     const parametro = new DesvioParametroDto();
 
-    parametro.parametro = Object.values(Parametro)[0] as Parametro;
+    parametro.parametro = Object.values(Parametro)[0];
     parametro.valorComprometido = 10;
     parametro.valorReal = 12;
     parametro.desvioPorcentaje = 20;

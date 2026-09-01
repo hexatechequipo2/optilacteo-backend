@@ -40,6 +40,8 @@ import { ResolverAlertaDto } from './dto/resolver-alerta.dto';
 import { ConfiguracionAlertaDesconexionService } from './configuracion-alerta-desconexion.service';
 import { ActualizarConfiguracionAlertaDesconexionDto } from './dto/actualizar-configuracion-alerta-desconexion.dto';
 
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 @ApiTags('notificaciones')
 @ApiBearerAuth()
 @Controller('notificaciones')
@@ -94,12 +96,18 @@ export class NotificacionesController {
   @Post('configuracion')
   @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('CONFIGURACION_NOTIFICACION_CREAR', 'ConfiguracionNotificacionNivel')
+  @AuditLog(
+    'CONFIGURACION_NOTIFICACION_CREAR',
+    'ConfiguracionNotificacionNivel',
+  )
   crearConfiguracion(
     @Body() dto: CrearConfiguracionNotificacionDto,
     @CurrentEmpresa() tenant: TenantContext,
   ) {
-    return this.notificacionesService.crearConfiguracion(tenant.empresaId!, dto);
+    return this.notificacionesService.crearConfiguracion(
+      tenant.empresaId!,
+      dto,
+    );
   }
 
   @Delete('configuracion/:id')

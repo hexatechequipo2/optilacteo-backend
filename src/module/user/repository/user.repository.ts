@@ -12,7 +12,7 @@ export class UserRepository implements IUserRepository {
     @InjectRepository(User)
     private readonly repository: Repository<User>,
   ) {}
-  
+
   async findByEmail(email: string): Promise<User | null> {
     return this.repository
       .createQueryBuilder('user')

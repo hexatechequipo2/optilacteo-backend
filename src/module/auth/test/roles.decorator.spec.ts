@@ -20,6 +20,7 @@ describe('Roles Decorator', () => {
 
     const roles = reflector.get<string[]>(
       ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       TestController.prototype.testMethod,
     );
 
@@ -45,6 +46,7 @@ describe('Roles Decorator', () => {
 
     const roles = reflector.get<string[]>(
       ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       TestController.prototype.testMethod,
     );
 

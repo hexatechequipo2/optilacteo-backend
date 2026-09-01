@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { LoteConsumoService } from '../lote-consumo.service';
 import { LOTE_REPOSITORY } from '../../lote/repository/lote-repository.interface';
@@ -97,23 +94,17 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
 
       mockLoteRepository.findById.mockResolvedValue(lote);
       mockLoteConsumoRepository.count.mockResolvedValue(0);
-      mockLoteProduccionRepository.findOne.mockResolvedValue(
-        loteProduccion,
-      );
+      mockLoteProduccionRepository.findOne.mockResolvedValue(loteProduccion);
       mockLoteConsumoRepository.create.mockReturnValue(consumoCreado);
       mockLoteConsumoRepository.save.mockResolvedValue(consumoCreado);
       mockLoteRepository.save.mockResolvedValue(lote);
 
       const mapperSpy = jest
         .spyOn(LoteConsumoMapper, 'toResponseDto')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(consumoCreado as any);
 
-      const result = await service.registrarConsumo(
-        5,
-        dto,
-        7,
-        tenant,
-      );
+      const result = await service.registrarConsumo(5, dto, 7, tenant);
 
       expect(mockLoteRepository.findById).toHaveBeenCalledWith(5, 1);
 
@@ -150,12 +141,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
       mockLoteRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.registrarConsumo(
-          999,
-          { cantidad: 10 } as CreateLoteConsumoDto,
-          7,
-          tenant,
-        ),
+        service.registrarConsumo(999, { cantidad: 10 }, 7, tenant),
       ).rejects.toThrow(NotFoundException);
 
       expect(mockLoteConsumoRepository.create).not.toHaveBeenCalled();
@@ -172,12 +158,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
       });
 
       await expect(
-        service.registrarConsumo(
-          5,
-          { cantidad: 10 } as CreateLoteConsumoDto,
-          7,
-          tenant,
-        ),
+        service.registrarConsumo(5, { cantidad: 10 }, 7, tenant),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -192,12 +173,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
       });
 
       await expect(
-        service.registrarConsumo(
-          5,
-          { cantidad: 10 } as CreateLoteConsumoDto,
-          7,
-          tenant,
-        ),
+        service.registrarConsumo(5, { cantidad: 10 }, 7, tenant),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -214,12 +190,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
       });
 
       await expect(
-        service.registrarConsumo(
-          5,
-          { cantidad: 10 } as CreateLoteConsumoDto,
-          7,
-          tenant,
-        ),
+        service.registrarConsumo(5, { cantidad: 10 }, 7, tenant),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -236,12 +207,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
       });
 
       await expect(
-        service.registrarConsumo(
-          5,
-          { cantidad: 50 } as CreateLoteConsumoDto,
-          7,
-          tenant,
-        ),
+        service.registrarConsumo(5, { cantidad: 50 }, 7, tenant),
       ).rejects.toThrow(BadRequestException);
 
       expect(mockLoteConsumoRepository.create).not.toHaveBeenCalled();
@@ -267,7 +233,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
           {
             cantidad: 20,
             parametros: [],
-          } as CreateLoteConsumoDto,
+          },
           7,
           tenant,
         ),
@@ -297,9 +263,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
 
       mockLoteRepository.findById.mockResolvedValue(lote);
       mockLoteConsumoRepository.count.mockResolvedValue(0);
-      mockLoteProduccionRepository.findOne.mockResolvedValue(
-        loteProduccion,
-      );
+      mockLoteProduccionRepository.findOne.mockResolvedValue(loteProduccion);
       mockLoteConsumoRepository.create.mockReturnValue(consumo);
       mockLoteConsumoRepository.save.mockResolvedValue(consumo);
 
@@ -307,6 +271,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
 
       const mapperSpy = jest
         .spyOn(LoteConsumoMapper, 'toResponseDto')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(consumo as any);
 
       await service.registrarConsumo(
@@ -314,7 +279,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
         {
           cantidad: 40,
           loteProduccionId: 10,
-        } as CreateLoteConsumoDto,
+        },
         7,
         tenant,
       );
@@ -349,7 +314,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
           {
             cantidad: 10,
             loteProduccionId: 999,
-          } as CreateLoteConsumoDto,
+          },
           7,
           tenant,
         ),
@@ -383,13 +348,9 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
 
       mockLoteProduccionRepository.count.mockResolvedValue(2);
 
-      mockLoteProduccionRepository.create.mockReturnValue(
-        nuevoLoteProduccion,
-      );
+      mockLoteProduccionRepository.create.mockReturnValue(nuevoLoteProduccion);
 
-      mockLoteProduccionRepository.save.mockResolvedValue(
-        nuevoLoteProduccion,
-      );
+      mockLoteProduccionRepository.save.mockResolvedValue(nuevoLoteProduccion);
 
       mockLoteConsumoRepository.create.mockReturnValue(consumo);
       mockLoteConsumoRepository.save.mockResolvedValue(consumo);
@@ -397,14 +358,10 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
 
       const mapperSpy = jest
         .spyOn(LoteConsumoMapper, 'toResponseDto')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(consumo as any);
 
-      await service.registrarConsumo(
-        5,
-        { cantidad: 20 } as CreateLoteConsumoDto,
-        7,
-        tenant,
-      );
+      await service.registrarConsumo(5, { cantidad: 20 }, 7, tenant);
 
       expect(mockLoteProduccionRepository.count).toHaveBeenCalledWith({
         where: { empresaId: 1 },
@@ -422,12 +379,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
       const tenant = {} as TenantContext;
 
       await expect(
-        service.registrarConsumo(
-          5,
-          { cantidad: 10 } as CreateLoteConsumoDto,
-          7,
-          tenant,
-        ),
+        service.registrarConsumo(5, { cantidad: 10 }, 7, tenant),
       ).rejects.toThrow(BadRequestException);
 
       expect(mockLoteRepository.findById).not.toHaveBeenCalled();
@@ -456,6 +408,7 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
 
       const mapperSpy = jest
         .spyOn(LoteConsumoMapper, 'toResponseDtoList')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockReturnValue(consumos as any);
 
       const result = await service.historial(5, tenant);
@@ -486,9 +439,9 @@ describe('LoteConsumoService — consumo parcial de lotes', () => {
 
       mockLoteRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.historial(999, tenant),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.historial(999, tenant)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

@@ -6,6 +6,8 @@ import { PlcConfig } from '../entities/plc-config.entity';
 import { Sensor } from '../../sensor/entities/sensor.entity';
 import { TipoSensor } from '../../sensor/enums/tipo-sensor.enum';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('PlcConfigRepository', () => {
   let repository: PlcConfigRepository;
   let plcConfigTypeOrmRepo: jest.Mocked<Repository<PlcConfig>>;
@@ -45,7 +47,11 @@ describe('PlcConfigRepository', () => {
 
   describe('findByEmpresa', () => {
     it('debe buscar y retornar la configuración por empresaId', async () => {
-      const mockConfig = { id: 1, empresaId: 10, url: 'http://192.168.1.50' } as PlcConfig;
+      const mockConfig = {
+        id: 1,
+        empresaId: 10,
+        url: 'http://192.168.1.50',
+      } as PlcConfig;
       plcConfigTypeOrmRepo.findOne.mockResolvedValue(mockConfig);
 
       const result = await repository.findByEmpresa(10);
@@ -71,7 +77,7 @@ describe('PlcConfigRepository', () => {
         empresaId: 10,
         url: 'http://192.168.1.50',
       } as PlcConfig;
-      const createdEntity = { ...partialConfig, id: 1 } as PlcConfig;
+      const createdEntity = { ...partialConfig, id: 1 };
 
       plcConfigTypeOrmRepo.create.mockReturnValue(createdEntity);
       plcConfigTypeOrmRepo.save.mockResolvedValue(createdEntity);
@@ -86,7 +92,11 @@ describe('PlcConfigRepository', () => {
 
   describe('save', () => {
     it('debe guardar/actualizar los cambios de una entidad existente', async () => {
-      const configEntity = { id: 1, empresaId: 10, url: 'http://192.168.1.100' } as PlcConfig;
+      const configEntity = {
+        id: 1,
+        empresaId: 10,
+        url: 'http://192.168.1.100',
+      } as PlcConfig;
       plcConfigTypeOrmRepo.save.mockResolvedValue(configEntity);
 
       const result = await repository.save(configEntity);

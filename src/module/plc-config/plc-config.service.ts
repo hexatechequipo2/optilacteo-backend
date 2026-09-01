@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import type { IPlcConfigRepository } from './repository/plc-config-repository.interface';
 import { PLC_CONFIG_REPOSITORY } from './repository/plc-config-repository.interface';
 import { PlcConfig } from './entities/plc-config.entity';
@@ -67,7 +72,9 @@ export class PlcConfigService {
     return PlcConfigMapper.toResponseDto(guardado, requierePlc);
   }
 
-  async testConexion(dto: TestConnectionDto): Promise<TestConnectionResponseDto> {
+  async testConexion(
+    dto: TestConnectionDto,
+  ): Promise<TestConnectionResponseDto> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -78,7 +85,10 @@ export class PlcConfigService {
       });
 
       if (response.ok) {
-        return { ok: true, mensaje: 'Conexión exitosa. El PLC respondió correctamente.' };
+        return {
+          ok: true,
+          mensaje: 'Conexión exitosa. El PLC respondió correctamente.',
+        };
       }
 
       return {

@@ -1,10 +1,10 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateConfiguracionAlertaDesconexion1786757153664 implements MigrationInterface {
-    name = 'CreateConfiguracionAlertaDesconexion1786757153664'
+  name = 'CreateConfiguracionAlertaDesconexion1786757153664';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
         CREATE TABLE "configuracion_alerta_desconexion" (
             "id" SERIAL PRIMARY KEY,
             "empresa_id" integer NOT NULL,
@@ -16,9 +16,9 @@ export class CreateConfiguracionAlertaDesconexion1786757153664 implements Migrat
             FOREIGN KEY ("empresa_id") REFERENCES "empresas"("id") ON DELETE CASCADE
         )
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE "configuracion_alerta_desconexion"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE "configuracion_alerta_desconexion"`);
+  }
 }

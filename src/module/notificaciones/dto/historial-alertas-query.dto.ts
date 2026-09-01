@@ -1,12 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsISO8601,
-  IsInt,
-  IsOptional,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsISO8601, IsInt, IsOptional, Min } from 'class-validator';
 
 import { EstadoAlerta } from '../enums/estado-alerta.enum';
 import { NivelAlerta } from '../enums/nivel-alerta.enum';

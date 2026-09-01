@@ -90,12 +90,13 @@ export class LecturasGateway
     const session = await this.authenticate(token);
 
     if (!session) {
-      this.logger.warn(`Conexión WS rechazada (token inválido/revocado): ${client.id}`);
+      this.logger.warn(
+        `Conexión WS rechazada (token inválido/revocado): ${client.id}`,
+      );
       client.disconnect(true);
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     client.data = session satisfies SocketSessionData;
     await client.join(this.room(session.empresaId));
   }
@@ -187,17 +188,17 @@ export class LecturasGateway
     const sockets = await this.server.fetchSockets();
 
     for (const socket of sockets) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const session = socket.data as SocketSessionData | undefined;
       if (!session) {
         socket.disconnect(true);
         continue;
       }
 
-      const isRevoked = await this.revokedTokenRepository.existsActiveByTokenHash(
-        session.tokenHash,
-        new Date(),
-      );
+      const isRevoked =
+        await this.revokedTokenRepository.existsActiveByTokenHash(
+          session.tokenHash,
+          new Date(),
+        );
 
       if (isRevoked) {
         this.logger.warn(
