@@ -22,6 +22,7 @@ import { MedicionManualModule } from './module/medicion-manual/medicion-manual.m
 import { NotificacionesModule } from './module/notificaciones/notificaciones.module';
 import { DashboardModule } from './module/dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
+import { MlModule } from './module/ml/ml.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { HealthModule } from './health/health.module';
     NotificacionesModule,
     DashboardModule,
     HealthModule,
+    MlModule,
   ],
   controllers: [AppController],
   providers: [AppService],
