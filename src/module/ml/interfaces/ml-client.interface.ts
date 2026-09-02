@@ -1,17 +1,16 @@
+import { Parametro } from '../../config-parametro/enums/parametro.enum';
+import { DestinoLote } from '../../lote/enums/destino-lote.enum';
+
 export const ML_CLIENT = Symbol('ML_CLIENT');
 
 export interface LoteFeatures {
   empresaId: number;
-  grasa: number;
-  proteina: number;
-  acidez: number;
-  temperatura: number;
-  ph: number;
+  parametros: Partial<Record<Parametro, number>>;
 }
 
 export interface RecomendacionDestinoResult {
   status: 'ok' | 'insufficient_data';
-  destinoRecomendado?: string;
+  destinoRecomendado?: DestinoLote;
   confianza?: number;
 }
 

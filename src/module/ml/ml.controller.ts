@@ -10,6 +10,14 @@ import { ResponderRecomendacionDto } from './dto/responder-recomendacion.dto';
 export class MlController {
   constructor(private readonly mlService: MlService) {}
 
+  // TEMPORAL — solo para probar la conexión NestJS -> Python. Borrar
+  // una vez confirmado, y una vez que generarRecomendacion() esté
+  // enganchado al flujo real de registro de parámetros del lote.
+  @Get('test-conexion')
+  testConexion() {
+    return this.mlService.testConexion();
+  }
+
   // @Roles('responsable_produccion', 'admin')
   // @Permissions('ver_recomendaciones')
   @Patch(':id/responder')

@@ -6,13 +6,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Not, Repository } from 'typeorm';
 import { RecomendacionDestino } from './entities/recomendacion-destino.entity';
-import type { IMlClient, LoteFeatures } from './interfaces/ml-client.interface';
+import type { IMlClient } from './interfaces/ml-client.interface';
+import { ML_CLIENT } from './interfaces/ml-client.interface';
 import { ResponderRecomendacionDto } from './dto/responder-recomendacion.dto';
 import { Lote } from '../lote/entities/lote.entity';
 import { LoteParametro } from '../lote/entities/lote-parametro.entity';
 import { Parametro } from '../config-parametro/enums/parametro.enum';
 import { DestinoLote } from '../lote/enums/destino-lote.enum';
-import { ML_CLIENT } from './interfaces/ml-client.interface';
 
 @Injectable()
 export class MlService {
@@ -22,6 +22,16 @@ export class MlService {
     private readonly recomendacionRepo: Repository<RecomendacionDestino>,
   ) {}
 
+  private extraerFeatures(
+    parametros: LoteParametro[],
+  ): Partial<Record<Parametro, number>> {
+    const features: Partial<Record<Parametro, number>> = {};
+    for (const p of parametros) {
+      features[p.parametro] = Number(p.valor);
+    }
+    return features;
+  }
+
   async generarRecomendacion(lote: Lote): Promise<RecomendacionDestino> {
     if (!lote.parametros || lote.parametros.length === 0) {
       throw new UnprocessableEntityException(
@@ -29,20 +39,12 @@ export class MlService {
       );
     }
 
-    // ✅ Extraemos los valores dinámicos
     const features = this.extraerFeatures(lote.parametros);
 
-    // ✅ Construimos el payload completo que cumple con LoteFeatures
-    const payload: LoteFeatures = {
+    const resultado = await this.mlClient.predecirDestino({
       empresaId: lote.empresaId,
-      grasa: features.grasa,
-      proteina: features.proteina,
-      acidez: features.acidez,
-      temperatura: features.temperatura,
-      ph: features.ph,
-    };
-
-    const resultado = await this.mlClient.predecirDestino(payload);
+      parametros: features,
+    });
 
     if (resultado.status === 'insufficient_data') {
       throw new UnprocessableEntityException(
@@ -51,24 +53,13 @@ export class MlService {
     }
 
     const recomendacion = this.recomendacionRepo.create({
-      lote: lote,
+      lote,
       empresa: lote.empresa,
       destinoRecomendado: resultado.destinoRecomendado as DestinoLote,
       confianza: resultado.confianza,
     } as DeepPartial<RecomendacionDestino>);
 
     return this.recomendacionRepo.save(recomendacion);
-  }
-
-  private extraerFeatures(parametros: LoteParametro[]): Record<string, number> {
-    const mapa = new Map(parametros.map(p => [p.parametro, Number(p.valor)]));
-    return {
-      grasa: mapa.get(Parametro.GRASA) ?? 0,
-      proteina: mapa.get(Parametro.PROTEINA) ?? 0,
-      acidez: mapa.get(Parametro.ACIDEZ) ?? 0,
-      temperatura: mapa.get(Parametro.TEMPERATURA) ?? 0,
-      ph: mapa.get(Parametro.PH) ?? 0,
-    };
   }
 
   async responderRecomendacion(
@@ -100,5 +91,18 @@ export class MlService {
       tasaAcierto:
         recomendaciones.length > 0 ? aciertos / recomendaciones.length : 0,
     };
+  }
+
+  // TEMPORAL — solo para probar la conexión NestJS -> Python.
+  // Borrar junto con el endpoint del controller una vez confirmado.
+  async testConexion() {
+    return this.mlClient.predecirDestino({
+      empresaId: 1,
+      parametros: {
+        [Parametro.PH]: 6.6,
+        [Parametro.TEMPERATURA]: 4,
+        [Parametro.GRASA]: 3.2,
+      },
+    });
   }
 }

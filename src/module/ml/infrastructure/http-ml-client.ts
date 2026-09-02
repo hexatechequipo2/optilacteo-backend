@@ -6,12 +6,11 @@ import {
   LoteFeatures,
   RecomendacionDestinoResult,
 } from '../interfaces/ml-client.interface';
+import { DestinoLote } from '../../lote/enums/destino-lote.enum';
 
 @Injectable()
 export class HttpMlClient implements IMlClient {
   private readonly logger = new Logger(HttpMlClient.name);
-  // En Railway: http://optilacteo-ml.railway.internal:8000
-  // En local (docker compose): http://ml-service:8000
   private readonly baseUrl =
     process.env.ML_SERVICE_URL ?? 'http://localhost:8000';
 
@@ -24,11 +23,7 @@ export class HttpMlClient implements IMlClient {
       const response = await firstValueFrom(
         this.http.post(`${this.baseUrl}/recommendations/destino`, {
           empresa_id: features.empresaId,
-          grasa: features.grasa,
-          proteina: features.proteina,
-          acidez: features.acidez,
-          temperatura: features.temperatura,
-          ph: features.ph,
+          parametros: features.parametros,
         }),
       );
 
@@ -40,7 +35,7 @@ export class HttpMlClient implements IMlClient {
 
       return {
         status: 'ok',
-        destinoRecomendado: data.destino_recomendado,
+        destinoRecomendado: data.destino_recomendado as DestinoLote,
         confianza: data.confianza,
       };
     } catch (error) {
