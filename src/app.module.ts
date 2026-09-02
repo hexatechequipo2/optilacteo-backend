@@ -23,6 +23,7 @@ import { NotificacionesModule } from './module/notificaciones/notificaciones.mod
 import { DashboardModule } from './module/dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
 import { MlModule } from './module/ml/ml.module';
+import { InternalModule } from './module/internal/internal.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { MlModule } from './module/ml/ml.module';
     DashboardModule,
     HealthModule,
     MlModule,
+    InternalModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  Logger,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,14 +13,18 @@ import { ResponderRecomendacionDto } from './dto/responder-recomendacion.dto';
 import { Lote } from '../lote/entities/lote.entity';
 import { LoteParametro } from '../lote/entities/lote-parametro.entity';
 import { Parametro } from '../config-parametro/enums/parametro.enum';
-import { DestinoLote } from '../lote/enums/destino-lote.enum';
+import { DestinoProductivo } from '../destino-productivo/entities/destino-productivo.entity';
 
 @Injectable()
 export class MlService {
+  private readonly logger = new Logger(MlService.name);
+
   constructor(
     @Inject(ML_CLIENT) private readonly mlClient: IMlClient,
     @InjectRepository(RecomendacionDestino)
     private readonly recomendacionRepo: Repository<RecomendacionDestino>,
+    @InjectRepository(DestinoProductivo)
+    private readonly destinoProductivoRepo: Repository<DestinoProductivo>,
   ) {}
 
   private extraerFeatures(
@@ -32,7 +37,7 @@ export class MlService {
     return features;
   }
 
-  async generarRecomendacion(lote: Lote): Promise<RecomendacionDestino> {
+  async generarRecomendacion(lote: Lote): Promise<RecomendacionDestino | null> {
     if (!lote.parametros || lote.parametros.length === 0) {
       throw new UnprocessableEntityException(
         'El lote no tiene parámetros registrados para generar una recomendación.',
@@ -47,15 +52,36 @@ export class MlService {
     });
 
     if (resultado.status === 'insufficient_data') {
-      throw new UnprocessableEntityException(
-        'No hay suficiente historial para generar una recomendación confiable.',
+      // Degradación deliberada, mismo criterio que el timeout en
+      // http-ml-client.ts: el alta de un lote no depende del estado del
+      // modelo. Es el caso más frecuente (empresa sin historial suficiente
+      // todavía), no un error — nivel log, no warn.
+      this.logger.log(
+        `No hay suficiente historial todavía para recomendar destino (empresa ${lote.empresaId}).`,
       );
+      return null;
+    }
+
+    // El microservicio devuelve el nombre del destino productivo (ej.
+    // "manteca"), no un id: lo resolvemos contra el catálogo de la empresa.
+    const destinoRecomendado = await this.destinoProductivoRepo.findOne({
+      where: { empresaId: lote.empresaId, nombre: resultado.destinoRecomendado },
+    });
+
+    if (!destinoRecomendado) {
+      // Degradación deliberada, mismo criterio que arriba: puede pasar en
+      // operación normal si el destino con el que se entrenó el modelo fue
+      // desactivado o renombrado después.
+      this.logger.warn(
+        `El microservicio ML recomendó un destino ("${resultado.destinoRecomendado}") que no existe en el catálogo de destinos productivos de la empresa ${lote.empresaId}.`,
+      );
+      return null;
     }
 
     const recomendacion = this.recomendacionRepo.create({
       lote,
       empresa: lote.empresa,
-      destinoRecomendado: resultado.destinoRecomendado as DestinoLote,
+      destinoRecomendado,
       confianza: resultado.confianza,
     } as DeepPartial<RecomendacionDestino>);
 
@@ -70,8 +96,12 @@ export class MlService {
       where: { id },
     });
 
+    const destinoReal = await this.destinoProductivoRepo.findOneOrFail({
+      where: { id: dto.destinoRealId },
+    });
+
     recomendacion.estado = dto.aceptada ? 'aceptada' : 'rechazada';
-    recomendacion.destinoReal = dto.destinoReal as DestinoLote;
+    recomendacion.destinoReal = destinoReal;
 
     return this.recomendacionRepo.save(recomendacion);
   }
@@ -82,7 +112,7 @@ export class MlService {
     });
 
     const aciertos = recomendaciones.filter(
-      (r) => r.destinoRecomendado === r.destinoReal,
+      (r) => r.destinoRecomendadoId === r.destinoRealId,
     ).length;
 
     return {

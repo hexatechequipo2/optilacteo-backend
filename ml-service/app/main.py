@@ -1,30 +1,10 @@
-import joblib
-import math
 from fastapi import FastAPI
 
-app = FastAPI()
+from app.routers import anomalias, entrenamiento, health, recomendaciones
 
-@app.post("/anomalias/detectar")
-def detectar(payload: dict):
-    empresa_id = payload.get("empresa_id")
-    valor = payload.get("valor")
+app = FastAPI(title="OptiLacteo ML Service", version="0.1.0")
 
-    # Cargar modelo entrenado
-    try:
-        model = joblib.load(f"models/anomalias_empresa_{empresa_id}.pkl")
-    except FileNotFoundError:
-        return {"status": "insufficient_data"}
-
-    # Ignorar valores NaN
-    if valor is None or (isinstance(valor, float) and math.isnan(valor)):
-        return {"status": "invalid_data"}
-
-    # Predicción
-    pred = model.predict([[valor]])[0]
-    prob = max(model.predict_proba([[valor]])[0])
-
-    return {
-        "status": "ok",
-        "es_anomalia": bool(pred),
-        "confianza": prob
-    }
+app.include_router(health.router)
+app.include_router(recomendaciones.router)
+app.include_router(anomalias.router)
+app.include_router(entrenamiento.router)

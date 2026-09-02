@@ -5,3 +5,7 @@ __pycache__/
 venv/
 *.egg-info/
 .pytest_cache/
+models_store/*.pkl
+models_store/*.meta.json
+datasets/
+venv/

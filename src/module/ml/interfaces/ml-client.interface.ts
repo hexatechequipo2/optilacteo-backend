@@ -1,5 +1,4 @@
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
-import { DestinoLote } from '../../lote/enums/destino-lote.enum';
 
 export const ML_CLIENT = Symbol('ML_CLIENT');
 
@@ -10,7 +9,10 @@ export interface LoteFeatures {
 
 export interface RecomendacionDestinoResult {
   status: 'ok' | 'insufficient_data';
-  destinoRecomendado?: DestinoLote;
+  // Nombre del destino productivo tal como lo devuelve el microservicio ML
+  // (ej. "manteca"), no un id: MlService lo resuelve contra
+  // destinos_productivos por nombre+empresa.
+  destinoRecomendado?: string;
   confianza?: number;
 }
 

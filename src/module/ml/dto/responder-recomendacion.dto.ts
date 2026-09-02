@@ -1,9 +1,9 @@
-import { IsBoolean, IsString } from 'class-validator';
+import { IsBoolean, IsInt } from 'class-validator';
 
 export class ResponderRecomendacionDto {
   @IsBoolean()
   aceptada!: boolean;
 
-  @IsString()
-  destinoReal!: string;
+  @IsInt()
+  destinoRealId!: number;
 }
