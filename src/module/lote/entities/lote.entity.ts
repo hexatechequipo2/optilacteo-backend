@@ -12,6 +12,7 @@ import { Empresa } from '../../empresa/entities/empresa.entity';
 import { Proveedor } from '../../proveedores/entities/proveedor.entity';
 import { Tambo } from '../../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 import { LoteParametro } from './lote-parametro.entity';
+import { DestinoProductivo } from '../../destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
@@ -61,6 +62,18 @@ export class Lote {
 
   @Column({ type: 'enum', enum: DestinoLote, nullable: true })
   destinoInicial?: DestinoLote | null;
+
+  // HU-34: destino productivo real del lote (ej. "manteca", "queso
+  // cremoso"), configurable por empresa vía tabla destinos_productivos.
+  // Distinto de destinoInicial (arriba): ese es un enum fijo que representa
+  // la ubicacion/tratamiento inicial del lote, no su destino productivo.
+  // Ambos campos conviven.
+  @Column({ nullable: true })
+  destinoProductivoId?: number | null;
+
+  @ManyToOne(() => DestinoProductivo, { nullable: true })
+  @JoinColumn({ name: 'destinoProductivoId' })
+  destinoProductivo?: DestinoProductivo | null;
 
   @Column({ type: 'enum', enum: EstadoLote, default: EstadoLote.REGISTRADO })
   estado!: EstadoLote;

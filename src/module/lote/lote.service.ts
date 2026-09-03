@@ -41,6 +41,9 @@ import { ComparacionHistoricaResponseDto } from './dto/comparacion-historica-res
 import { ComparacionHistoricaMapper } from './mappers/comparacion-historica.mapper';
 import { AuditLogService } from '../audit/audit-log.service';
 import { ROLES } from '../rol/constants/roles.constants';
+import { MlService } from '../ml/ml.service';
+import { RecomendacionMapper } from '../ml/mappers/recomendacion.mapper';
+import { RecomendacionResponseDto } from '../ml/dto/recomendacion-response.dto';
 
 @Injectable()
 export class LoteService {
@@ -62,6 +65,7 @@ export class LoteService {
     private readonly loteRevisionRepository: Repository<LoteRevisionCalidad>,
     private readonly configuracionComparacionHistoricaService: ConfiguracionComparacionHistoricaService,
     private readonly auditLogService: AuditLogService,
+    private readonly mlService: MlService,
   ) {}
 
   // HU-63
@@ -90,11 +94,6 @@ export class LoteService {
     }
 
     // --- NUEVO (HU-36): validar tambo de origen ---
-    // El tambo tiene que existir, pertenecer a la empresa del usuario
-    // autenticado, y pertenecer efectivamente al proveedor indicado en
-    // el mismo request (evita que llegue una combinación inconsistente
-    // si el request no viene del formulario normal con el select
-    // encadenado proveedor -> tambo).
     const tambo = await this.tamboRepository.findOne({
       where: { id: dto.tamboId, empresaId },
     });
@@ -153,6 +152,21 @@ export class LoteService {
 
     await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
 
+    // HU-49 AC1: se dispara automáticamente al registrar los parámetros
+    // del lote. Devuelve null si la empresa todavía no tiene historial
+    // suficiente — no es un error, el alta del lote nunca depende de esto.
+    const recomendacionEntity = await this.mlService.generarRecomendacion({
+      empresaId,
+      loteId: saved.id,
+      parametros: dto.parametros.map((p) => ({
+        parametro: p.parametro,
+        valor: p.valor,
+      })),
+    });
+    const recomendacion: RecomendacionResponseDto | null = recomendacionEntity
+      ? RecomendacionMapper.toResponseDto(recomendacionEntity)
+      : null;
+
     const actualizado = await this.loteRepository.findById(saved.id, empresaId);
 
     let sensoresDisponibles: SensorResponseDto[] = [];
@@ -169,6 +183,7 @@ export class LoteService {
     return {
       lote: LoteMapper.toResponseDto(actualizado!),
       sensoresDisponibles,
+      recomendacion,
       warnings,
     };
   }
@@ -236,11 +251,6 @@ export class LoteService {
     if (dto.destinoInicial !== undefined)
       lote.destinoInicial = dto.destinoInicial;
 
-    // Nota (HU-36): a propósito NO se permite reasignar proveedorId ni
-    // tamboId desde update(), igual que ya pasaba con proveedorId antes
-    // de esta HU — el origen de un lote ya registrado no se edita, para
-    // no romper la trazabilidad histórica.
-
     const saved = await this.loteRepository.save(lote);
     return LoteMapper.toResponseDto(saved);
   }
@@ -257,11 +267,6 @@ export class LoteService {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
 
-    // HU-62 + HU-68: el lote puede llegar a FINALIZADO por dos caminos —
-    // manualmente vía este endpoint, o automáticamente cuando el consumo
-    // parcial agota el saldo disponible (ver LoteConsumoService). En el
-    // segundo caso el rendimiento todavía no se cargó, así que la guardia
-    // no bloquea por estado sino por si el rendimiento ya está cargado.
     if (lote.estado === EstadoLote.FINALIZADO && lote.rendimiento != null) {
       throw new BadRequestException(
         `El lote ${id} ya está finalizado con rendimiento cargado y no puede modificarse`,

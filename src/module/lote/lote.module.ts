@@ -40,6 +40,7 @@ import { LoteConsumo } from './entities/lote-consumo.entity';
 import { LoteConsumoParametro } from './entities/lote-consumo-parametro.entity';
 import { LoteConsumoService } from './lote-consumo.service';
 import { LoteTrazabilidadService } from './lote-trazabilidad.service';
+import { MlModule } from '../ml/ml.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { LoteTrazabilidadService } from './lote-trazabilidad.service';
     NotificacionesModule,
     ConfigParametroModule,
     AuditLogModule,
+    MlModule,
   ],
   controllers: [LoteController, SkuController, IngresoCamaraController],
   providers: [
