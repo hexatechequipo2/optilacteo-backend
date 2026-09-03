@@ -2,18 +2,29 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Not, Repository } from 'typeorm';
+
 import { RecomendacionDestino } from './entities/recomendacion-destino.entity';
 import type { IMlClient } from './interfaces/ml-client.interface';
 import { ML_CLIENT } from './interfaces/ml-client.interface';
 import { ResponderRecomendacionDto } from './dto/responder-recomendacion.dto';
-import { Lote } from '../lote/entities/lote.entity';
-import { LoteParametro } from '../lote/entities/lote-parametro.entity';
+
 import { Parametro } from '../config-parametro/enums/parametro.enum';
 import { DestinoProductivo } from '../destino-productivo/entities/destino-productivo.entity';
+import { Lote } from '../lote/entities/lote.entity';
+
+import type { TenantContext } from '../../common/types/tenant-context.type';
+
+export interface GenerarRecomendacionParams {
+  empresaId: number;
+  loteId: number;
+  loteConsumoId?: number;
+  parametros: { parametro: Parametro; valor: number }[];
+}
 
 @Injectable()
 export class MlService {
@@ -21,66 +32,76 @@ export class MlService {
 
   constructor(
     @Inject(ML_CLIENT) private readonly mlClient: IMlClient,
+
     @InjectRepository(RecomendacionDestino)
     private readonly recomendacionRepo: Repository<RecomendacionDestino>,
+
     @InjectRepository(DestinoProductivo)
     private readonly destinoProductivoRepo: Repository<DestinoProductivo>,
+
+    @InjectRepository(Lote)
+    private readonly loteRepo: Repository<Lote>,
   ) {}
 
   private extraerFeatures(
-    parametros: LoteParametro[],
+    parametros: { parametro: Parametro; valor: number }[],
   ): Partial<Record<Parametro, number>> {
     const features: Partial<Record<Parametro, number>> = {};
+
     for (const p of parametros) {
       features[p.parametro] = Number(p.valor);
     }
+
     return features;
   }
 
-  async generarRecomendacion(lote: Lote): Promise<RecomendacionDestino | null> {
-    if (!lote.parametros || lote.parametros.length === 0) {
+  async generarRecomendacion(
+    params: GenerarRecomendacionParams,
+  ): Promise<RecomendacionDestino | null> {
+    const { empresaId, loteId, loteConsumoId, parametros } = params;
+
+    if (!parametros || parametros.length === 0) {
       throw new UnprocessableEntityException(
-        'El lote no tiene parámetros registrados para generar una recomendación.',
+        'No hay parámetros registrados para generar una recomendación.',
       );
     }
 
-    const features = this.extraerFeatures(lote.parametros);
+    const features = this.extraerFeatures(parametros);
 
     const resultado = await this.mlClient.predecirDestino({
-      empresaId: lote.empresaId,
+      empresaId,
       parametros: features,
     });
 
     if (resultado.status === 'insufficient_data') {
-      // Degradación deliberada, mismo criterio que el timeout en
-      // http-ml-client.ts: el alta de un lote no depende del estado del
-      // modelo. Es el caso más frecuente (empresa sin historial suficiente
-      // todavía), no un error — nivel log, no warn.
       this.logger.log(
-        `No hay suficiente historial todavía para recomendar destino (empresa ${lote.empresaId}).`,
+        `No hay suficiente historial todavía para recomendar destino (empresa ${empresaId}).`,
       );
+
       return null;
     }
 
-    // El microservicio devuelve el nombre del destino productivo (ej.
-    // "manteca"), no un id: lo resolvemos contra el catálogo de la empresa.
     const destinoRecomendado = await this.destinoProductivoRepo.findOne({
-      where: { empresaId: lote.empresaId, nombre: resultado.destinoRecomendado },
+      where: {
+        empresaId,
+        nombre: resultado.destinoRecomendado,
+      },
     });
 
     if (!destinoRecomendado) {
-      // Degradación deliberada, mismo criterio que arriba: puede pasar en
-      // operación normal si el destino con el que se entrenó el modelo fue
-      // desactivado o renombrado después.
       this.logger.warn(
-        `El microservicio ML recomendó un destino ("${resultado.destinoRecomendado}") que no existe en el catálogo de destinos productivos de la empresa ${lote.empresaId}.`,
+        `El microservicio ML recomendó un destino ("${resultado.destinoRecomendado}") que no existe en el catálogo de destinos productivos de la empresa ${empresaId}.`,
       );
+
       return null;
     }
 
     const recomendacion = this.recomendacionRepo.create({
-      lote,
-      empresa: lote.empresa,
+      lote: { id: loteId },
+      empresa: { id: empresaId },
+      loteConsumo: loteConsumoId
+        ? { id: loteConsumoId }
+        : null,
       destinoRecomendado,
       confianza: resultado.confianza,
     } as DeepPartial<RecomendacionDestino>);
@@ -91,24 +112,90 @@ export class MlService {
   async responderRecomendacion(
     id: number,
     dto: ResponderRecomendacionDto,
+    tenant: TenantContext,
   ): Promise<RecomendacionDestino> {
-    const recomendacion = await this.recomendacionRepo.findOneOrFail({
-      where: { id },
+    const recomendacion = await this.recomendacionRepo.findOne({
+      where: {
+        id,
+        empresa: {
+          id: tenant.empresaId!,
+        },
+      },
+      relations: {
+        lote: true,
+      },
     });
 
-    const destinoReal = await this.destinoProductivoRepo.findOneOrFail({
-      where: { id: dto.destinoRealId },
+    if (!recomendacion) {
+      throw new NotFoundException(
+        `Recomendación ${id} no encontrada`,
+      );
+    }
+
+    const destinoRealId = dto.aceptada
+      ? recomendacion.destinoRecomendadoId
+      : dto.destinoRealId!;
+
+    const destinoReal = await this.destinoProductivoRepo.findOne({
+      where: {
+        id: destinoRealId,
+        empresaId: tenant.empresaId!,
+      },
     });
 
-    recomendacion.estado = dto.aceptada ? 'aceptada' : 'rechazada';
+    if (!destinoReal) {
+      throw new NotFoundException(
+        `Destino productivo ${destinoRealId} no encontrado`,
+      );
+    }
+
+    recomendacion.estado = dto.aceptada
+      ? 'aceptada'
+      : 'rechazada';
+
+    recomendacion.destinoRealId = destinoReal.id;
     recomendacion.destinoReal = destinoReal;
+
+    /*
+     * HU-49:
+     *
+     * Cuando la recomendación pertenece al lote original,
+     * el destino real confirmado se guarda también en el lote.
+     *
+     * Cuando la recomendación pertenece a un consumo posterior
+     * (HU-68), NO se modifica el destino productivo permanente
+     * del lote original.
+     */
+    if (recomendacion.loteConsumoId == null) {
+      const lote = await this.loteRepo.findOne({
+        where: {
+          id: recomendacion.lote.id,
+          empresaId: tenant.empresaId!,
+        },
+      });
+
+      if (!lote) {
+        throw new NotFoundException(
+          `Lote ${recomendacion.lote.id} no encontrado`,
+        );
+      }
+
+      lote.destinoProductivoId = destinoReal.id;
+
+      await this.loteRepo.save(lote);
+    }
 
     return this.recomendacionRepo.save(recomendacion);
   }
 
-  async historialAciertos(empresaId: number) {
+  async historialAciertos(tenant: TenantContext) {
     const recomendaciones = await this.recomendacionRepo.find({
-      where: { empresa: { id: empresaId }, estado: Not('pendiente') },
+      where: {
+        empresa: {
+          id: tenant.empresaId!,
+        },
+        estado: Not('pendiente'),
+      },
     });
 
     const aciertos = recomendaciones.filter(
@@ -119,20 +206,9 @@ export class MlService {
       total: recomendaciones.length,
       aciertos,
       tasaAcierto:
-        recomendaciones.length > 0 ? aciertos / recomendaciones.length : 0,
+        recomendaciones.length > 0
+          ? aciertos / recomendaciones.length
+          : 0,
     };
-  }
-
-  // TEMPORAL — solo para probar la conexión NestJS -> Python.
-  // Borrar junto con el endpoint del controller una vez confirmado.
-  async testConexion() {
-    return this.mlClient.predecirDestino({
-      empresaId: 1,
-      parametros: {
-        [Parametro.PH]: 6.6,
-        [Parametro.TEMPERATURA]: 4,
-        [Parametro.GRASA]: 3.2,
-      },
-    });
   }
 }
