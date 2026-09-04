@@ -42,6 +42,8 @@ import PDFDocument from 'pdfkit';
 import { ConfiguracionNotificacionResponseDto } from './dto/configuracion-notificacion-response.dto';
 import { ConfiguracionNotificacionMapper } from './mappers/configuracion-notificacion.mapper';
 
+import { HttpMlClient } from '../ml/infrastructure/http-ml-client';
+import { TipoDesvioAnomalia } from './enums/tipo-desvio-anomalia.enum';
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -60,6 +62,7 @@ export class NotificacionesService {
     private readonly userRepository: Repository<User>,
 
     private readonly gateway: NotificacionesGateway,
+    private readonly mlClient: HttpMlClient,
   ) {}
 
   async notificarResponsablesCalidad(
@@ -472,6 +475,85 @@ export class NotificacionesService {
   }
 
   /**
+   * HU-50:
+   * Genera una alerta de anomalía consultando al microservicio ML.
+   * Evita duplicados y notifica a los responsables configurados.
+   */
+  async generarAlertaAnomalia(params: {
+    empresaId: number;
+    loteId: number;
+    loteCodigo: string;
+    parametro: Parametro;
+    valor: number;
+  }): Promise<NotificacionResponseDto[]> {
+    const { empresaId, loteId, loteCodigo, parametro, valor } = params;
+
+    // Llamada al microservicio ML
+    const resultado = await this.mlClient.detectarAnomalia(
+      empresaId,
+      parametro,
+      valor,
+    );
+
+    if (resultado.status !== 'ok' || !resultado.esAnomalia) {
+      return [];
+    }
+
+    // Evitar duplicados
+    const alertaAbiertaExistente =
+      await this.notificacionRepository.findAlertaAbiertaAnomalia(
+        empresaId,
+        loteId,
+        parametro,
+        TipoDesvioAnomalia.TENDENCIA, // tipoDesvio si aplica
+      );
+
+    if (alertaAbiertaExistente) {
+      return [];
+    }
+
+    const responsables = await this.obtenerDestinatariosPorNivel(
+      empresaId,
+      NivelAlerta.CRITICA,
+    );
+
+    const mensaje =
+      `Alerta de anomalía: el parámetro ${parametro} ` +
+      `del lote ${loteCodigo} registró un valor de ${valor}.`;
+
+    const data: Record<string, unknown> = {
+      loteId,
+      loteCodigo,
+      parametro,
+      valor,
+      confianza: resultado.confianza,
+    };
+
+    const notificaciones: NotificacionResponseDto[] = [];
+
+    for (const usuario of responsables) {
+      const entity = NotificacionMapper.toEntity({
+        tipo: TipoNotificacion.ALERTA_ANOMALIA,
+        mensaje,
+        data,
+        usuarioId: usuario.id,
+        empresaId,
+        nivelAlerta: NivelAlerta.CRITICA,
+        loteId,
+        parametro,
+      });
+
+      const creada = await this.notificacionRepository.create(entity);
+      const response = NotificacionMapper.toResponse(creada);
+
+      this.gateway.emitirNotificacion(response, empresaId, usuario.id);
+      notificaciones.push(response);
+    }
+
+    return notificaciones;
+  }
+
+  /**
    * HU-27:
    * Marca una alerta como resuelta con su acción correctiva.
    */
@@ -864,5 +946,51 @@ export class NotificacionesService {
       sensorId,
       TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
     );
+  }
+
+  /**
+   * HU-50 criterio 4:
+   * Marca una alerta de anomalía como falso positivo. A diferencia de
+   * resolverAlerta (HU-27), no pide accionCorrectiva: el estado resultante
+   * (FALSO_POSITIVO) es en sí mismo la señal que consume el microservicio
+   * ML como feedback negativo en el próximo reentrenamiento.
+   */
+  async marcarFalsoPositivo(
+    id: number,
+    empresaId: number,
+    marcadaPorId: number,
+  ): Promise<NotificacionResponseDto> {
+    const notificacion = await this.notificacionRepository.findById(
+      id,
+      empresaId,
+    );
+
+    if (!notificacion) {
+      throw new NotFoundException(`Alerta ${id} no encontrada`);
+    }
+
+    if (notificacion.tipo !== TipoNotificacion.ALERTA_ANOMALIA) {
+      throw new BadRequestException(
+        'Solo se pueden marcar como falso positivo notificaciones de tipo alerta de anomalía',
+      );
+    }
+
+    if (notificacion.estado !== EstadoAlerta.ABIERTA) {
+      throw new BadRequestException(
+        'Solo se puede marcar como falso positivo una alerta abierta',
+      );
+    }
+
+    const marcada = await this.notificacionRepository.marcarFalsoPositivo(
+      id,
+      empresaId,
+      marcadaPorId,
+    );
+
+    if (!marcada) {
+      throw new NotFoundException(`Alerta ${id} no encontrada`);
+    }
+
+    return NotificacionMapper.toResponse(marcada);
   }
 }

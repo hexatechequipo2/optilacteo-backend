@@ -3,6 +3,7 @@ import { Notificacion } from '../entities/notificacion.entity';
 import { NivelAlerta } from '../enums/nivel-alerta.enum';
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
 import { EstadoAlerta } from '../enums/estado-alerta.enum';
+import { TipoDesvioAnomalia } from '../enums/tipo-desvio-anomalia.enum';
 
 import { NotificacionResponseDto } from '../dto/notificacion-response.dto';
 import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto';
@@ -19,11 +20,16 @@ export interface CrearNotificacionParams {
   loteId?: number;
   parametro?: Parametro;
   sensorId?: number; // HU-31
+  // HU-50
+  tipoDesvio?: TipoDesvioAnomalia;
+  confianza?: number;
+  modeloVersion?: string;
 }
 
 const TIPOS_CON_ESTADO_ABIERTA = [
   TipoNotificacion.ALERTA_UMBRAL,
   TipoNotificacion.ALERTA_SENSOR_DESCONECTADO, // HU-31
+  TipoNotificacion.ALERTA_ANOMALIA, // HU-50
 ];
 
 export class NotificacionMapper {
@@ -38,6 +44,11 @@ export class NotificacionMapper {
       loteId: params.loteId ?? null,
       parametro: params.parametro ?? null,
       sensorId: params.sensorId ?? null, // HU-31
+
+      // HU-50
+      tipoDesvio: params.tipoDesvio ?? null,
+      confianza: params.confianza ?? null,
+      modeloVersion: params.modeloVersion ?? null,
 
       estado: TIPOS_CON_ESTADO_ABIERTA.includes(params.tipo)
         ? EstadoAlerta.ABIERTA
@@ -72,6 +83,14 @@ export class NotificacionMapper {
     dto.loteCodigo = entity.lote?.codigo ?? null;
     dto.parametro = entity.parametro ?? null;
     dto.sensorId = entity.sensorId ?? null; // HU-31
+
+    // HU-50
+    dto.tipoDesvio = entity.tipoDesvio ?? null;
+    dto.confianza = entity.confianza ?? null;
+    dto.modeloVersion = entity.modeloVersion ?? null;
+    dto.marcadaFalsoPositivoPorId = entity.marcadaFalsoPositivoPorId ?? null;
+    dto.fechaMarcadoFalsoPositivo = entity.fechaMarcadoFalsoPositivo ?? null;
+
     dto.estado = entity.estado ?? null;
     dto.accionCorrectiva = entity.accionCorrectiva ?? null;
     dto.resueltaPorId = entity.resueltaPorId ?? null;

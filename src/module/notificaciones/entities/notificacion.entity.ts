@@ -12,14 +12,16 @@ import { User } from '../../user/entities/user.entity';
 import { NivelAlerta } from '../enums/nivel-alerta.enum';
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
 import { EstadoAlerta } from '../enums/estado-alerta.enum';
+import { TipoDesvioAnomalia } from '../enums/tipo-desvio-anomalia.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { Lote } from '../../lote/entities/lote.entity';
 import { Sensor } from '../../sensor/entities/sensor.entity';
 
 @Entity('notificaciones')
 @Index(['empresaId', 'usuarioId', 'leida'])
-@Index(['empresaId', 'loteId', 'parametro', 'estado']) // HU-27: lookup de alertas abiertas
+@Index(['empresaId', 'loteId', 'parametro', 'estado']) // HU-27: lookup de alertas de umbral abiertas
 @Index(['empresaId', 'sensorId', 'tipo', 'estado']) // HU-31: lookup de alertas de desconexión abiertas
+@Index(['empresaId', 'loteId', 'parametro', 'tipoDesvio', 'estado']) // HU-50: lookup de anomalías abiertas
 export class Notificacion {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -76,6 +78,43 @@ export class Notificacion {
   @ManyToOne(() => Sensor, { nullable: true })
   @JoinColumn({ name: 'sensor_id' })
   sensor?: Sensor | null;
+
+  /**
+   * HU-50:
+   * Solo se completan para tipo = ALERTA_ANOMALIA. Clasificación del
+   * desvío detectado por el microservicio ML, nivel de confianza del
+   * modelo, y versión del modelo que generó la detección (trazabilidad
+   * para reentrenamientos).
+   */
+  @Column({
+    name: 'tipo_desvio',
+    type: 'enum',
+    enum: TipoDesvioAnomalia,
+    nullable: true,
+  })
+  tipoDesvio?: TipoDesvioAnomalia | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  confianza?: number | null;
+
+  @Column({ name: 'modelo_version', type: 'varchar', nullable: true })
+  modeloVersion?: string | null;
+
+  /**
+   * HU-50 criterio 4:
+   * Marcado de falso positivo, separado de la resolución normal
+   * (accionCorrectiva/resueltaPorId de HU-27), porque semánticamente
+   * es feedback al modelo, no una acción correctiva sobre el lote.
+   */
+  @Column({ name: 'marcada_falso_positivo_por_id', type: 'int', nullable: true })
+  marcadaFalsoPositivoPorId?: number | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'marcada_falso_positivo_por_id' })
+  marcadaFalsoPositivoPor?: User | null;
+
+  @Column({ name: 'fecha_marcado_falso_positivo', type: 'timestamptz', nullable: true })
+  fechaMarcadoFalsoPositivo?: Date | null;
 
   /**
    * HU-27: ciclo de vida de la alerta.

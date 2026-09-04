@@ -4,6 +4,8 @@ import { IsEnum, IsISO8601, IsInt, IsOptional, Min } from 'class-validator';
 
 import { EstadoAlerta } from '../enums/estado-alerta.enum';
 import { NivelAlerta } from '../enums/nivel-alerta.enum';
+import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
+import { Parametro } from '../../config-parametro/enums/parametro.enum';
 
 export class HistorialAlertasQueryDto {
   @ApiPropertyOptional({
@@ -32,6 +34,25 @@ export class HistorialAlertasQueryDto {
   @IsOptional()
   @IsEnum(NivelAlerta)
   nivelAlerta?: NivelAlerta;
+
+  @ApiPropertyOptional({
+    enum: TipoNotificacion,
+    description:
+      'HU-50: filtrar por tipo de alerta (ej. distinguir ALERTA_ANOMALIA de ALERTA_UMBRAL en el dashboard)',
+    example: TipoNotificacion.ALERTA_ANOMALIA,
+  })
+  @IsOptional()
+  @IsEnum(TipoNotificacion)
+  tipo?: TipoNotificacion;
+
+  @ApiPropertyOptional({
+    enum: Parametro,
+    description: 'HU-50 criterio 8: filtrar el dashboard por parámetro',
+    example: Parametro.PH,
+  })
+  @IsOptional()
+  @IsEnum(Parametro)
+  parametro?: Parametro;
 
   @ApiPropertyOptional({
     description: 'Fecha inicial del período',
