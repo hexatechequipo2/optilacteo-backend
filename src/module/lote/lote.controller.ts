@@ -114,7 +114,12 @@ export class LoteController {
   }
 
   @Get(':id')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
   findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.loteService.findOne(+id, tenant);
@@ -153,8 +158,12 @@ export class LoteController {
     return this.loteTrazabilidadService.getTrazabilidad(+id, tenant);
   }
 
+  // HU-49: la recomendación de destino productivo se muestra y confirma
+  // desde este mismo endpoint (modal "Editar lote"), y está dirigida
+  // explícitamente al Responsable de producción — se habilita el rol acá
+  // junto con Responsable de calidad, que ya podía editar el lote.
   @Patch(':id')
-  @Roles(ROLES.RESPONSABLE_CALIDAD)
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
   @Permissions(
     [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
     'canWrite',
