@@ -6,12 +6,14 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, Not, Repository } from 'typeorm';
+import { DeepPartial, IsNull, Not, Repository } from 'typeorm';
 
 import { RecomendacionDestino } from './entities/recomendacion-destino.entity';
 import type { IMlClient } from './interfaces/ml-client.interface';
 import { ML_CLIENT } from './interfaces/ml-client.interface';
 import { ResponderRecomendacionDto } from './dto/responder-recomendacion.dto';
+import { RecomendacionPendienteResponseDto } from './dto/recomendacion-pendiente-response.dto';
+import { RecomendacionMapper } from './mappers/recomendacion.mapper';
 
 import { Parametro } from '../config-parametro/enums/parametro.enum';
 import { DestinoProductivo } from '../destino-productivo/entities/destino-productivo.entity';
@@ -186,6 +188,43 @@ export class MlService {
     }
 
     return this.recomendacionRepo.save(recomendacion);
+  }
+
+  // HU-49: consulta puntual de la recomendación pendiente de un lote, para
+  // que el frontend deje de depender de un mock. Filtra por loteConsumoId
+  // IS NULL: solo interesa la recomendación del lote original, no la de un
+  // consumo parcial (ver la misma distinción en LoteConsumoService).
+  async recomendacionPendientePorLote(
+    loteId: number,
+    tenant: TenantContext,
+  ): Promise<RecomendacionPendienteResponseDto | null> {
+    const empresaId = tenant.empresaId!;
+
+    const lote = await this.loteRepo.findOne({
+      where: { id: loteId, empresaId },
+    });
+
+    if (!lote) {
+      throw new NotFoundException(`Lote ${loteId} no encontrado`);
+    }
+
+    const recomendacion = await this.recomendacionRepo.findOne({
+      where: {
+        lote: { id: loteId },
+        empresa: { id: empresaId },
+        estado: 'pendiente',
+        loteConsumoId: IsNull(),
+      },
+      relations: {
+        destinoRecomendado: true,
+        destinoReal: true,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    return recomendacion
+      ? RecomendacionMapper.toPendienteResponseDto(recomendacion)
+      : null;
   }
 
   async historialAciertos(tenant: TenantContext) {

@@ -25,6 +25,7 @@ import { DashboardModule } from './module/dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
 import { MlModule } from './module/ml/ml.module';
 import { InternalModule } from './module/internal/internal.module';
+import { DestinoProductivoModule } from './module/destino-productivo/destino-productivo.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { InternalModule } from './module/internal/internal.module';
     HealthModule,
     MlModule,
     InternalModule,
+    DestinoProductivoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

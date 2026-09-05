@@ -38,6 +38,23 @@ export class MlController {
     return this.mlService.responderRecomendacion(+id, dto, tenant);
   }
 
+  // HU-49: recomendación pendiente de un lote específico, para que el
+  // frontend deje de depender de un mock.
+  @Get('lote/:loteId')
+  @Roles(
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  recomendacionPendientePorLote(
+    @Param('loteId') loteId: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.mlService.recomendacionPendientePorLote(+loteId, tenant);
+  }
+
   // HU-49: historial de aciertos del modelo, para consulta agregada.
   @Get('historial')
   @Roles(
