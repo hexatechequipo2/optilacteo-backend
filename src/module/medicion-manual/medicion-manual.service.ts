@@ -77,19 +77,12 @@ export class MedicionManualService {
       );
     }
 
-    // AC3: parámetros obligatorios según el tipo de materia prima elegido.
+    // AC3 (corregido por HU-20): la operación real permite cargar
+    // mediciones por separado. Ya no se exige el conjunto completo de
+    // parámetros obligatorios; el DTO garantiza al menos uno (@ArrayMinSize).
     const configs = await this.configParametroRepository.find({
       where: { empresaId, tipoMateriaPrima: dto.tipoMateriaPrima },
     });
-    const obligatorios = new Set(configs.map((c) => c.parametro));
-    const enviados = new Set(dto.parametros.map((p) => p.parametro));
-
-    const faltantes = [...obligatorios].filter((p) => !enviados.has(p));
-    if (faltantes.length > 0) {
-      throw new BadRequestException(
-        `Faltan parámetros obligatorios para '${dto.tipoMateriaPrima}': ${faltantes.join(', ')}`,
-      );
-    }
 
     // AC5/6: fuera de rango se ACEPTA y se marca, no se rechaza.
     const nuevas = MedicionManualMapper.toEntities(

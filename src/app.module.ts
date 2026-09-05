@@ -19,6 +19,7 @@ import { SensorModule } from './module/sensor/sensor.module';
 import { PlcConfigModule } from './module/plc-config/plc-config.module'; // <-- NUEVO (HU-61)
 import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.module';
 import { MedicionManualModule } from './module/medicion-manual/medicion-manual.module';
+import { AsistenteVozModule } from './module/asistente-voz/asistente-voz.module'; // <-- NUEVO (HU-55, spike)
 import { NotificacionesModule } from './module/notificaciones/notificaciones.module';
 import { DashboardModule } from './module/dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
@@ -60,6 +61,7 @@ import { InternalModule } from './module/internal/internal.module';
     PlcConfigModule,
     LecturaSensorModule,
     MedicionManualModule,
+    AsistenteVozModule,
     NotificacionesModule,
     DashboardModule,
     HealthModule,
