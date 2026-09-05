@@ -142,7 +142,7 @@ describe('MedicionManualService', () => {
       );
     });
 
-    it('debe lanzar BadRequestException si faltan parámetros obligatorios', async () => {
+    it('debe aceptar el registro con un subconjunto de parámetros obligatorios (HU-20 corregido)', async () => {
       loteRepoMock.findById.mockResolvedValue({ id: loteId, empresaId: 1 });
       sensorLoteHistorialRepoMock.findSensoresActualesDeLote.mockResolvedValue(
         [],
@@ -155,13 +155,35 @@ describe('MedicionManualService', () => {
         { parametro: Parametro.GRASA } as any,
       ]);
 
-      await expect(
-        service.registrar(loteId, dto, usuarioId, mockTenant),
-      ).rejects.toThrow(
-        new BadRequestException(
-          `Faltan parámetros obligatorios para '${dto.tipoMateriaPrima}': grasa`,
-        ),
+      const mockEntities = [{ id: 1 }, { id: 2 }];
+      const mockCreated = [{ id: 1 }, { id: 2 }];
+      const mockResponseItems = [
+        { parametro: Parametro.TEMPERATURA, valor: 4.5 },
+        { parametro: Parametro.PH, valor: 6.7 },
+      ];
+
+      jest
+        .spyOn(MedicionManualMapper, 'toEntities')
+        .mockReturnValue(mockEntities);
+      medicionRepoMock.create.mockResolvedValue(mockCreated);
+      jest
+        .spyOn(MedicionManualMapper, 'toResponseItemList')
+        .mockReturnValue(mockResponseItems as any);
+      clasificacionLoteServiceMock.evaluarYClasificar.mockResolvedValue(
+        undefined,
       );
+
+      const resultado = await service.registrar(
+        loteId,
+        dto,
+        usuarioId,
+        mockTenant,
+      );
+
+      // Se acepta aunque falte GRASA (obligatoria en config): HU-20
+      // permite cargar mediciones por separado.
+      expect(medicionRepoMock.create).toHaveBeenCalledWith(mockEntities);
+      expect(resultado.mediciones).toEqual(mockResponseItems);
     });
 
     it('debe registrar la medición con éxito y gatillar la clasificación automática', async () => {
