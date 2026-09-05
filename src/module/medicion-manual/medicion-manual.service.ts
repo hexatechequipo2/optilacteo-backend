@@ -24,6 +24,10 @@ import { MEDICION_MANUAL_LOTE_REPOSITORY } from './repository/medicion-manual-lo
 import { MedicionManualMapper } from './mappers/medicion-manual.mapper';
 // --- nuevo: HU-21 ---
 import { ClasificacionLoteService } from '../lote/clasificacion-lote.service';
+// --- nuevo: HU-50 ---
+import { AnomaliaService } from '../anomalia/anomalia.service';
+
+const VENTANA_HISTORICO_ANOMALIA = 10;
 
 @Injectable()
 export class MedicionManualService {
@@ -40,6 +44,8 @@ export class MedicionManualService {
     private readonly sensorLoteHistorialRepository: ISensorLoteHistorialRepository,
     // --- nuevo: HU-21 ---
     private readonly clasificacionLoteService: ClasificacionLoteService,
+    // --- nuevo: HU-50 ---
+    private readonly anomaliaService: AnomaliaService,
   ) {}
 
   async registrar(
@@ -109,6 +115,36 @@ export class MedicionManualService {
       .catch((err) =>
         this.logger.error(`Error al clasificar lote ${lote.id}: ${err}`),
       );
+
+    // HU-50: por cada parámetro cargado, consulta al microservicio ML si
+    // el valor es una anomalía respecto al histórico reciente del mismo
+    // lote+parámetro. Best-effort: no debe romper el registro de la
+    // medición si el microservicio falla o está caído.
+    for (const medicion of creadas) {
+      this.medicionRepository
+        .findUltimosValores(
+          lote.id,
+          medicion.parametro,
+          empresaId,
+          VENTANA_HISTORICO_ANOMALIA,
+        )
+        .then((historico) =>
+          this.anomaliaService.evaluarAnomalia({
+            empresaId,
+            loteId: lote.id,
+            loteCodigo: lote.codigo,
+            parametro: medicion.parametro,
+            valor: Number(medicion.valor),
+            historicoReciente: historico,
+          }),
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Error al evaluar anomalía para lote ${lote.id}, parámetro ` +
+              `${medicion.parametro}: ${err}`,
+          ),
+        );
+    }
 
     return {
       loteId: lote.id,

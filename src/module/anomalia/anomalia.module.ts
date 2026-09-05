@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { HttpModule } from '@nestjs/axios';
 
 import { Lote } from '../lote/entities/lote.entity';
 import { User } from '../user/entities/user.entity';
@@ -7,21 +8,34 @@ import { Notificacion } from '../notificaciones/entities/notificacion.entity';
 
 import { NOTIFICACION_REPOSITORY } from '../notificaciones/repository/notificacion.repository.interface';
 import { NotificacionRepository } from '../notificaciones/repository/notificacion.repository';
-import { NotificacionesGateway } from '../notificaciones/gateway/notificaciones.gateway';
 
+import { NotificacionesModule } from '../notificaciones/notificaciones.module';
+
+import { ANOMALIA_CLIENT } from './interfaces/anomalia-client.interface';
+import { AnomaliaHttpClient } from './clients/anomalia-http.client';
 import { AnomaliaService } from './anomalia.service';
-import { AnomaliaController } from './anomalia.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Lote, User, Notificacion])],
-  controllers: [AnomaliaController],
+  imports: [
+    TypeOrmModule.forFeature([Lote, User, Notificacion]),
+    HttpModule,
+    NotificacionesModule,
+  ],
+
   providers: [
     AnomaliaService,
-    NotificacionesGateway,
+
     {
       provide: NOTIFICACION_REPOSITORY,
       useClass: NotificacionRepository,
     },
+
+    {
+      provide: ANOMALIA_CLIENT,
+      useClass: AnomaliaHttpClient,
+    },
   ],
+
+  exports: [AnomaliaService],
 })
 export class AnomaliaModule {}

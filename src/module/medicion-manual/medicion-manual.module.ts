@@ -8,12 +8,15 @@ import { MedicionManualLoteRepository } from './repository/medicion-manual-lote.
 import { MEDICION_MANUAL_LOTE_REPOSITORY } from './repository/medicion-manual-lote.repository.interface';
 import { LoteModule } from '../lote/lote.module';
 import { SensorModule } from '../sensor/sensor.module';
+// HU-50
+import { AnomaliaModule } from '../anomalia/anomalia.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([MedicionManualLote, ConfiguracionParametro]),
     forwardRef(() => LoteModule),
     forwardRef(() => SensorModule),
+    AnomaliaModule,
   ],
   controllers: [MedicionManualController],
   providers: [

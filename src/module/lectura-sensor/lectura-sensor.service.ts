@@ -58,7 +58,11 @@ import { AuditLogService } from '../audit/audit-log.service';
 
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
+// --- nuevo: HU-50 ---
+import { AnomaliaService } from '../anomalia/anomalia.service';
+
 const RANGO_DIAS_SLA = 30;
+const VENTANA_HISTORICO_ANOMALIA = 10;
 
 interface DatosEvento {
   sensorId?: number;
@@ -98,6 +102,9 @@ export class LecturaSensorService {
     private readonly auditLogService: AuditLogService,
 
     private readonly notificacionesService: NotificacionesService,
+
+    // --- nuevo: HU-50 ---
+    private readonly anomaliaService: AnomaliaService,
   ) {}
 
   private resolveEmpresaId(tenant: TenantContext): number {
@@ -108,6 +115,36 @@ export class LecturaSensorService {
     }
 
     return tenant.empresaId;
+  }
+
+  // ============================================================
+  // HU-50: helper compartido entre ingresar() e ingresarManual()
+  // ============================================================
+
+  private evaluarAnomaliaBestEffort(
+    empresaId: number,
+    loteId: number,
+    loteCodigo: string,
+    parametro: Parametro,
+    valor: number,
+  ): void {
+    this.lecturaRepository
+      .findUltimosValores(loteId, parametro, empresaId, VENTANA_HISTORICO_ANOMALIA)
+      .then((historico) =>
+        this.anomaliaService.evaluarAnomalia({
+          empresaId,
+          loteId,
+          loteCodigo,
+          parametro,
+          valor,
+          historicoReciente: historico,
+        }),
+      )
+      .catch((err) =>
+        this.logger.error(
+          `Error al evaluar anomalía para lote ${loteId}, parámetro ${parametro}: ${err}`,
+        ),
+      );
   }
 
   // ============================================================
@@ -338,6 +375,22 @@ export class LecturaSensorService {
         this.logger.error(`Error al clasificar lote ${lote.id}: ${err}`),
       );
 
+    // ------------------------------------------------------------
+    // HU-50:
+    // Detección de anomalías respecto al histórico reciente del mismo
+    // lote+parámetro. Best-effort, no debe romper la ingesta.
+    // Caso A/B del diseño: lote con sensor asociado (funcionando o en
+    // fallback), la serie sale de sensor_lecturas.
+    // ------------------------------------------------------------
+
+    this.evaluarAnomaliaBestEffort(
+      empresaId,
+      lote.id,
+      lote.codigo,
+      sensor.parametro,
+      dto.valor,
+    );
+
     return responseDto;
   }
 
@@ -501,6 +554,22 @@ export class LecturaSensorService {
       .catch((err) =>
         this.logger.error(`Error al clasificar lote ${loteId}: ${err}`),
       );
+
+    // ------------------------------------------------------------
+    // HU-50:
+    // Detección de anomalías. Best-effort, no debe romper la carga
+    // manual. Caso B del diseño: sensor asociado pero en falla/inactivo,
+    // fallback manual — la serie igual sale de sensor_lecturas, solo
+    // cambia el origen del punto (MANUAL en vez de SENSOR).
+    // ------------------------------------------------------------
+
+    this.evaluarAnomaliaBestEffort(
+      empresaId,
+      loteId,
+      lote.codigo,
+      sensor.parametro,
+      dto.valor,
+    );
 
     return responseDto;
   }
