@@ -20,6 +20,8 @@ import { LecturasGateway } from './gateway/lecturas.gateway';
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
 import { AuditLogModule } from '../audit/audit-log.module';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
+// --- nuevo: HU-50 ---
+import { AnomaliaModule } from '../anomalia/anomalia.module';
 
 @Module({
   imports: [
@@ -40,6 +42,9 @@ import { NotificacionesModule } from '../notificaciones/notificaciones.module';
     AuthModule,
     ScheduleModule.forRoot(),
     AuditLogModule,
+    // HU-50: provee AnomaliaService para el hook de detección en
+    // ingresar()/ingresarManual().
+    AnomaliaModule,
   ],
   controllers: [LecturaSensorController],
   providers: [

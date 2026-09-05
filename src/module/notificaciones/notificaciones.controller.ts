@@ -129,8 +129,8 @@ export class NotificacionesController {
 
   /**
    * ============================================================
-   * HU-27 + HU-28
-   * HISTORIAL DE ALERTAS
+   * HU-27 + HU-28 + HU-50
+   * HISTORIAL DE ALERTAS (umbral, sensor desconectado y anomalías)
    * ============================================================
    */
   @Get('historial')
@@ -241,6 +241,28 @@ export class NotificacionesController {
       tenant.empresaId!,
       req.user.sub,
       dto,
+    );
+  }
+
+  /**
+   * ============================================================
+   * HU-50 criterio 4
+   * MARCAR ANOMALÍA COMO FALSO POSITIVO
+   * ============================================================
+   */
+  @Patch(':id/falso-positivo')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION)
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
+  @AuditLog('ANOMALIA_MARCAR_FALSO_POSITIVO', 'Notificacion')
+  marcarFalsoPositivo(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+    @Req() req: any,
+  ) {
+    return this.notificacionesService.marcarFalsoPositivo(
+      +id,
+      tenant.empresaId!,
+      req.user.sub,
     );
   }
 

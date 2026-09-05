@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
+import { HttpModule } from '@nestjs/axios';
+
 import { Notificacion } from './entities/notificacion.entity';
 import { User } from '../user/entities/user.entity';
 import { NotificacionesService } from './notificaciones.service';
@@ -20,6 +22,8 @@ import { ConfiguracionAlertaDesconexionRepository } from './repository/configura
 import { CONFIGURACION_ALERTA_DESCONEXION_REPOSITORY } from './repository/configuracion-alerta-desconexion.repository.interface';
 import { SensorDesconexionCronService } from './cron/sensor-desconexion-cron.service';
 
+import { HttpMlClient } from '../ml/infrastructure/http-ml-client';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -29,13 +33,20 @@ import { SensorDesconexionCronService } from './cron/sensor-desconexion-cron.ser
       Sensor, // HU-31
       User,
     ]),
-    JwtModule.register({}), // ver nota: borrar si JwtModule ya es @Global()
+    JwtModule.register({
+      secret: process.env.JWT_SECRET ?? 'defaultSecret',
+      signOptions: { expiresIn: '1h' },
+    }),
+    HttpModule,
   ],
   controllers: [NotificacionesController],
   providers: [
     NotificacionesService,
     NotificacionesGateway,
-    { provide: NOTIFICACION_REPOSITORY, useClass: NotificacionRepository },
+    {
+      provide: NOTIFICACION_REPOSITORY,
+      useClass: NotificacionRepository,
+    },
     {
       provide: CONFIGURACION_NOTIFICACION_REPOSITORY,
       useClass: ConfiguracionNotificacionRepository,
@@ -47,7 +58,8 @@ import { SensorDesconexionCronService } from './cron/sensor-desconexion-cron.ser
       provide: CONFIGURACION_ALERTA_DESCONEXION_REPOSITORY,
       useClass: ConfiguracionAlertaDesconexionRepository,
     },
+    HttpMlClient,
   ],
-  exports: [NotificacionesService],
+  exports: [NotificacionesService, NotificacionesGateway],
 })
 export class NotificacionesModule {}
