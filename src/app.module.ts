@@ -26,6 +26,8 @@ import { HealthModule } from './health/health.module';
 import { MlModule } from './module/ml/ml.module';
 import { InternalModule } from './module/internal/internal.module';
 import { DestinoProductivoModule } from './module/destino-productivo/destino-productivo.module';
+// --- NUEVO (HU-51) ---
+import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-volumen.module';
 
 @Module({
   imports: [
@@ -69,6 +71,7 @@ import { DestinoProductivoModule } from './module/destino-productivo/destino-pro
     MlModule,
     InternalModule,
     DestinoProductivoModule,
+    PrediccionVolumenModule,
   ],
   controllers: [AppController],
   providers: [AppService],

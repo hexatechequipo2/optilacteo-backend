@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { RecomendacionResponseDto } from '../../ml/dto/recomendacion-response.dto';
+import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
 
 export class LoteConsumoParametroResponseDto {
   @ApiProperty({ enum: Parametro })
@@ -26,6 +27,11 @@ export class LoteConsumoResponseDto {
   @ApiProperty()
   cantidad!: number;
 
+  // HU-51: unidad de `cantidad`, heredada del lote de ingreso (no se
+  // duplica en la entity LoteConsumo, se deriva del lote al mapear).
+  @ApiPropertyOptional({ enum: UnidadCantidad, nullable: true })
+  unidadCantidad?: UnidadCantidad | null;
+
   @ApiProperty()
   usuarioId!: number;
 
@@ -35,10 +41,6 @@ export class LoteConsumoResponseDto {
   @ApiProperty()
   createdAt!: Date;
 
-  // HU-49 AC1/AC3: solo se genera cuando este consumo trae parámetros
-  // nuevos (2do consumo en adelante — el 1ro reutiliza los del alta del
-  // lote y ya tiene su propia recomendación). Null si no aplica o si no
-  // hay historial suficiente todavía.
   @ApiPropertyOptional({ type: RecomendacionResponseDto, nullable: true })
   recomendacion?: RecomendacionResponseDto | null;
 }

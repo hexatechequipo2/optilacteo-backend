@@ -7,6 +7,7 @@ import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 import { TrazabilidadEntidadDto } from '../../audit/dto/trazabilidad.dto';
 import { UnidadRendimiento } from '../enums/unidad-rendimiento.enum';
+import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
 
 export class LoteParametroResponseDto {
   @ApiProperty({ enum: Parametro })
@@ -62,6 +63,11 @@ export class LoteResponseDto {
 
   @ApiPropertyOptional({ description: 'Cantidad total ingresada del lote' })
   cantidad?: number | null;
+
+  // HU-51: unidad física de `cantidad`, inferida de la materia prima
+  // (leche_cruda/crema -> litros, masa_hilada -> kilogramos).
+  @ApiPropertyOptional({ enum: UnidadCantidad, nullable: true })
+  unidadCantidad?: UnidadCantidad | null;
 
   @ApiPropertyOptional({
     description: 'Saldo remanente disponible para consumo',
