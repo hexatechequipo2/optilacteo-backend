@@ -19,6 +19,7 @@ import { DestinoLote } from '../enums/destino-lote.enum';
 import { EstadoLote } from '../enums/estado-lote.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 import { UnidadRendimiento } from '../enums/unidad-rendimiento.enum';
+import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
 
 @Entity('lotes')
 export class Lote {
@@ -102,6 +103,18 @@ export class Lote {
   // alcance de esta HU).
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   cantidad?: number | null;
+
+  // HU-51: unidad física de `cantidad`. Nullable por los mismos motivos que
+  // `cantidad` (lotes previos a esta columna no la tienen) y porque se
+  // infiere server-side a partir de `materiaPrima` en LoteService.create()
+  // en vez de depender de que el cliente la envíe correctamente.
+  @Column({
+    name: 'unidad_cantidad',
+    type: 'enum',
+    enum: UnidadCantidad,
+    nullable: true,
+  })
+  unidadCantidad?: UnidadCantidad | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   cantidadDisponible?: number | null;

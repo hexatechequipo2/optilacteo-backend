@@ -1,6 +1,7 @@
 import { Lote } from '../entities/lote.entity';
 import { LoteResponseDto } from '../dto/lote-response.dto';
 import { DesvioProveedorResponseDto } from '../dto/desvio-proveedor-response.dto';
+import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
 
 export class LoteMapper {
   static toResponseDto(lote: Lote): LoteResponseDto {
@@ -19,6 +20,7 @@ export class LoteMapper {
       rendimiento: lote.rendimiento != null ? Number(lote.rendimiento) : null,
       unidadRendimiento: lote.unidadRendimiento ?? null,
       cantidad: lote.cantidad != null ? Number(lote.cantidad) : null,
+      unidadCantidad: lote.unidadCantidad ?? null, // HU-51
       cantidadDisponible:
         lote.cantidadDisponible != null
           ? Number(lote.cantidadDisponible)
@@ -42,13 +44,17 @@ export class LoteMapper {
     return lotes.map((lote) => this.toResponseDto(lote));
   }
 
-  // HU-66
+  // HU-66 + HU-51: el desvío de cantidad solo se calcula si cantidadReal
+  // está en la misma unidad que cantidadComprometidaKg (kilogramos).
   static toDesvioResponseDto(lote: Lote): DesvioProveedorResponseDto {
     const cantidadComprometida =
       lote.cantidadComprometidaKg != null
         ? Number(lote.cantidadComprometidaKg)
         : null;
     const cantidadReal = lote.cantidad != null ? Number(lote.cantidad) : null;
+    const unidadCantidadReal = lote.unidadCantidad ?? null;
+
+    const unidadesComparables = unidadCantidadReal === UnidadCantidad.KILOGRAMOS;
 
     return {
       loteId: lote.id,
@@ -56,10 +62,10 @@ export class LoteMapper {
       fechaIngreso: lote.fechaIngreso,
       cantidadComprometidaKg: cantidadComprometida,
       cantidadReal,
-      desvioCantidadPorcentaje: this.calcularDesvio(
-        cantidadComprometida,
-        cantidadReal,
-      ),
+      unidadCantidadReal,
+      desvioCantidadPorcentaje: unidadesComparables
+        ? this.calcularDesvio(cantidadComprometida, cantidadReal)
+        : null,
       parametros: (lote.parametros ?? [])
         .filter((p) => p.valorComprometido != null)
         .map((p) => {

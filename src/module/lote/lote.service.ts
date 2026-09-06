@@ -44,6 +44,17 @@ import { ROLES } from '../rol/constants/roles.constants';
 import { MlService } from '../ml/ml.service';
 import { RecomendacionMapper } from '../ml/mappers/recomendacion.mapper';
 import { RecomendacionResponseDto } from '../ml/dto/recomendacion-response.dto';
+import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-enum';
+import { UnidadCantidad } from './enums/unidad-cantidad.enum';
+
+// HU-51: unidad física de la cantidad recepcionada según materia prima.
+// leche_cruda y crema se reciben en volumen; masa_hilada es semisólida y
+// se pesa. Server-side para no depender de que el cliente la envíe bien.
+const UNIDAD_POR_MATERIA_PRIMA: Record<TipoMateriaPrima, UnidadCantidad> = {
+  [TipoMateriaPrima.LECHE_CRUDA]: UnidadCantidad.LITROS,
+  [TipoMateriaPrima.CREMA_DE_LECHE]: UnidadCantidad.KILOGRAMOS,
+  [TipoMateriaPrima.MASA_HILADA]: UnidadCantidad.KILOGRAMOS,
+};
 
 @Injectable()
 export class LoteService {
@@ -131,6 +142,9 @@ export class LoteService {
       return parametro;
     });
 
+    // HU-51: unidad inferida a partir de la materia prima, no del cliente.
+    const unidadCantidad = UNIDAD_POR_MATERIA_PRIMA[dto.materiaPrima];
+
     const lote = this.loteRepository.create({
       codigo,
       empresaId,
@@ -144,6 +158,7 @@ export class LoteService {
       estado: EstadoLote.REGISTRADO,
       parametros,
       cantidad: dto.cantidad,
+      unidadCantidad, // HU-51
       cantidadDisponible: dto.cantidad,
       cantidadComprometidaKg: dto.cantidadComprometidaKg ?? null, // HU-66
     });

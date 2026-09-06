@@ -139,7 +139,12 @@ export class LoteConsumoService {
     }
 
     return {
-      ...LoteConsumoMapper.toResponseDto(consumo, loteProduccion.codigo),
+      // HU-51: se propaga la unidad del lote de origen al DTO de consumo.
+      ...LoteConsumoMapper.toResponseDto(
+        consumo,
+        loteProduccion.codigo,
+        lote.unidadCantidad,
+      ),
       recomendacion,
     };
   }
@@ -162,7 +167,12 @@ export class LoteConsumoService {
       order: { createdAt: 'ASC' },
     });
 
-    return LoteConsumoMapper.toResponseDtoList(consumos);
+    // HU-51: se propaga la unidad del lote de origen a todo el historial.
+    return LoteConsumoMapper.toResponseDtoList(
+      consumos,
+      undefined,
+      lote.unidadCantidad,
+    );
   }
 
   // Alimenta el selector "lote de producción existente" del frontend.
