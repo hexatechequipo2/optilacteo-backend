@@ -24,6 +24,8 @@ import { PasswordResetService } from './password-reset.service';
 import { MailService } from './mail.service';
 import { PasswordResetTokenRepository } from './repository/password-reset-token.repository';
 import { PASSWORD_RESET_TOKEN_REPOSITORY } from './repository/password-reset-token.interface';
+// --- nuevo: permisos por empresa ---
+import { PermisoModule } from '../permiso/permiso.module';
 
 @Module({
   imports: [
@@ -44,10 +46,11 @@ import { PASSWORD_RESET_TOKEN_REPOSITORY } from './repository/password-reset-tok
         },
       }),
     }),
-    // Solo se aplica explicitamente via @UseGuards(ThrottlerGuard) en el
-    // endpoint de login (ver auth.controller.ts) -- no esta registrado como
-    // APP_GUARD global, para no afectar al resto de la API.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]),
+    // HU permisos por empresa: provee PERMISO_REPOSITORY para que
+    // AuthService.buildJwtPayload consulte permisos scopeados por
+    // (rolId, empresaId) al armar el JWT.
+    PermisoModule,
   ],
   controllers: [AuthController, PasswordResetController],
   providers: [
@@ -79,8 +82,6 @@ import { PASSWORD_RESET_TOKEN_REPOSITORY } from './repository/password-reset-tok
       useClass: PasswordResetTokenRepository,
     },
   ],
-  // JwtModule se reexporta para que otros módulos (ej. el gateway WS de
-  // HU-13) puedan validar tokens sin duplicar la configuración de JWT_SECRET.
   exports: [JwtModule, USER_REPOSITORY, REVOKED_TOKEN_REPOSITORY],
 })
 export class AuthModule {}

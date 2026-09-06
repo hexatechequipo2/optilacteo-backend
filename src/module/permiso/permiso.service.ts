@@ -11,28 +11,31 @@ export class PermisoService {
     private readonly permisoRepository: IPermisoRepository,
   ) {}
 
-  async findByRol(rolId: number) {
-    const permisos = await this.permisoRepository.findByRol(rolId);
+  async findByRol(rolId: number, empresaId: number) {
+    const permisos = await this.permisoRepository.findByRol(rolId, empresaId);
     return PermisoMapper.toResponseList(permisos);
   }
 
-  async findByUsuario(userId: number) {
-    const permisos = await this.permisoRepository.findByUsuario(userId);
+  async findByUsuario(userId: number, empresaId: number) {
+    const permisos = await this.permisoRepository.findByUsuario(userId, empresaId);
     return PermisoMapper.toUserPermisoResponse(permisos);
   }
 
-  async findOne(id: number) {
-    const permiso = await this.permisoRepository.findById(id);
+  async findOne(id: number, empresaId: number) {
+    const permiso = await this.permisoRepository.findById(id, empresaId);
     if (!permiso) {
-      throw new NotFoundException(`Permiso con id ${id} no encontrado`);
+      throw new NotFoundException(
+        `Permiso con id ${id} no encontrado en tu empresa`,
+      );
     }
     return PermisoMapper.toResponse(permiso);
   }
 
-  async update(id: number, dto: UpdatePermisoDto) {
-    await this.findOne(id); // valida que exista, lanza 404 si no
+  async update(id: number, empresaId: number, dto: UpdatePermisoDto) {
+    await this.findOne(id, empresaId); // valida existencia Y pertenencia, 404 si no
     const updated = await this.permisoRepository.updatePermiso(
       id,
+      empresaId,
       dto.canRead,
       dto.canWrite,
     );
