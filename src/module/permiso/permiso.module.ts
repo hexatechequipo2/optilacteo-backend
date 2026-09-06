@@ -17,6 +17,6 @@ import { User } from '../user/entities/user.entity';
       useClass: PermisoRepository,
     },
   ],
-  exports: [PermisoService],
+  exports: [PermisoService, PERMISO_REPOSITORY],
 })
 export class PermisoModule {}
