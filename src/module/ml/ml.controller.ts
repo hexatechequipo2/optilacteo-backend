@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MlService } from './ml.service';
 import { ResponderRecomendacionDto } from './dto/responder-recomendacion.dto';
@@ -19,8 +27,8 @@ import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 export class MlController {
   constructor(private readonly mlService: MlService) {}
 
-  // HU-49 AC4: aceptar o rechazar la recomendación, con registro del
-  // resultado real.
+  // HU-49 AC4 / HU-37: aceptar o rechazar la recomendación, con registro
+  // del resultado real y, si difiere del recomendado, de la justificación.
   @Patch(':id/responder')
   @Roles(
     ROLES.RESPONSABLE_PRODUCCION,
@@ -34,8 +42,12 @@ export class MlController {
     @Param('id') id: string,
     @Body() dto: ResponderRecomendacionDto,
     @CurrentEmpresa() tenant: TenantContext,
+    @Req() req: any, // TODO: reemplazar por tu @CurrentUser() real (ver LoteController)
   ) {
-    return this.mlService.responderRecomendacion(+id, dto, tenant);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const usuarioId = req.user.sub;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return this.mlService.responderRecomendacion(+id, dto, tenant, usuarioId);
   }
 
   // HU-49: recomendación pendiente de un lote específico, para que el
@@ -66,5 +78,14 @@ export class MlController {
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
   historial(@CurrentEmpresa() tenant: TenantContext) {
     return this.mlService.historialAciertos(tenant);
+  }
+
+  // HU-37 AC8: reporte de lotes con divergencias justificadas
+  // (recomendaciones rechazadas: destino elegido != destino recomendado).
+  @Get('divergencias')
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  historialDivergencias(@CurrentEmpresa() tenant: TenantContext) {
+    return this.mlService.historialDivergencias(tenant);
   }
 }

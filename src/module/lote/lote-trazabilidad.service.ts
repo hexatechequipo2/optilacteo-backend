@@ -12,6 +12,7 @@ import { LOTE_REPOSITORY } from './repository/lote-repository.interface';
 import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
 import { LoteUbicacionHistorial } from './entities/lote-ubicacion-historial.entity';
 import { IngresoCamara } from './entities/ingreso-camara.entity';
+import { RecomendacionDestino } from '../ml/entities/recomendacion-destino.entity'; // <-- NUEVO (HU-37): ajustar ruta real si difiere
 import { ClasificacionLoteService } from './clasificacion-lote.service';
 import { LoteConsumoService } from './lote-consumo.service';
 import { EstadoLote } from './enums/estado-lote.enum';
@@ -32,6 +33,8 @@ export class LoteTrazabilidadService {
     private readonly ubicacionHistorialRepository: Repository<LoteUbicacionHistorial>,
     @InjectRepository(IngresoCamara)
     private readonly ingresoCamaraRepository: Repository<IngresoCamara>,
+    @InjectRepository(RecomendacionDestino) // <-- NUEVO (HU-37)
+    private readonly recomendacionRepository: Repository<RecomendacionDestino>,
     private readonly clasificacionLoteService: ClasificacionLoteService,
     private readonly loteConsumoService: LoteConsumoService,
   ) {}
@@ -102,6 +105,37 @@ export class LoteTrazabilidadService {
         descripcion: `Revisión manual: ${r.decision}`,
         detalle: {
           decision: r.decision,
+          justificacion: r.justificacion,
+          usuarioId: r.usuarioId,
+        },
+      });
+    }
+
+    // 3.5. Recomendaciones de destino respondidas (HU-37): solo las que ya
+    // tuvieron una decisión del operador, no las pendientes. Es divergencia
+    // cuando destinoRealId !== destinoRecomendadoId (equivale a 'rechazada').
+    const recomendaciones = await this.recomendacionRepository.find({
+      where: { lote: { id }, empresa: { id: empresaId } },
+      relations: { destinoRecomendado: true, destinoReal: true },
+      order: { respondidaEn: 'ASC' },
+    });
+    for (const r of recomendaciones) {
+      if (r.estado === 'pendiente') continue; // AC4: sin respuesta todavía, no es evento
+
+      const esDivergencia = r.destinoRecomendadoId !== r.destinoRealId;
+
+      eventos.push({
+        tipo: TipoEventoTrazabilidad.RECOMENDACION_DESTINO,
+        fecha: r.respondidaEn ?? r.createdAt,
+        descripcion: esDivergencia
+          ? `Divergencia: destino elegido distinto al recomendado (${r.destinoRecomendado.nombre} → ${r.destinoReal?.nombre})`
+          : `Destino recomendado aceptado (${r.destinoRecomendado.nombre})`,
+        detalle: {
+          destinoRecomendadoId: r.destinoRecomendadoId,
+          destinoRecomendadoNombre: r.destinoRecomendado.nombre,
+          destinoRealId: r.destinoRealId,
+          destinoRealNombre: r.destinoReal?.nombre,
+          divergencia: esDivergencia,
           justificacion: r.justificacion,
           usuarioId: r.usuarioId,
         },

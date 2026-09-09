@@ -36,6 +36,10 @@ import { MlReentrenamientoCronService } from './cron/ml-reentrenamiento-cron.ser
       useClass: HttpMlClient,
     },
   ],
-  exports: [MlService],
+  exports: [
+    MlService,
+    TypeOrmModule, 
+
+  ],
 })
 export class MlModule {}

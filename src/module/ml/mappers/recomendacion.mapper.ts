@@ -12,6 +12,7 @@ export class RecomendacionMapper {
       destinoRecomendadoNombre: recomendacion.destinoRecomendado.nombre,
       confianza: recomendacion.confianza,
       estado: recomendacion.estado,
+      justificacion: recomendacion.justificacion ?? null, // <-- NUEVO (HU-37)
     };
   }
 
@@ -36,6 +37,7 @@ export class RecomendacionMapper {
             nombre: recomendacion.destinoReal.nombre,
           }
         : null,
+      justificacion: recomendacion.justificacion ?? null, // <-- NUEVO (HU-37)
     };
   }
 }

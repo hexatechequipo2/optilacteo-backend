@@ -28,4 +28,7 @@ export class RecomendacionPendienteResponseDto {
 
   @ApiProperty({ type: DestinoProductivoRefDto, nullable: true })
   destinoReal!: DestinoProductivoRefDto | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  justificacion!: string | null;
 }

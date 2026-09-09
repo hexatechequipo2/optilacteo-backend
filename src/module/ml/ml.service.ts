@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Inject,
   Injectable,
   Logger,
@@ -115,6 +116,7 @@ export class MlService {
     id: number,
     dto: ResponderRecomendacionDto,
     tenant: TenantContext,
+    usuarioId: number, // <-- NUEVO (HU-37): quién tomó la decisión
   ): Promise<RecomendacionDestino> {
     const recomendacion = await this.recomendacionRepo.findOne({
       where: {
@@ -131,6 +133,14 @@ export class MlService {
     if (!recomendacion) {
       throw new NotFoundException(
         `Recomendación ${id} no encontrada`,
+      );
+    }
+
+    // HU-37 AC7: una recomendación ya respondida no puede volver a
+    // modificarse (evita reescribir destino/justificación registrados).
+    if (recomendacion.estado !== 'pendiente') {
+      throw new ConflictException(
+        `La recomendación ${id} ya fue respondida y no puede modificarse`,
       );
     }
 
@@ -157,6 +167,15 @@ export class MlService {
 
     recomendacion.destinoRealId = destinoReal.id;
     recomendacion.destinoReal = destinoReal;
+
+    // HU-37 AC1/AC3: la justificación solo aplica cuando hay divergencia
+    // real, es decir, cuando se rechaza la recomendación. El DTO ya exige
+    // el mínimo de caracteres en ese caso.
+    if (!dto.aceptada) {
+      recomendacion.justificacion = dto.justificacion!;
+    }
+    recomendacion.usuarioId = usuarioId;
+    recomendacion.respondidaEn = new Date();
 
     /*
      * HU-49:
@@ -249,5 +268,36 @@ export class MlService {
           ? aciertos / recomendaciones.length
           : 0,
     };
+  }
+
+  // HU-37 AC8: reporte de lotes con divergencias justificadas, es decir,
+  // recomendaciones respondidas donde el destino elegido difiere del
+  // recomendado (equivale a estado === 'rechazada' en este modelo).
+  async historialDivergencias(tenant: TenantContext) {
+    const divergencias = await this.recomendacionRepo.find({
+      where: {
+        empresa: { id: tenant.empresaId! },
+        estado: 'rechazada',
+      },
+      relations: {
+        lote: true,
+        destinoRecomendado: true,
+        destinoReal: true,
+      },
+      order: { respondidaEn: 'DESC' },
+    });
+
+    return divergencias.map((d) => ({
+      recomendacionId: d.id,
+      loteId: d.lote.id,
+      loteCodigo: d.lote.codigo,
+      destinoRecomendadoId: d.destinoRecomendadoId,
+      destinoRecomendadoNombre: d.destinoRecomendado.nombre,
+      destinoRealId: d.destinoRealId,
+      destinoRealNombre: d.destinoReal?.nombre ?? null,
+      justificacion: d.justificacion,
+      usuarioId: d.usuarioId,
+      respondidaEn: d.respondidaEn,
+    }));
   }
 }
