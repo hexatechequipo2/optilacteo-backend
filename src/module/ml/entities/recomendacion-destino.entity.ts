@@ -53,6 +53,24 @@ export class RecomendacionDestino {
   @ManyToOne(() => DestinoProductivo, { nullable: true })
   destinoReal?: DestinoProductivo | null;
 
+  // --- NUEVO (HU-37): justificación de divergencia operador vs sistema ---
+
+  // Obligatoria (validada en el DTO) cuando el operador elige un destino
+  // distinto al recomendado, es decir, cuando estado pasa a 'rechazada'.
+  @Column({ type: 'text', nullable: true })
+  justificacion?: string | null;
+
+  // Usuario que respondió la recomendación (aceptó o rechazó). No existe
+  // FK a una entidad Usuario en este módulo todavía, se guarda el id crudo
+  // igual que en LoteRevisionCalidad.
+  @Column({ type: 'int', nullable: true })
+  usuarioId?: number | null;
+
+  // Timestamp de la respuesta del operador, distinto de createdAt (que es
+  // cuándo el sistema generó la recomendación).
+  @Column({ type: 'timestamp', nullable: true })
+  respondidaEn?: Date | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

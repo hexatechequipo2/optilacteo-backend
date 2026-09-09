@@ -18,4 +18,7 @@ export class RecomendacionResponseDto {
   // tipo de metadata en runtime para esto, así que se lo pasamos a mano.
   @ApiProperty({ enum: ['pendiente', 'aceptada', 'rechazada'] })
   estado!: EstadoRecomendacion;
+
+  @ApiProperty({ type: String, nullable: true })
+  justificacion!: string | null;
 }
