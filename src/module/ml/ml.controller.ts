@@ -88,4 +88,16 @@ export class MlController {
   historialDivergencias(@CurrentEmpresa() tenant: TenantContext) {
     return this.mlService.historialDivergencias(tenant);
   }
+
+  @Get('todas')
+  @Roles(
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  obtenerTodas(@CurrentEmpresa() tenant: TenantContext) {
+    return this.mlService.obtenerTodas(tenant);
+  }
 }
