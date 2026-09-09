@@ -246,13 +246,13 @@ export class MlService {
       : null;
   }
 
-  async historialAciertos(tenant: TenantContext) {
+    async historialAciertos(tenant: TenantContext) {
     const recomendaciones = await this.recomendacionRepo.find({
       where: {
         empresa: {
           id: tenant.empresaId!,
         },
-        estado: Not('pendiente'),
+        estado: 'aceptada',
       },
     });
 
@@ -298,6 +298,36 @@ export class MlService {
       justificacion: d.justificacion,
       usuarioId: d.usuarioId,
       respondidaEn: d.respondidaEn,
+    }));
+  }
+
+  async obtenerTodas(tenant: TenantContext) {
+    const recomendaciones = await this.recomendacionRepo.find({
+      where: {
+        empresa: { id: tenant.empresaId! },
+      },
+      relations: {
+        lote: true,
+        destinoRecomendado: true,
+        destinoReal: true,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    return recomendaciones.map((r) => ({
+      recomendacionId: r.id,
+      loteId: r.lote.id,
+      loteCodigo: r.lote.codigo,
+      estado: r.estado,
+      destinoRecomendadoId: r.destinoRecomendadoId,
+      destinoRecomendadoNombre: r.destinoRecomendado?.nombre ?? null,
+      destinoRealId: r.destinoRealId,
+      destinoRealNombre: r.destinoReal?.nombre ?? null,
+      confianza: r.confianza,
+      justificacion: r.justificacion,
+      usuarioId: r.usuarioId,
+      createdAt: r.createdAt,
+      respondidaEn: r.respondidaEn,
     }));
   }
 }
