@@ -23,6 +23,7 @@ import { LoteClasificacionHistorial } from './module/lote/entities/lote-clasific
 import { Tambo } from './module/tambo/entities/tambo.entity';
 import { RecomendacionDestino } from './module/ml/entities/recomendacion-destino.entity'; // <-- NUEVO (HU-49)
 import { DestinoProductivo } from './module/destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
+import { LoteDestinoHistorial } from './module/lote/entities/lote-destino-historial.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -55,6 +56,7 @@ export default new DataSource({
     Tambo,
     RecomendacionDestino,
     DestinoProductivo,
+    LoteDestinoHistorial
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,

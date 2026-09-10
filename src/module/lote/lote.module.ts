@@ -42,6 +42,10 @@ import { LoteConsumoService } from './lote-consumo.service';
 import { LoteTrazabilidadService } from './lote-trazabilidad.service';
 import { MlModule } from '../ml/ml.module';
 
+// HU-34: historial unificado de destino productivo del lote
+import { LoteDestinoHistorial } from './entities/lote-destino-historial.entity';
+import { DestinoProductivo } from '../destino-productivo/entities/destino-productivo.entity';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -62,6 +66,8 @@ import { MlModule } from '../ml/ml.module';
       LoteProduccion,
       LoteConsumo,
       LoteConsumoParametro,
+      LoteDestinoHistorial, // <-- NUEVO (HU-34)
+      DestinoProductivo, // <-- NUEVO (HU-34)
     ]),
     forwardRef(() => SensorModule),
     NotificacionesModule,

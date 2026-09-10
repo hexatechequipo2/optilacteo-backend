@@ -21,6 +21,7 @@ import { DestinoProductivo } from '../destino-productivo/entities/destino-produc
 import { Lote } from '../lote/entities/lote.entity';
 
 import type { TenantContext } from '../../common/types/tenant-context.type';
+import { LoteDestinoHistorial } from '../lote/entities/lote-destino-historial.entity';
 
 export interface GenerarRecomendacionParams {
   empresaId: number;
@@ -44,6 +45,9 @@ export class MlService {
 
     @InjectRepository(Lote)
     private readonly loteRepo: Repository<Lote>,
+
+    @InjectRepository(LoteDestinoHistorial)
+    private readonly loteDestinoHistorialRepo: Repository<LoteDestinoHistorial>,
   ) {}
 
   private extraerFeatures(
@@ -112,7 +116,7 @@ export class MlService {
     return this.recomendacionRepo.save(recomendacion);
   }
 
-  async responderRecomendacion(
+    async responderRecomendacion(
     id: number,
     dto: ResponderRecomendacionDto,
     tenant: TenantContext,
@@ -201,9 +205,25 @@ export class MlService {
         );
       }
 
+      // HU-34: guardamos el destino anterior antes de pisarlo, para que
+      // quede registrado en el historial unificado.
+      const destinoAnteriorId = lote.destinoProductivoId ?? null;
       lote.destinoProductivoId = destinoReal.id;
 
       await this.loteRepo.save(lote);
+
+      // HU-34: este cambio de destino vino de responder una recomendación
+      // ML, no de una asignación manual — queda diferenciado por "origen".
+      const historial = this.loteDestinoHistorialRepo.create({
+        loteId: lote.id,
+        empresaId: tenant.empresaId!,
+        destinoProductivoId: destinoReal.id,
+        destinoAnteriorId,
+        usuarioId,
+        origen: 'recomendacion_ml',
+        recomendacionDestinoId: recomendacion.id,
+      });
+      await this.loteDestinoHistorialRepo.save(historial);
     }
 
     return this.recomendacionRepo.save(recomendacion);

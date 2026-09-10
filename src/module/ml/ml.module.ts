@@ -13,6 +13,7 @@ import { Empresa } from '../empresa/entities/empresa.entity';
 import { Lote } from '../lote/entities/lote.entity';
 
 import { MlReentrenamientoCronService } from './cron/ml-reentrenamiento-cron.service';
+import { LoteDestinoHistorial } from '../lote/entities/lote-destino-historial.entity';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MlReentrenamientoCronService } from './cron/ml-reentrenamiento-cron.ser
       DestinoProductivo,
       Empresa,
       Lote,
+      LoteDestinoHistorial
     ]),
   ],
   controllers: [MlController],
