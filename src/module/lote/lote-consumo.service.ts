@@ -115,7 +115,13 @@ export class LoteConsumoService {
     }
     if (lote.cantidadDisponible <= 0) {
       lote.cantidadDisponible = 0;
-      lote.estado = EstadoLote.FINALIZADO;
+      // HU-34 AC4: no cerrar el ciclo automáticamente si todavía no tiene
+      // destino productivo asignado. Queda EN_PROCESO con saldo 0 hasta
+      // que LoteService.asignarDestinoProductivo() (o responder una
+      // recomendación ML) lo finalice.
+      if (lote.destinoProductivoId) {
+        lote.estado = EstadoLote.FINALIZADO;
+      }
     }
     await this.loteRepository.save(lote);
 
