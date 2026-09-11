@@ -25,6 +25,7 @@ export class LoteMapper {
         lote.cantidadDisponible != null
           ? Number(lote.cantidadDisponible)
           : null,
+      numeroRemito: lote.numeroRemito,
       // HU-66
       cantidadComprometidaKg:
         lote.cantidadComprometidaKg != null
