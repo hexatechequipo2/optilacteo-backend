@@ -169,6 +169,7 @@ export class LoteService {
       cantidad: dto.cantidad,
       unidadCantidad, // HU-51
       cantidadDisponible: dto.cantidad,
+      numeroRemito: dto.numeroRemito,
       cantidadComprometidaKg: dto.cantidadComprometidaKg ?? null, // HU-66
     });
 

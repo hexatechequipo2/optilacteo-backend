@@ -67,6 +67,7 @@ export class LoteTrazabilidadService {
         tamboId: lote.tamboId,
         materiaPrima: lote.materiaPrima,
         cantidad: lote.cantidad,
+        numeroRemito: lote.numeroRemito,
         cantidadComprometidaKg: lote.cantidadComprometidaKg,
         parametros: lote.parametros?.map((p) => ({
           parametro: p.parametro,

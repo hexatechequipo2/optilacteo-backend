@@ -119,6 +119,12 @@ export class Lote {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   cantidadDisponible?: number | null;
 
+  // HU-69: número de remito del proveedor, obligatorio, vincula el lote a
+  // su documentación de origen. Default temporal 'S/D' para lotes previos
+  // a esta HU (ver migración) — a partir de acá siempre viene del DTO.
+  @Column({ type: 'varchar' })
+  numeroRemito!: string;
+  
   // HU-66: cantidad comprometida según remito del proveedor. Opcional (AC4) —
   // puede no estar disponible al momento de la carga si aún no llegó el remito.
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })

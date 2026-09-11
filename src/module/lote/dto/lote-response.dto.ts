@@ -74,6 +74,10 @@ export class LoteResponseDto {
   })
   cantidadDisponible?: number | null;
 
+  // HU-69: número de remito del proveedor asociado al lote.
+  @ApiProperty({ example: '0001-00012345' })
+  numeroRemito!: string;
+
   // HU-66: cantidad comprometida según remito del proveedor. Null si no se cargó (AC4).
   @ApiPropertyOptional({
     nullable: true,
