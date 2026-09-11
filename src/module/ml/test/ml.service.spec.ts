@@ -1,11 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { MlService } from '../ml.service';
 import { ML_CLIENT } from '../interfaces/ml-client.interface';
 import { RecomendacionDestino } from '../entities/recomendacion-destino.entity';
 import { DestinoProductivo } from '../../destino-productivo/entities/destino-productivo.entity';
 import { Lote } from '../../lote/entities/lote.entity';
+import { LoteDestinoHistorial } from '../../lote/entities/lote-destino-historial.entity';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
 const mockMlClient = {
@@ -28,6 +29,15 @@ const mockLoteRepo = {
   save: jest.fn(),
 };
 
+// Falta desde que MlService empezó a inyectar este repo (PR de
+// destino-productivo-lote / HU-34) — sin esto, Test.createTestingModule
+// ni siquiera arma el módulo y los 4 tests de abajo fallan con "Nest
+// can't resolve dependencies" (verificado corriendo la suite).
+const mockLoteDestinoHistorialRepo = {
+  create: jest.fn(),
+  save: jest.fn(),
+};
+
 describe('MlService — recomendación pendiente por lote (HU-49)', () => {
   let service: MlService;
 
@@ -45,6 +55,10 @@ describe('MlService — recomendación pendiente por lote (HU-49)', () => {
           useValue: mockDestinoProductivoRepo,
         },
         { provide: getRepositoryToken(Lote), useValue: mockLoteRepo },
+        {
+          provide: getRepositoryToken(LoteDestinoHistorial),
+          useValue: mockLoteDestinoHistorialRepo,
+        },
       ],
     }).compile();
 
@@ -132,5 +146,88 @@ describe('MlService — recomendación pendiente por lote (HU-49)', () => {
       id: 4,
       nombre: 'manteca pastelería',
     });
+  });
+});
+
+describe('MlService — responder recomendación, validación de divergencia (HU-37)', () => {
+  let service: MlService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        MlService,
+        { provide: ML_CLIENT, useValue: mockMlClient },
+        {
+          provide: getRepositoryToken(RecomendacionDestino),
+          useValue: mockRecomendacionRepo,
+        },
+        {
+          provide: getRepositoryToken(DestinoProductivo),
+          useValue: mockDestinoProductivoRepo,
+        },
+        { provide: getRepositoryToken(Lote), useValue: mockLoteRepo },
+        {
+          provide: getRepositoryToken(LoteDestinoHistorial),
+          useValue: mockLoteDestinoHistorialRepo,
+        },
+      ],
+    }).compile();
+
+    service = module.get<MlService>(MlService);
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  const tenant = { empresaId: 1, rolNombre: null } as TenantContext;
+  const justificacionValida = 'x'.repeat(25); // supera el mínimo de 20 (HU-37 AC2)
+
+  // Bug real: recomendaciones_destino id=20 (LOTE-1-00087) quedó
+  // "rechazada" con destinoRealId === destinoRecomendadoId (ambos
+  // "manteca") y justificación cargada — no es una divergencia.
+  it('al rechazar con destinoRealId igual al destinoRecomendadoId, debe lanzar BadRequestException sin tocar destinos ni guardar nada', async () => {
+    mockRecomendacionRepo.findOne.mockResolvedValue({
+      id: 20,
+      estado: 'pendiente',
+      destinoRecomendadoId: 1,
+      loteConsumoId: null,
+      lote: { id: 87 },
+    });
+
+    await expect(
+      service.responderRecomendacion(
+        20,
+        { aceptada: false, destinoRealId: 1, justificacion: justificacionValida },
+        tenant,
+        4,
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(mockDestinoProductivoRepo.findOne).not.toHaveBeenCalled();
+    expect(mockRecomendacionRepo.save).not.toHaveBeenCalled();
+    expect(mockLoteRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('al rechazar con un destinoRealId distinto al recomendado, es una divergencia válida y se guarda como rechazada', async () => {
+    mockRecomendacionRepo.findOne.mockResolvedValue({
+      id: 21,
+      estado: 'pendiente',
+      destinoRecomendadoId: 1,
+      loteConsumoId: null,
+      lote: { id: 88 },
+    });
+    mockDestinoProductivoRepo.findOne.mockResolvedValue({ id: 4, nombre: 'descarte' });
+    mockLoteRepo.findOne.mockResolvedValue({ id: 88, empresaId: 1, destinoProductivoId: 1 });
+    mockRecomendacionRepo.save.mockImplementation((r) => r);
+
+    const result = await service.responderRecomendacion(
+      21,
+      { aceptada: false, destinoRealId: 4, justificacion: justificacionValida },
+      tenant,
+      4,
+    );
+
+    expect(result.estado).toBe('rechazada');
+    expect(result.justificacion).toBe(justificacionValida);
+    expect(mockLoteRepo.save).toHaveBeenCalled();
   });
 });
