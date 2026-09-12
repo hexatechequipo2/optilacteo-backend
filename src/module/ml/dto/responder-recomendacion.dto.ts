@@ -14,8 +14,10 @@ export class ResponderRecomendacionDto {
   @IsInt()
   destinoRealId?: number;
 
-  // HU-37 AC1/AC2: obligatoria solo cuando el operador elige un destino
-  // distinto al recomendado (o sea, cuando rechaza la recomendación).
+  // HU-37 AC1/AC2: obligatoria cuando se rechaza (aceptada=false). OJO:
+  // esto NO garantiza por sí solo que sea una divergencia real — el
+  // service (ml.service.ts) es quien valida que destinoRealId sea
+  // distinto del destino recomendado.
   @ValidateIf((o: ResponderRecomendacionDto) => o.aceptada === false)
   @IsString()
   @MinLength(JUSTIFICACION_MIN_LENGTH, {

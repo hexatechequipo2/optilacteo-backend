@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -145,6 +146,19 @@ export class MlService {
     if (recomendacion.estado !== 'pendiente') {
       throw new ConflictException(
         `La recomendación ${id} ya fue respondida y no puede modificarse`,
+      );
+    }
+
+    // HU-37 AC1: si el destino elegido es igual al recomendado, no hay
+    // divergencia real — aunque el operador haya marcado "rechazada" (bug
+    // encontrado en dev: recomendaciones_destino id=20, LOTE-1-00087,
+    // rechazada con destinoRealId === destinoRecomendadoId y
+    // justificación cargada). El frontend ya saca el destino recomendado
+    // de las opciones del selector, pero la regla tiene que estar acá
+    // también: no depender solo del front.
+    if (!dto.aceptada && dto.destinoRealId === recomendacion.destinoRecomendadoId) {
+      throw new BadRequestException(
+        `El destino elegido (${dto.destinoRealId}) es igual al recomendado. Si estás de acuerdo con la recomendación, aceptala en vez de rechazarla.`,
       );
     }
 
