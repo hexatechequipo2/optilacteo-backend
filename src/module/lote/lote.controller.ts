@@ -181,7 +181,12 @@ export class LoteController {
   // HU-34 AC1/AC3: asignación o cambio manual del destino productivo del
   // lote, independiente de aceptar/rechazar una recomendación ML (HU-49).
   @Patch(':id/destino-productivo')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
   @AuditLog('LOTE_DESTINO_ASIGNAR', 'Lote')
   asignarDestinoProductivo(
