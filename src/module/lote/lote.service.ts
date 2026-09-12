@@ -350,6 +350,15 @@ export class LoteService {
       );
     }
 
+    // HU-34: si el destino elegido es el mismo que ya tiene el lote, no hay
+    // cambio real que registrar en el historial (mismo criterio que la
+    // validación de divergencia de HU-37, ver MlService.responderRecomendacion).
+    if (lote.destinoProductivoId === destino.id) {
+      throw new BadRequestException(
+        `El lote ${id} ya tiene asignado el destino productivo "${destino.nombre}"; no hay cambio que registrar.`,
+      );
+    }
+
     const destinoAnteriorId = lote.destinoProductivoId ?? null;
     lote.destinoProductivoId = destino.id;
 
