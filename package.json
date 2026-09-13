@@ -28,7 +28,8 @@
     "migration:revert:prod": "typeorm migration:revert -d dist/data-source.js",
     "seed": "ts-node -r tsconfig-paths/register src/seeds/seed.ts",
     "simulate:iot": "ts-node -r tsconfig-paths/register src/simulators/iot-simulator.ts",
-    "ws:test": "ts-node scripts/ws-test-client.ts"
+    "ws:test": "ts-node scripts/ws-test-client.ts",
+    "ws:test:notificaciones": "ts-node scripts/ws-test-notificaciones.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",

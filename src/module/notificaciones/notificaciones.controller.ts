@@ -40,6 +40,9 @@ import { ResolverAlertaDto } from './dto/resolver-alerta.dto';
 import { ConfiguracionAlertaDesconexionService } from './configuracion-alerta-desconexion.service';
 import { ActualizarConfiguracionAlertaDesconexionDto } from './dto/actualizar-configuracion-alerta-desconexion.dto';
 
+import { CrearConfiguracionSilencioDto } from './dto/crear-configuracion-silencio.dto';
+import { ActualizarConfiguracionSilencioDto } from './dto/actualizar-configuracion-silencio.dto';
+
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 @ApiTags('notificaciones')
@@ -279,6 +282,65 @@ export class NotificacionesController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.configuracionAlertaDesconexionService.obtenerOCrear(
+      tenant.empresaId!,
+    );
+  }
+
+  /**
+ * ============================================================
+ * HU-30
+ * HORARIOS DE SILENCIO DE ALERTAS INFORMATIVAS
+ * ============================================================
+ */
+  @Get('horarios-silencio')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
+  listarHorariosSilencio(@CurrentEmpresa() tenant: TenantContext) {
+    return this.notificacionesService.listarHorariosSilencio(
+      tenant.empresaId!,
+    );
+  }
+
+  @Post('horarios-silencio')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
+  @AuditLog('HORARIO_SILENCIO_CREAR', 'ConfiguracionSilencioAlerta')
+  crearHorarioSilencio(
+    @Body() dto: CrearConfiguracionSilencioDto,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.notificacionesService.crearHorarioSilencio(
+      tenant.empresaId!,
+      dto,
+    );
+  }
+
+  @Patch('horarios-silencio/:id')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
+  @AuditLog('HORARIO_SILENCIO_ACTUALIZAR', 'ConfiguracionSilencioAlerta')
+  actualizarHorarioSilencio(
+    @Param('id') id: string,
+    @Body() dto: ActualizarConfiguracionSilencioDto,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.notificacionesService.actualizarHorarioSilencio(
+      +id,
+      tenant.empresaId!,
+      dto,
+    );
+  }
+
+  @Delete('horarios-silencio/:id')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
+  @AuditLog('HORARIO_SILENCIO_ELIMINAR', 'ConfiguracionSilencioAlerta')
+  eliminarHorarioSilencio(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.notificacionesService.eliminarHorarioSilencio(
+      +id,
       tenant.empresaId!,
     );
   }

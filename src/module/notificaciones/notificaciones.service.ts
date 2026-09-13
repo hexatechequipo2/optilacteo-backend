@@ -49,6 +49,14 @@ import { TipoDesvioAnomalia } from './enums/tipo-desvio-anomalia.enum';
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
+import { ConfiguracionSilencioAlerta } from './entities/configuracion-silencio-alerta.entity';
+import { CrearConfiguracionSilencioDto } from './dto/crear-configuracion-silencio.dto';
+import { ActualizarConfiguracionSilencioDto } from './dto/actualizar-configuracion-silencio.dto';
+import { ConfiguracionSilencioResponseDto } from './dto/configuracion-silencio-response.dto';
+import { ConfiguracionSilencioMapper } from './mappers/configuracion-silencio-alerta.mapper';
+import type { IConfiguracionSilencioRepository } from './repository/configuracion-silencio-alerta.repository.interface';
+import { CONFIGURACION_SILENCIO_REPOSITORY } from './repository/configuracion-silencio-alerta.repository.interface';
+
 @Injectable()
 export class NotificacionesService {
   constructor(
@@ -57,6 +65,9 @@ export class NotificacionesService {
 
     @Inject(CONFIGURACION_NOTIFICACION_REPOSITORY)
     private readonly configuracionRepository: IConfiguracionNotificacionRepository,
+
+    @Inject(CONFIGURACION_SILENCIO_REPOSITORY)
+    private readonly configuracionSilencioRepository: IConfiguracionSilencioRepository,
 
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -158,8 +169,7 @@ export class NotificacionesService {
     );
 
     const nivelAlerta = this.determinarNivelAlerta(desvioPorcentaje);
-    console.log('NivelAlerta que se busca:', nivelAlerta);
-    console.log('Buscando config con nivelAlerta:', nivelAlerta);
+
     const responsables = await this.obtenerDestinatariosPorNivel(
       empresaId,
       nivelAlerta,
@@ -174,6 +184,8 @@ export class NotificacionesService {
       nivelAlerta,
     });
 
+    const fechaAlerta = timestamp ?? new Date();
+
     const data: Record<string, unknown> = {
       loteId,
       loteCodigo,
@@ -184,10 +196,22 @@ export class NotificacionesService {
       umbralMax,
       desvioPorcentaje,
       nivelAlerta,
-      timestamp: (timestamp ?? new Date()).toISOString(),
+      timestamp: fechaAlerta.toISOString(),
     };
 
     const notificaciones: NotificacionResponseDto[] = [];
+
+    /**
+     * HU-30:
+     * Se calcula una sola vez (mismo resultado para todos los
+     * destinatarios). Solo aplica a nivel INFORMATIVA; ADVERTENCIA
+     * y CRITICA nunca se silencian.
+     */
+    const silenciada = await this.debeSilenciarse(
+      empresaId,
+      nivelAlerta,
+      fechaAlerta,
+    );
 
     for (const usuario of responsables) {
       const entity = NotificacionMapper.toEntity({
@@ -205,7 +229,14 @@ export class NotificacionesService {
 
       const response = NotificacionMapper.toResponse(creada);
 
-      this.gateway.emitirNotificacion(response, empresaId, usuario.id);
+      /**
+       * HU-30 criterio 4:
+       * La notificación siempre se persiste; el horario de silencio
+       * solo bloquea el push, no el registro.
+       */
+      if (!silenciada) {
+        this.gateway.emitirNotificacion(response, empresaId, usuario.id);
+      }
 
       notificaciones.push(response);
     }
@@ -992,5 +1023,297 @@ export class NotificacionesService {
     }
 
     return NotificacionMapper.toResponse(marcada);
+  }
+
+    /**
+   * ============================================================
+   * HU-30: HORARIOS DE SILENCIO DE ALERTAS INFORMATIVAS
+   * ============================================================
+   */
+
+  private readonly ZONA_HORARIA_SILENCIO = 'America/Argentina/Buenos_Aires';
+
+  /**
+   * Solo las alertas INFORMATIVA pueden silenciarse (criterio 3:
+   * ADVERTENCIA y CRITICA nunca se silencian).
+   */
+  private async debeSilenciarse(
+    empresaId: number,
+    nivelAlerta: NivelAlerta | null | undefined,
+    fecha: Date,
+  ): Promise<boolean> {
+    if (nivelAlerta !== NivelAlerta.INFORMATIVA) {
+      return false;
+    }
+
+    const horarios =
+      await this.configuracionSilencioRepository.findByEmpresa(empresaId);
+
+    if (horarios.length === 0) {
+      return false;
+    }
+
+    const { hora, diaSemana } = this.obtenerHoraYDiaEnZona(fecha);
+
+    return horarios.some(
+      (horario) =>
+        this.aplicaDia(horario.diasSemana, diaSemana) &&
+        this.estaEnRangoHorario(
+          this.normalizarHora(horario.horaInicio),
+          this.normalizarHora(horario.horaFin),
+          hora,
+        ),
+    );
+  }
+
+  private obtenerHoraYDiaEnZona(fecha: Date): {
+    hora: string;
+    diaSemana: number;
+  } {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: this.ZONA_HORARIA_SILENCIO,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    });
+
+    const partes = formatter.formatToParts(fecha);
+    const obtener = (tipo: string) =>
+      partes.find((p) => p.type === tipo)?.value ?? '';
+
+    let hora = obtener('hour');
+    // Bug conocido de Intl con hour12:false: a veces devuelve '24' en vez de '00'.
+    if (hora === '24') {
+      hora = '00';
+    }
+
+    const diasMap: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    };
+
+    const diaSemana = diasMap[obtener('weekday')] ?? fecha.getUTCDay();
+
+    return { hora: `${hora}:${obtener('minute')}`, diaSemana };
+  }
+
+  private aplicaDia(
+    diasSemana: number[] | null | undefined,
+    diaSemana: number,
+  ): boolean {
+    if (!diasSemana || diasSemana.length === 0) {
+      return true; // todos los días
+    }
+    return diasSemana.includes(diaSemana);
+  }
+
+  /**
+   * Intervalo [horaInicio, horaFin). Soporta cruce de medianoche
+   * (ej. 22:00 -> 06:00).
+   */
+  private estaEnRangoHorario(
+    horaInicio: string,
+    horaFin: string,
+    horaActual: string,
+  ): boolean {
+    if (horaInicio === horaFin) {
+      return false;
+    }
+
+    if (horaInicio < horaFin) {
+      return horaActual >= horaInicio && horaActual < horaFin;
+    }
+
+    return horaActual >= horaInicio || horaActual < horaFin;
+  }
+
+  private normalizarHora(hora: string): string {
+    // Postgres 'time' puede devolver 'HH:mm:ss'; normalizamos a 'HH:mm'.
+    return hora.length > 5 ? hora.slice(0, 5) : hora;
+  }
+
+  async listarHorariosSilencio(
+    empresaId: number,
+  ): Promise<ConfiguracionSilencioResponseDto[]> {
+    const horarios =
+      await this.configuracionSilencioRepository.findByEmpresa(empresaId);
+    return ConfiguracionSilencioMapper.toResponseList(horarios);
+  }
+
+  async crearHorarioSilencio(
+    empresaId: number,
+    dto: CrearConfiguracionSilencioDto,
+  ): Promise<ConfiguracionSilencioResponseDto> {
+    this.validarHorario(dto.horaInicio, dto.horaFin);
+
+    const existentes =
+      await this.configuracionSilencioRepository.findByEmpresa(empresaId);
+
+    const diasSemana =
+      dto.diasSemana && dto.diasSemana.length > 0 ? dto.diasSemana : null;
+
+    this.validarSinSolapamiento(
+      dto.horaInicio,
+      dto.horaFin,
+      diasSemana,
+      existentes,
+    );
+
+    const creado = await this.configuracionSilencioRepository.create({
+      empresaId,
+      nombre: dto.nombre ?? null,
+      horaInicio: dto.horaInicio,
+      horaFin: dto.horaFin,
+      diasSemana,
+    });
+
+    return ConfiguracionSilencioMapper.toResponse(creado);
+  }
+
+  async actualizarHorarioSilencio(
+    id: number,
+    empresaId: number,
+    dto: ActualizarConfiguracionSilencioDto,
+  ): Promise<ConfiguracionSilencioResponseDto> {
+    const existente = await this.configuracionSilencioRepository.findById(
+      id,
+      empresaId,
+    );
+
+    if (!existente) {
+      throw new NotFoundException(`Horario de silencio ${id} no encontrado`);
+    }
+
+    const horaInicio = dto.horaInicio ?? existente.horaInicio;
+    const horaFin = dto.horaFin ?? existente.horaFin;
+    const diasSemana =
+      dto.diasSemana !== undefined
+        ? dto.diasSemana.length > 0
+          ? dto.diasSemana
+          : null
+        : (existente.diasSemana ?? null);
+
+    this.validarHorario(horaInicio, horaFin);
+
+    const otros = (
+      await this.configuracionSilencioRepository.findByEmpresa(empresaId)
+    ).filter((h) => h.id !== id);
+
+    this.validarSinSolapamiento(horaInicio, horaFin, diasSemana, otros);
+
+    const actualizado = await this.configuracionSilencioRepository.update(
+      id,
+      empresaId,
+      {
+        nombre: dto.nombre !== undefined ? dto.nombre : existente.nombre,
+        horaInicio,
+        horaFin,
+        diasSemana,
+      },
+    );
+
+    if (!actualizado) {
+      throw new NotFoundException(`Horario de silencio ${id} no encontrado`);
+    }
+
+    return ConfiguracionSilencioMapper.toResponse(actualizado);
+  }
+
+  async eliminarHorarioSilencio(id: number, empresaId: number): Promise<void> {
+    const eliminado = await this.configuracionSilencioRepository.delete(
+      id,
+      empresaId,
+    );
+
+    if (!eliminado) {
+      throw new NotFoundException(`Horario de silencio ${id} no encontrado`);
+    }
+  }
+
+  private validarHorario(horaInicio: string, horaFin: string): void {
+    if (horaInicio === horaFin) {
+      throw new BadRequestException(
+        'horaInicio y horaFin no pueden ser iguales',
+      );
+    }
+  }
+
+  private diasSeSolapan(
+    a: number[] | null | undefined,
+    b: number[] | null | undefined,
+  ): boolean {
+    if (!a || a.length === 0 || !b || b.length === 0) {
+      return true;
+    }
+    return a.some((dia) => b.includes(dia));
+  }
+
+  private aHorarioEnMinutos(hora: string): number {
+    const [h, m] = this.normalizarHora(hora).split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  private aIntervalos(
+    horaInicio: string,
+    horaFin: string,
+  ): Array<[number, number]> {
+    const inicio = this.aHorarioEnMinutos(horaInicio);
+    const fin = this.aHorarioEnMinutos(horaFin);
+
+    if (inicio < fin) {
+      return [[inicio, fin]];
+    }
+
+    return [
+      [inicio, 24 * 60],
+      [0, fin],
+    ];
+  }
+
+  private horariosSeSolapan(
+    horaInicioA: string,
+    horaFinA: string,
+    horaInicioB: string,
+    horaFinB: string,
+  ): boolean {
+    const intervalosA = this.aIntervalos(horaInicioA, horaFinA);
+    const intervalosB = this.aIntervalos(horaInicioB, horaFinB);
+
+    return intervalosA.some(([inicioA, finA]) =>
+      intervalosB.some(([inicioB, finB]) => inicioA < finB && inicioB < finA),
+    );
+  }
+
+  private validarSinSolapamiento(
+    horaInicio: string,
+    horaFin: string,
+    diasSemana: number[] | null,
+    existentes: ConfiguracionSilencioAlerta[],
+  ): void {
+    for (const existente of existentes) {
+      if (!this.diasSeSolapan(diasSemana, existente.diasSemana)) {
+        continue;
+      }
+
+      if (
+        this.horariosSeSolapan(
+          horaInicio,
+          horaFin,
+          existente.horaInicio,
+          existente.horaFin,
+        )
+      ) {
+        const etiqueta = existente.nombre ?? `#${existente.id}`;
+        throw new BadRequestException(
+          `El horario se superpone con la configuración existente "${etiqueta}".`,
+        );
+      }
+    }
   }
 }
