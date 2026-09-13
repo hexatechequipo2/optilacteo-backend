@@ -24,12 +24,17 @@ import { SensorDesconexionCronService } from './cron/sensor-desconexion-cron.ser
 
 import { HttpMlClient } from '../ml/infrastructure/http-ml-client';
 
+import { ConfiguracionSilencioAlerta } from './entities/configuracion-silencio-alerta.entity';
+import { ConfiguracionSilencioRepository } from './repository/configuracion-silencio-alerta.repository';
+import { CONFIGURACION_SILENCIO_REPOSITORY } from './repository/configuracion-silencio-alerta.repository.interface';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Notificacion,
       ConfiguracionNotificacionNivel,
       ConfiguracionAlertaDesconexion, // HU-31
+      ConfiguracionSilencioAlerta, //HU-30
       Sensor, // HU-31
       User,
     ]),
@@ -57,6 +62,11 @@ import { HttpMlClient } from '../ml/infrastructure/http-ml-client';
     {
       provide: CONFIGURACION_ALERTA_DESCONEXION_REPOSITORY,
       useClass: ConfiguracionAlertaDesconexionRepository,
+    },
+    //HU-30
+    {
+      provide: CONFIGURACION_SILENCIO_REPOSITORY,
+      useClass: ConfiguracionSilencioRepository,
     },
     HttpMlClient,
   ],
