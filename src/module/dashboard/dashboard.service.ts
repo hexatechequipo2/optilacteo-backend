@@ -20,6 +20,17 @@ import {
   GranularidadHistorico,
 } from './dto/dashboard-historico.dto';
 import { EstadoLote } from '../lote/enums/estado-lote.enum';
+import { BadRequestException } from '@nestjs/common';
+import {
+  EvolucionIndicadoresQueryDto,
+  PeriodoEvolucion,
+} from './dto/evolucion-indicadores-query.dto';
+import {
+  EvolucionIndicadoresResponseDto,
+  SerieIndicadorDto,
+  GranularidadAgregacion,
+} from './dto/evolucion-indicadores-response.dto';
+import { Parametro } from '../config-parametro/enums/parametro.enum';
 
 const TIMEZONE_EMPRESA = 'America/Argentina/Cordoba';
 
@@ -213,6 +224,258 @@ export class DashboardService {
       evaluar(Number(m.valor), m.parametro, m.tipomateriaprima);
 
     return idsCriticos.size;
+  }
+
+  async getEvolucionIndicadores(
+    tenant: TenantContext,
+    query: EvolucionIndicadoresQueryDto,
+  ): Promise<EvolucionIndicadoresResponseDto> {
+    const empresaId = tenant.empresaId!;
+    const { desde, hasta } = this.resolverRangoEvolucion(query);
+    const granularidad = this.resolverGranularidadAgregacion(
+      query.periodo,
+      desde,
+      hasta,
+    );
+    const unidadPostgres = this.mapearUnidadAgregacion(granularidad);
+    const periodosEsperados = this.generarPeriodosEntreFechas(
+      desde,
+      hasta,
+      granularidad,
+    );
+
+    const series: SerieIndicadorDto[] = [];
+    for (const parametro of query.indicadores) {
+      const filas = await this.obtenerLecturasCrudas(
+        empresaId,
+        parametro,
+        desde,
+        hasta,
+        unidadPostgres,
+      );
+      const promedios = this.promediarPorPeriodo(filas);
+
+      series.push({
+        parametro,
+        puntos: periodosEsperados.map((fecha) => ({
+          fecha,
+          valor: promedios.get(fecha) ?? null,
+        })),
+      });
+    }
+
+    return {
+      granularidadAplicada: granularidad,
+      desde: desde.toISOString(),
+      hasta: hasta.toISOString(),
+      series,
+    };
+  }
+
+  // --- Helpers: evolución de indicadores (HU-39) ---
+
+  private resolverRangoEvolucion(
+    query: EvolucionIndicadoresQueryDto,
+  ): { desde: Date; hasta: Date } {
+    if (query.periodo === PeriodoEvolucion.RANGO) {
+      if (!query.desde || !query.hasta) {
+        throw new BadRequestException(
+          'Debe indicar desde y hasta para un rango personalizado',
+        );
+      }
+      const desde = new Date(query.desde);
+      const hasta = new Date(query.hasta);
+      hasta.setHours(23, 59, 59, 999);
+      if (hasta < desde) {
+        throw new BadRequestException(
+          'La fecha de fin no puede ser anterior a la fecha de inicio',
+        );
+      }
+      desde.setHours(0, 0, 0, 0);
+      return { desde, hasta };
+    }
+
+    const hasta = new Date();
+    hasta.setHours(23, 59, 59, 999);
+    const desde = new Date();
+    switch (query.periodo) {
+      case PeriodoEvolucion.DIA:
+        desde.setDate(desde.getDate() - 29);
+        break;
+      case PeriodoEvolucion.SEMANA:
+        desde.setDate(desde.getDate() - 7 * 11);
+        break;
+      case PeriodoEvolucion.MES:
+        desde.setMonth(desde.getMonth() - 11);
+        break;
+    }
+    desde.setHours(0, 0, 0, 0);
+    return { desde, hasta };
+  }
+
+  private resolverGranularidadAgregacion(
+    periodo: PeriodoEvolucion,
+    desde: Date,
+    hasta: Date,
+  ): GranularidadAgregacion {
+    if (periodo !== PeriodoEvolucion.RANGO) {
+      return periodo as unknown as GranularidadAgregacion;
+    }
+    const dias = (hasta.getTime() - desde.getTime()) / 86_400_000;
+    if (dias <= 45) return GranularidadAgregacion.DIA;
+    if (dias <= 180) return GranularidadAgregacion.SEMANA;
+    return GranularidadAgregacion.MES;
+  }
+
+  private mapearUnidadAgregacion(g: GranularidadAgregacion): string {
+    const mapa: Record<GranularidadAgregacion, string> = {
+      [GranularidadAgregacion.DIA]: 'day',
+      [GranularidadAgregacion.SEMANA]: 'week',
+      [GranularidadAgregacion.MES]: 'month',
+    };
+    return mapa[g];
+  }
+
+  private generarPeriodosEntreFechas(
+    desde: Date,
+    hasta: Date,
+    granularidad: GranularidadAgregacion,
+  ): string[] {
+    const periodos: string[] = [];
+    let cursor = this.truncarComoPostgres(desde, granularidad);
+    const haciaFinal = this.truncarComoPostgres(hasta, granularidad);
+
+    while (cursor <= haciaFinal) {
+      periodos.push(this.formatearPeriodoEvolucion(cursor, granularidad));
+      cursor = this.avanzarPeriodo(cursor, granularidad);
+    }
+    return periodos;
+  }
+
+  // Replica exactamente lo que hace date_trunc en Postgres, para que las
+  // claves generadas acá coincidan siempre con las que devuelve la query SQL.
+  // Sin esto, "semana" desalinea (Postgres ancla al lunes) y "mes" puede
+  // desbordar con setMonth() cuando el cursor cae en día 29/30/31.
+  private truncarComoPostgres(
+    fecha: Date,
+    granularidad: GranularidadAgregacion,
+  ): Date {
+    const d = new Date(fecha);
+    if (granularidad === GranularidadAgregacion.DIA) {
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    if (granularidad === GranularidadAgregacion.SEMANA) {
+      const dia = d.getDay(); // 0=domingo...6=sábado
+      const offset = (dia + 6) % 7; // días a retroceder hasta el lunes (ISO)
+      d.setDate(d.getDate() - offset);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    // MES
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  // Como el cursor siempre tiene día=1 (gracias a truncarComoPostgres),
+  // sumar un mes nunca desborda a otro mes distinto.
+  private avanzarPeriodo(
+    cursor: Date,
+    granularidad: GranularidadAgregacion,
+  ): Date {
+    const d = new Date(cursor);
+    switch (granularidad) {
+      case GranularidadAgregacion.DIA:
+        d.setDate(d.getDate() + 1);
+        break;
+      case GranularidadAgregacion.SEMANA:
+        d.setDate(d.getDate() + 7);
+        break;
+      case GranularidadAgregacion.MES:
+        d.setMonth(d.getMonth() + 1);
+        break;
+    }
+    return d;
+  }
+
+  private formatearPeriodoEvolucion(
+    fecha: Date,
+    granularidad: GranularidadAgregacion,
+  ): string {
+    const d = new Date(fecha);
+    if (granularidad === GranularidadAgregacion.MES) {
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    return d.toISOString().slice(0, 10);
+  }
+
+  private async obtenerLecturasCrudas(
+    empresaId: number,
+    parametro: Parametro,
+    desde: Date,
+    hasta: Date,
+    unidadPostgres: string,
+  ): Promise<{ periodo: string; valor: number }[]> {
+    const sensorRows = await this.sensorLecturaRepo
+      .createQueryBuilder('lectura')
+      .innerJoin('lectura.sensor', 'sensor')
+      .select(
+        `date_trunc('${unidadPostgres}', lectura."timestampLectura" AT TIME ZONE '${TIMEZONE_EMPRESA}')`,
+        'periodo',
+      )
+      .addSelect('lectura.valor', 'valor')
+      .where('lectura.empresaId = :empresaId', { empresaId })
+      .andWhere('sensor.parametro = :parametro', { parametro })
+      .andWhere('lectura.timestampLectura BETWEEN :desde AND :hasta', {
+        desde,
+        hasta,
+      })
+      .getRawMany<{ periodo: Date; valor: string }>();
+
+    const manualRows = await this.medicionManualRepo
+      .createQueryBuilder('m')
+      .select(
+        `date_trunc('${unidadPostgres}', m."createdAt" AT TIME ZONE '${TIMEZONE_EMPRESA}')`,
+        'periodo',
+      )
+      .addSelect('m.valor', 'valor')
+      .where('m.empresaId = :empresaId', { empresaId })
+      .andWhere('m.parametro = :parametro', { parametro })
+      .andWhere('m.createdAt BETWEEN :desde AND :hasta', { desde, hasta })
+      .getRawMany<{ periodo: Date; valor: string }>();
+
+    return [...sensorRows, ...manualRows].map((r) => ({
+      periodo: this.formatearPeriodoRaw(r.periodo, unidadPostgres),
+      valor: Number(r.valor),
+    }));
+  }
+
+  // date_trunc devuelve un Date; lo formateamos igual que
+  // formatearPeriodoEvolucion para que las claves del Map coincidan.
+  private formatearPeriodoRaw(fecha: Date, unidadPostgres: string): string {
+    const d = new Date(fecha);
+    if (unidadPostgres === 'month') {
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    return d.toISOString().slice(0, 10);
+  }
+
+  private promediarPorPeriodo(
+    filas: { periodo: string; valor: number }[],
+  ): Map<string, number> {
+    const acumulado = new Map<string, { suma: number; cantidad: number }>();
+    for (const { periodo, valor } of filas) {
+      const actual = acumulado.get(periodo) ?? { suma: 0, cantidad: 0 };
+      actual.suma += valor;
+      actual.cantidad += 1;
+      acumulado.set(periodo, actual);
+    }
+    const resultado = new Map<string, number>();
+    for (const [periodo, { suma, cantidad }] of acumulado) {
+      resultado.set(periodo, Number((suma / cantidad).toFixed(2)));
+    }
+    return resultado;
   }
 
   private async getLineaCalidad(
