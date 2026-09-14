@@ -1,4 +1,5 @@
 import { Repository } from 'typeorm';
+import { NotFoundException } from '@nestjs/common';
 import { PermisoRepository } from '../repository/permiso.repository';
 import { PermisoModulo } from '../entities/permiso-modulo.entity';
 import { User } from '../../user/entities/user.entity';
@@ -31,33 +32,33 @@ describe('PermisoRepository', () => {
   });
 
   describe('findById', () => {
-    it('deberia buscar por id cargando la relacion rol', async () => {
+    it('deberia buscar por id cargando la relacion rol y filtrando por empresaId', async () => {
       mockPermisoTypeormRepo.findOne.mockResolvedValue(null);
 
-      await repository.findById(1);
+      await repository.findById(1, 1);
 
       expect(mockPermisoTypeormRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: 1, empresaId: 1 },
         relations: { rol: true },
       });
     });
   });
 
   describe('findByRol', () => {
-    it('deberia listar los permisos de un rol cargando la relacion rol', async () => {
+    it('deberia listar los permisos de un rol cargando la relacion rol y filtrando por empresaId', async () => {
       mockPermisoTypeormRepo.find.mockResolvedValue([]);
 
-      await repository.findByRol(5);
+      await repository.findByRol(5, 0);
 
       expect(mockPermisoTypeormRepo.find).toHaveBeenCalledWith({
-        where: { rol: { id: 5 } },
+        where: { rol: { id: 5 }, empresaId: 0 },
         relations: { rol: true },
       });
     });
   });
 
   describe('findByUsuario - permisos efectivos via el rol del usuario', () => {
-    it('deberia buscar al usuario con su rol y los permisos de ese rol', async () => {
+    it('deberia buscar al usuario con su empresa y luego llamar a findByRolYEmpresa', async () => {
       const permisos = [
         {
           id: 1,
@@ -66,16 +67,21 @@ describe('PermisoRepository', () => {
           canWrite: false,
         },
       ] as PermisoModulo[];
+
       mockUserTypeormRepo.findOne.mockResolvedValue({
         id: 10,
-        rol: { id: 5, permisos },
+        rol: { id: 5 },
       });
+      mockPermisoTypeormRepo.find.mockResolvedValue(permisos);
 
-      const result = await repository.findByUsuario(10);
+      const result = await repository.findByUsuario(10, 5);
 
       expect(mockUserTypeormRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 10 },
-        relations: { rol: { permisos: true } },
+        where: { id: 10, empresa: { id: 5 } },
+        relations: { rol: true },
+      });
+      expect(mockPermisoTypeormRepo.find).toHaveBeenCalledWith({
+        where: { rol: { id: 5 }, empresaId: 5 },
       });
       expect(result).toBe(permisos);
     });
@@ -83,7 +89,7 @@ describe('PermisoRepository', () => {
     it('deberia devolver un array vacio si el usuario no existe', async () => {
       mockUserTypeormRepo.findOne.mockResolvedValue(null);
 
-      const result = await repository.findByUsuario(999);
+      const result = await repository.findByUsuario(999, 5);
 
       expect(result).toEqual([]);
     });
@@ -91,20 +97,23 @@ describe('PermisoRepository', () => {
     it('deberia devolver un array vacio si el usuario no tiene rol asignado', async () => {
       mockUserTypeormRepo.findOne.mockResolvedValue({ id: 10, rol: null });
 
-      const result = await repository.findByUsuario(10);
+      const result = await repository.findByUsuario(10, 5);
 
       expect(result).toEqual([]);
     });
+  });
 
-    it('deberia devolver un array vacio si el rol no tiene permisos cargados', async () => {
-      mockUserTypeormRepo.findOne.mockResolvedValue({
-        id: 10,
-        rol: { id: 5, permisos: undefined },
+  describe('findByRolYEmpresa', () => {
+    it('deberia buscar permisos por rol e empresaId', async () => {
+      const permisos = [{ id: 1 }] as PermisoModulo[];
+      mockPermisoTypeormRepo.find.mockResolvedValue(permisos);
+
+      const result = await repository.findByRolYEmpresa(5, 1);
+
+      expect(mockPermisoTypeormRepo.find).toHaveBeenCalledWith({
+        where: { rol: { id: 5 }, empresaId: 1 },
       });
-
-      const result = await repository.findByUsuario(10);
-
-      expect(result).toEqual([]);
+      expect(result).toBe(permisos);
     });
   });
 
@@ -116,24 +125,41 @@ describe('PermisoRepository', () => {
         canRead: true,
         canWrite: true,
       } as PermisoModulo;
+
       mockPermisoTypeormRepo.update.mockResolvedValue({ affected: 1 });
       mockPermisoTypeormRepo.findOne.mockResolvedValue(updated);
 
-      const result = await repository.updatePermiso(1, true, true);
+      const result = await repository.updatePermiso(1, 1, true, true);
 
-      expect(mockPermisoTypeormRepo.update).toHaveBeenCalledWith(1, {
-        canRead: true,
-        canWrite: true,
+      expect(mockPermisoTypeormRepo.update).toHaveBeenCalledWith(
+        { id: 1, empresaId: 1 },
+        { canRead: true, canWrite: true },
+      );
+      expect(mockPermisoTypeormRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 1, empresaId: 1 },
+        relations: { rol: true },
       });
       expect(result).toBe(updated);
     });
 
-    it('deberia lanzar un Error si el permiso no aparece al recargarlo tras el update', async () => {
+    it('deberia lanzar NotFoundException si el permiso no pertenece a la empresa (affected: 0)', async () => {
       mockPermisoTypeormRepo.update.mockResolvedValue({ affected: 0 });
+
+      await expect(
+        repository.updatePermiso(999, 1, false, false),
+      ).rejects.toThrow(
+        new NotFoundException('Permiso 999 no encontrado en la empresa'),
+      );
+    });
+
+    it('deberia lanzar NotFoundException si no se encuentra el permiso tras actualizar', async () => {
+      mockPermisoTypeormRepo.update.mockResolvedValue({ affected: 1 });
       mockPermisoTypeormRepo.findOne.mockResolvedValue(null);
 
-      await expect(repository.updatePermiso(999, false, false)).rejects.toThrow(
-        'PermisoModulo with id 999 not found after update',
+      await expect(
+        repository.updatePermiso(1, 1, false, false),
+      ).rejects.toThrow(
+        new NotFoundException('Permiso 1 no encontrado tras actualizar'),
       );
     });
   });

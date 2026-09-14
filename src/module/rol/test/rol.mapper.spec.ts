@@ -78,6 +78,8 @@ describe('RolMapper', () => {
             modulo: ModuloSistema.DASHBOARD,
             canRead: true,
             canWrite: false,
+            empresaId: 1,
+            empresa: buildEmpresa(),
             rol: undefined as never,
           },
           {
@@ -85,6 +87,8 @@ describe('RolMapper', () => {
             modulo: ModuloSistema.RECEPCION,
             canRead: true,
             canWrite: true,
+            empresaId: 1,
+            empresa: buildEmpresa(),
             rol: undefined as never,
           },
         ],
@@ -93,8 +97,8 @@ describe('RolMapper', () => {
       const result = RolMapper.toResponse(rol);
 
       expect(result.permisos).toEqual([
-        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
-        { modulo: ModuloSistema.RECEPCION, canRead: true, canWrite: true },
+        { id: 1, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
+        { id: 2, modulo: ModuloSistema.RECEPCION, canRead: true, canWrite: true },
       ]);
     });
 

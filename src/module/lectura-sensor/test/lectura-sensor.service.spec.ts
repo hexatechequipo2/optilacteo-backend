@@ -23,6 +23,7 @@ import { OrigenLectura } from '../enums/origen-lectura.enum';
 import { EstadoSensor } from '../../sensor/enums/estado-sensor.enum';
 import { EstadoMedicion } from '../enums/estado-medicion.enum';
 import { ROLES } from '../../rol/constants/roles.constants';
+import { AnomaliaService } from '../../anomalia/anomalia.service';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -47,6 +48,10 @@ jest.mock('../../config-parametro/validators/rangos-fisicos.constant', () => ({
   },
 }));
 
+const mockAnomaliaService = {
+  evaluarAnomalia: jest.fn(),
+};
+
 const mockSensorRepository = {
   findByNombre: jest.fn(),
   findOne: jest.fn(),
@@ -58,6 +63,7 @@ const mockLecturaRepository = {
   create: jest.fn(),
   findHistorial: jest.fn(),
   findHistorialCompleto: jest.fn(),
+  findUltimosValores: jest.fn(),
 };
 const mockEventoRepository = { create: jest.fn() };
 const mockLecturasGateway = {
@@ -114,10 +120,14 @@ describe('LecturaSensorService', () => {
         },
         { provide: AuditLogService, useValue: mockAuditLogService },
         { provide: NotificacionesService, useValue: mockNotificacionesService },
+        { provide: AnomaliaService, useValue: mockAnomaliaService },
       ],
     }).compile();
 
     service = module.get<LecturaSensorService>(LecturaSensorService);
+
+    mockAnomaliaService.evaluarAnomalia.mockResolvedValue(undefined);
+    mockLecturaRepository.findUltimosValores = jest.fn().mockResolvedValue([]);
 
     // evaluarYClasificar es best-effort (fire-and-forget con .catch): que
     // resuelva por defecto evita ruido de promesas no manejadas en los tests

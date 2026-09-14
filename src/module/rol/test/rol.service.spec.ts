@@ -379,6 +379,8 @@ describe('RolService', () => {
             modulo: ModuloSistema.DASHBOARD,
             canRead: true,
             canWrite: true,
+            empresaId: 1,
+            empresa: buildEmpresa(),
             rol: undefined as never,
           },
         ],
@@ -400,7 +402,7 @@ describe('RolService', () => {
       );
 
       expect(result.permisos).toEqual([
-        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true },
+        { id: 7, modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: true },
       ]);
     });
 

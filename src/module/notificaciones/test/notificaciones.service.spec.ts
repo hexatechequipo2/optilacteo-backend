@@ -12,6 +12,8 @@ import { EstadoAlerta } from '../enums/estado-alerta.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { ROLES } from '../../rol/constants/roles.constants';
+import {CONFIGURACION_SILENCIO_REPOSITORY} from '../repository/configuracion-silencio-alerta.repository.interface';
+import { HttpMlClient } from '../../ml/infrastructure/http-ml-client';
 
 describe('NotificacionesService', () => {
   let service: NotificacionesService;
@@ -49,6 +51,18 @@ describe('NotificacionesService', () => {
     emitirNotificacion: jest.Mock;
   };
 
+  let mockConfiguracionSilencioRepository: {
+    findByEmpresa: jest.Mock;
+    findById: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+  };
+  
+  let mockHttpMlClient: {
+    predict: jest.Mock; 
+  };
+
   beforeEach(async () => {
     mockNotificacionRepository = {
       create: jest.fn(),
@@ -73,6 +87,14 @@ describe('NotificacionesService', () => {
       delete: jest.fn(),
     };
 
+    mockConfiguracionSilencioRepository = {
+      findByEmpresa: jest.fn(),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
+
     mockUserRepository = {
       find: jest.fn(),
       findOne: jest.fn(),
@@ -81,6 +103,10 @@ describe('NotificacionesService', () => {
 
     mockGateway = {
       emitirNotificacion: jest.fn(),
+    };
+    
+    mockHttpMlClient = {
+      predict: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -95,12 +121,20 @@ describe('NotificacionesService', () => {
           useValue: mockConfiguracionRepository,
         },
         {
+          provide: CONFIGURACION_SILENCIO_REPOSITORY,
+          useValue: mockConfiguracionSilencioRepository,
+        },
+        {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
         },
         {
           provide: NotificacionesGateway,
           useValue: mockGateway,
+        },
+        {
+          provide: HttpMlClient, 
+          useValue: mockHttpMlClient,
         },
       ],
     }).compile();
