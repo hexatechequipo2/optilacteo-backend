@@ -4,6 +4,7 @@ import { LoteController } from '../lote.controller';
 import { LoteService } from '../lote.service';
 import { LoteConsumoService } from '../lote-consumo.service';
 import { LoteTrazabilidadService } from '../lote-trazabilidad.service';
+
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
@@ -14,9 +15,12 @@ describe('LoteController', () => {
     create: jest.fn(),
     findAll: jest.fn(),
     findNoAptos: jest.fn(),
+    getDesviosPorProveedor: jest.fn(),
     findOne: jest.fn(),
     getMetricasCalidad: jest.fn(),
     update: jest.fn(),
+    asignarDestinoProductivo: jest.fn(),
+    getHistorialDestino: jest.fn(),
     finalizar: jest.fn(),
     getHistorialClasificaciones: jest.fn(),
     revisarLote: jest.fn(),
@@ -102,6 +106,34 @@ describe('LoteController', () => {
     });
   });
 
+  describe('findLotesProduccion (HU-68)', () => {
+    it('debe devolver el listado de lotes de producción', async () => {
+      const tenant = { empresaId: 1 } as any;
+      const response = [{ id: 10, codigo: 'PROD-001' }];
+
+      loteConsumoServiceMock.findLotesProduccion.mockResolvedValue(response);
+
+      const result = await controller.findLotesProduccion(tenant);
+
+      expect(loteConsumoServiceMock.findLotesProduccion).toHaveBeenCalledWith(tenant);
+      expect(result).toBe(response);
+    });
+  });
+
+  describe('getDesviosPorProveedor (HU-66)', () => {
+    it('debe obtener los desvíos del proveedor parseando el ID a número', async () => {
+      const tenant = { empresaId: 1 } as any;
+      const response = { proveedorId: 5, desvios: [] };
+
+      loteServiceMock.getDesviosPorProveedor.mockResolvedValue(response);
+
+      const result = await controller.getDesviosPorProveedor('5', tenant);
+
+      expect(loteServiceMock.getDesviosPorProveedor).toHaveBeenCalledWith(5, tenant);
+      expect(result).toBe(response);
+    });
+  });
+
   describe('findOne', () => {
     it('debe devolver un lote por id', async () => {
       const tenant = { empresaId: 1 } as any;
@@ -125,11 +157,22 @@ describe('LoteController', () => {
 
       const result = await controller.getMetricasCalidad('7', tenant);
 
-      expect(loteServiceMock.getMetricasCalidad).toHaveBeenCalledWith(
-        7,
-        tenant,
-      );
+      expect(loteServiceMock.getMetricasCalidad).toHaveBeenCalledWith(7, tenant);
       expect(result).toBe(metricas);
+    });
+  });
+
+  describe('getTrazabilidad (HU-32)', () => {
+    it('debe solicitar la trazabilidad completa del lote', async () => {
+      const tenant = { empresaId: 1 } as any;
+      const trazabilidad = { eventos: [] };
+
+      loteTrazabilidadServiceMock.getTrazabilidad.mockResolvedValue(trazabilidad);
+
+      const result = await controller.getTrazabilidad('7', tenant);
+
+      expect(loteTrazabilidadServiceMock.getTrazabilidad).toHaveBeenCalledWith(7, tenant);
+      expect(result).toBe(trazabilidad);
     });
   });
 
@@ -148,12 +191,44 @@ describe('LoteController', () => {
     });
   });
 
+  describe('asignarDestinoProductivo (HU-34)', () => {
+    it('debe asignar el destino productivo extrayendo el usuario de la request', async () => {
+      const dto = { destino: 'QUESO' } as any;
+      const tenant = { empresaId: 1 } as any;
+      const req = { user: { sub: 'user-uuid-1' } };
+      const response = { id: 3, destino: 'QUESO' };
+
+      loteServiceMock.asignarDestinoProductivo.mockResolvedValue(response);
+
+      const result = await controller.asignarDestinoProductivo('3', dto, tenant, req);
+
+      expect(loteServiceMock.asignarDestinoProductivo).toHaveBeenCalledWith(
+        3,
+        dto,
+        tenant,
+        'user-uuid-1',
+      );
+      expect(result).toBe(response);
+    });
+  });
+
+  describe('getHistorialDestinoProductivo (HU-34)', () => {
+    it('debe obtener el historial de cambios de destino productivo', async () => {
+      const tenant = { empresaId: 1 } as any;
+      const historial = [{ id: 1, destino: 'QUESO' }];
+
+      loteServiceMock.getHistorialDestino.mockResolvedValue(historial);
+
+      const result = await controller.getHistorialDestinoProductivo('3', tenant);
+
+      expect(loteServiceMock.getHistorialDestino).toHaveBeenCalledWith(3, tenant);
+      expect(result).toBe(historial);
+    });
+  });
+
   describe('finalizar', () => {
     it('debe finalizar un lote', async () => {
-      const dto = {
-        // Agregar acá los campos requeridos por FinalizarLoteDto
-      } as any;
-
+      const dto = {} as any;
       const tenant = { empresaId: 1 } as any;
       const response = { ok: true };
 
@@ -175,11 +250,7 @@ describe('LoteController', () => {
 
       const result = await controller.getHistorialClasificaciones('10', tenant);
 
-      expect(loteServiceMock.getHistorialClasificaciones).toHaveBeenCalledWith(
-        10,
-        tenant,
-      );
-
+      expect(loteServiceMock.getHistorialClasificaciones).toHaveBeenCalledWith(10, tenant);
       expect(result).toBe(historial);
     });
   });
@@ -188,25 +259,14 @@ describe('LoteController', () => {
     it('debe revisar un lote', async () => {
       const dto = { aprobado: true } as any;
       const tenant = { empresaId: 1 } as any;
-      const req = {
-        user: {
-          sub: 25,
-        },
-      };
-
+      const req = { user: { sub: 25 } };
       const response = { revisado: true };
 
       loteServiceMock.revisarLote.mockResolvedValue(response);
 
       const result = await controller.revisar('12', dto, tenant, req);
 
-      expect(loteServiceMock.revisarLote).toHaveBeenCalledWith(
-        12,
-        dto,
-        tenant,
-        25,
-      );
-
+      expect(loteServiceMock.revisarLote).toHaveBeenCalledWith(12, dto, tenant, 25);
       expect(result).toBe(response);
     });
   });
@@ -220,11 +280,7 @@ describe('LoteController', () => {
 
       const result = await controller.getHistorialRevisiones('20', tenant);
 
-      expect(loteServiceMock.getHistorialRevisiones).toHaveBeenCalledWith(
-        20,
-        tenant,
-      );
-
+      expect(loteServiceMock.getHistorialRevisiones).toHaveBeenCalledWith(20, tenant);
       expect(result).toBe(historial);
     });
   });
@@ -232,21 +288,47 @@ describe('LoteController', () => {
   describe('compararConHistorico', () => {
     it('debe devolver la comparación histórica del lote', async () => {
       const tenant = { empresaId: 1 } as any;
-      const comparacion = {
-        promedio: 8,
-        lote: 7,
-      };
+      const comparacion = { promedio: 8, lote: 7 };
 
       loteServiceMock.compararConHistorico.mockResolvedValue(comparacion);
 
       const result = await controller.compararConHistorico('15', tenant);
 
-      expect(loteServiceMock.compararConHistorico).toHaveBeenCalledWith(
+      expect(loteServiceMock.compararConHistorico).toHaveBeenCalledWith(15, tenant);
+      expect(result).toBe(comparacion);
+    });
+  });
+
+  describe('Consumos de Lote (HU-68)', () => {
+    it('registrarConsumo: debe registrar un consumo parcial con usuario y tenant', async () => {
+      const dto = { cantidad: 100 } as any;
+      const tenant = { empresaId: 1 } as any;
+      const req = { user: { sub: 'user-uuid-1' } };
+      const response = { id: 1, cantidad: 100 };
+
+      loteConsumoServiceMock.registrarConsumo.mockResolvedValue(response);
+
+      const result = await controller.registrarConsumo('15', dto, tenant, req);
+
+      expect(loteConsumoServiceMock.registrarConsumo).toHaveBeenCalledWith(
         15,
+        dto,
+        'user-uuid-1',
         tenant,
       );
+      expect(result).toBe(response);
+    });
 
-      expect(result).toBe(comparacion);
+    it('getHistorialConsumos: debe devolver el historial de consumos parciales del lote', async () => {
+      const tenant = { empresaId: 1 } as any;
+      const historial = [{ id: 1, cantidad: 100 }];
+
+      loteConsumoServiceMock.historial.mockResolvedValue(historial);
+
+      const result = await controller.getHistorialConsumos('15', tenant);
+
+      expect(loteConsumoServiceMock.historial).toHaveBeenCalledWith(15, tenant);
+      expect(result).toBe(historial);
     });
   });
 });
