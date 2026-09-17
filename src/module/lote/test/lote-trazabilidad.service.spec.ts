@@ -6,6 +6,7 @@ import { LOTE_REPOSITORY } from '../repository/lote-repository.interface';
 import { LoteRevisionCalidad } from '../entities/lote-revision-calidad.entity';
 import { LoteUbicacionHistorial } from '../entities/lote-ubicacion-historial.entity';
 import { IngresoCamara } from '../entities/ingreso-camara.entity';
+import { RecomendacionDestino } from '../../ml/entities/recomendacion-destino.entity'; 
 import { ClasificacionLoteService } from '../clasificacion-lote.service';
 import { LoteConsumoService } from '../lote-consumo.service';
 import { EstadoLote } from '../enums/estado-lote.enum';
@@ -28,6 +29,10 @@ const mockIngresoCamaraRepository = {
   find: jest.fn(),
 };
 
+const mockRecomendacionRepository = { 
+  find: jest.fn(),
+};
+
 const mockClasificacionLoteService = {
   historialDeLote: jest.fn(),
 };
@@ -40,6 +45,8 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
   let service: LoteTrazabilidadService;
 
   beforeEach(async () => {
+    mockRecomendacionRepository.find.mockResolvedValue([]); 
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LoteTrazabilidadService,
@@ -58,6 +65,10 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
         {
           provide: getRepositoryToken(IngresoCamara),
           useValue: mockIngresoCamaraRepository,
+        },
+        {
+          provide: getRepositoryToken(RecomendacionDestino), 
+          useValue: mockRecomendacionRepository,
         },
         {
           provide: ClasificacionLoteService,

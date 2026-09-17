@@ -1,6 +1,7 @@
 import { LoteConsumoMapper } from '../mappers/lote-consumo.mapper';
 import { LoteConsumo } from '../entities/lote-consumo.entity';
 import { LoteProduccion } from '../entities/lote-produccion.entity';
+import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
 
 describe('LoteConsumoMapper', () => {
   afterEach(() => jest.clearAllMocks());
@@ -34,6 +35,7 @@ describe('LoteConsumoMapper', () => {
         loteProduccionId: 'lote-prod-1',
         loteProduccionCodigo: 'PROD-2026-A',
         cantidad: 250.75,
+        unidadCantidad: null, // <-- Requerido porque toResponseDto devuelve unidadCantidad: null por defecto
         usuarioId: 'user-uuid-1',
         parametros: [
           { parametro: 'Grasa', valor: 3.8 },
@@ -41,6 +43,22 @@ describe('LoteConsumoMapper', () => {
         ],
         createdAt: new Date('2026-08-20'),
       });
+    });
+
+    it('cuando se pasa unidadCantidad, debe asignarse correctamente', () => {
+      const mockConsumo: LoteConsumo = {
+        id: 'consumo-uuid-3',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        cantidad: '100' as any,
+      } as unknown as LoteConsumo;
+
+      const resultado = LoteConsumoMapper.toResponseDto(
+        mockConsumo,
+        'PROD-2026-C',
+        UnidadCantidad.KILOGRAMOS,
+      );
+
+      expect(resultado.unidadCantidad).toBe(UnidadCantidad.KILOGRAMOS);
     });
 
     it('cuando los parámetros son nulos o undefined, debe retornar un array vacío de parámetros', () => {
@@ -58,6 +76,7 @@ describe('LoteConsumoMapper', () => {
       );
 
       expect(resultado.parametros).toEqual([]);
+      expect(resultado.unidadCantidad).toBeNull();
     });
   });
 
@@ -82,10 +101,12 @@ describe('LoteConsumoMapper', () => {
 
       expect(resultado).toHaveLength(2);
       expect(resultado[0].loteProduccionCodigo).toBe('LP-001');
+      expect(resultado[0].unidadCantidad).toBeNull();
       expect(resultado[1].loteProduccionCodigo).toBe('');
+      expect(resultado[1].unidadCantidad).toBeNull();
     });
 
-    it('cuando se pasa una función personalizada para obtener el código, debe aplicarla a los lotes de producción', () => {
+    it('cuando se pasa una función personalizada para obtener el código y unidadCantidad, debe aplicarlos', () => {
       const mockConsumos: LoteConsumo[] = [
         {
           id: 'consumo-1',
@@ -99,9 +120,11 @@ describe('LoteConsumoMapper', () => {
       const resultado = LoteConsumoMapper.toResponseDtoList(
         mockConsumos,
         customGetCodigo,
+        UnidadCantidad.LITROS,
       );
 
       expect(resultado[0].loteProduccionCodigo).toBe('CUSTOM-LP-001');
+      expect(resultado[0].unidadCantidad).toBe(UnidadCantidad.LITROS);
     });
   });
 });

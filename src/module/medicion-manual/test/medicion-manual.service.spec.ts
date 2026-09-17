@@ -8,6 +8,7 @@ import { LOTE_REPOSITORY } from '../../lote/repository/lote-repository.interface
 import { MEDICION_MANUAL_LOTE_REPOSITORY } from '../repository/medicion-manual-lote.repository.interface';
 import { SENSOR_LOTE_HISTORIAL_REPOSITORY } from '../../sensor/repository/sensor-lote-historial.repository.interface';
 import { ClasificacionLoteService } from '../../lote/clasificacion-lote.service';
+import { AnomaliaService } from '../../anomalia/anomalia.service';
 import { MedicionManualMapper } from '../mappers/medicion-manual.mapper';
 import { TenantContext } from '../../../common/types/tenant-context.type';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
@@ -28,6 +29,7 @@ describe('MedicionManualService', () => {
   let medicionRepoMock: any;
   let sensorLoteHistorialRepoMock: any;
   let clasificacionLoteServiceMock: jest.Mocked<ClasificacionLoteService>;
+  let anomaliaServiceMock: jest.Mocked<AnomaliaService>;
 
   const mockTenant: TenantContext = {
     empresaId: 1,
@@ -42,6 +44,7 @@ describe('MedicionManualService', () => {
     medicionRepoMock = {
       create: jest.fn(),
       findByLotePaginado: jest.fn(),
+      findUltimosValores: jest.fn().mockResolvedValue([]), // <-- Mock para HU-50
     };
 
     sensorLoteHistorialRepoMock = {
@@ -50,6 +53,10 @@ describe('MedicionManualService', () => {
 
     clasificacionLoteServiceMock = {
       evaluarYClasificar: jest.fn(),
+    } as any;
+
+    anomaliaServiceMock = {
+      evaluarAnomalia: jest.fn().mockResolvedValue(undefined),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -76,6 +83,10 @@ describe('MedicionManualService', () => {
         {
           provide: ClasificacionLoteService,
           useValue: clasificacionLoteServiceMock,
+        },
+        {
+          provide: AnomaliaService, // <-- Proveedor inyectado
+          useValue: anomaliaServiceMock,
         },
       ],
     }).compile();
@@ -148,7 +159,6 @@ describe('MedicionManualService', () => {
         [],
       );
 
-      // Configuraciones requieren TEMPERATURA, PH y GRASA (falta GRASA en el DTO)
       configParametroRepoMock.find.mockResolvedValue([
         { parametro: Parametro.TEMPERATURA } as any,
         { parametro: Parametro.PH } as any,
@@ -156,7 +166,7 @@ describe('MedicionManualService', () => {
       ]);
 
       const mockEntities = [{ id: 1 }, { id: 2 }];
-      const mockCreated = [{ id: 1 }, { id: 2 }];
+      const mockCreated = [{ id: 1, parametro: Parametro.TEMPERATURA, valor: 4.5 }, { id: 2, parametro: Parametro.PH, valor: 6.7 }];
       const mockResponseItems = [
         { parametro: Parametro.TEMPERATURA, valor: 4.5 },
         { parametro: Parametro.PH, valor: 6.7 },
@@ -164,7 +174,7 @@ describe('MedicionManualService', () => {
 
       jest
         .spyOn(MedicionManualMapper, 'toEntities')
-        .mockReturnValue(mockEntities);
+        .mockReturnValue(mockEntities as any);
       medicionRepoMock.create.mockResolvedValue(mockCreated);
       jest
         .spyOn(MedicionManualMapper, 'toResponseItemList')
@@ -180,8 +190,6 @@ describe('MedicionManualService', () => {
         mockTenant,
       );
 
-      // Se acepta aunque falte GRASA (obligatoria en config): HU-20
-      // permite cargar mediciones por separado.
       expect(medicionRepoMock.create).toHaveBeenCalledWith(mockEntities);
       expect(resultado.mediciones).toEqual(mockResponseItems);
     });
@@ -205,7 +213,7 @@ describe('MedicionManualService', () => {
       configParametroRepoMock.find.mockResolvedValue(configs);
 
       const mockEntities = [{ id: 1 }, { id: 2 }];
-      const mockCreated = [{ id: 1 }, { id: 2 }];
+      const mockCreated = [{ id: 1, parametro: Parametro.TEMPERATURA, valor: 4.5 }, { id: 2, parametro: Parametro.PH, valor: 6.7 }];
       const mockResponseItems = [
         { parametro: Parametro.TEMPERATURA, valor: 4.5 },
         { parametro: Parametro.PH, valor: 6.7 },
@@ -213,7 +221,7 @@ describe('MedicionManualService', () => {
 
       jest
         .spyOn(MedicionManualMapper, 'toEntities')
-        .mockReturnValue(mockEntities);
+        .mockReturnValue(mockEntities as any);
       medicionRepoMock.create.mockResolvedValue(mockCreated);
       jest
         .spyOn(MedicionManualMapper, 'toResponseItemList')
@@ -261,7 +269,6 @@ describe('MedicionManualService', () => {
         .spyOn(MedicionManualMapper, 'toResponseItemList')
         .mockReturnValue([]);
 
-      // Simula que evaluarYClasificar falla
       clasificacionLoteServiceMock.evaluarYClasificar.mockRejectedValue(
         new Error('Error de conexión con la BD'),
       );

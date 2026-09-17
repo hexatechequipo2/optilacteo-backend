@@ -10,6 +10,10 @@ import { ConfiguracionParametro } from '../../config-parametro/entities/config-p
 import { SensorLectura } from '../../lectura-sensor/entities/sensor-lectura.entity';
 import { MedicionManualLote } from '../../medicion-manual/entities/medicion-manual-lote.entity';
 import { EstadoLote } from '../../lote/enums/estado-lote.enum';
+import { BadRequestException } from '@nestjs/common';
+import { PeriodoEvolucion } from '../dto/evolucion-indicadores-query.dto';
+import { GranularidadAgregacion } from '../dto/evolucion-indicadores-response.dto';
+import { Parametro } from '../../config-parametro/enums/parametro.enum';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -536,6 +540,166 @@ describe('DashboardService', () => {
 
       expect(metrica.tendencia).toBe('baja');
       expect(metrica.variacion).toBe(-6);
+    });
+  });
+
+  describe('getEvolucionIndicadores', () => {
+    const HOY_FIJO = new Date('2026-08-03T12:00:00Z');
+
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(HOY_FIJO);
+    });
+
+    const createQueryBuilderMock = (sensorRaw: any[], manualRaw: any[]) => {
+      const qbSensor = {
+        innerJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue(sensorRaw),
+      };
+
+      const qbManual = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue(manualRaw),
+      };
+
+      return { qbSensor, qbManual };
+    };
+
+    it('debe calcular correctamente el promedio combinado entre lecturas de sensor y mediciones manuales', async () => {
+      const tenant = { empresaId: 1 } as any;
+      const query = {
+        periodo: PeriodoEvolucion.DIA,
+        indicadores: [Parametro.TEMPERATURA],
+      };
+
+      // Simulamos dos valores el mismo día (uno de sensor: 10, uno manual: 20 -> promedio: 15)
+      const sensorRaw = [{ periodo: new Date('2026-08-03T00:00:00Z'), valor: '10' }];
+      const manualRaw = [{ periodo: new Date('2026-08-03T00:00:00Z'), valor: '20' }];
+
+      const { qbSensor, qbManual } = createQueryBuilderMock(sensorRaw, manualRaw);
+      sensorLecturaRepo.createQueryBuilder.mockReturnValue(qbSensor);
+      medicionManualRepo.createQueryBuilder.mockReturnValue(qbManual);
+
+      const result = await service.getEvolucionIndicadores(tenant, query as any);
+
+      expect(result.granularidadAplicada).toBe(GranularidadAgregacion.DIA);
+      expect(result.series).toHaveLength(1);
+      
+      const puntoHoy = result.series[0].puntos.find((p) => p.fecha === '2026-08-03');
+      expect(puntoHoy?.valor).toBe(15);
+    });
+
+    it('debe rellenar con null los periodos que no posean lecturas ni mediciones', async () => {
+      const tenant = { empresaId: 1 } as any;
+      const query = {
+        periodo: PeriodoEvolucion.DIA,
+        indicadores: [Parametro.PH],
+      };
+
+      const { qbSensor, qbManual } = createQueryBuilderMock([], []);
+      sensorLecturaRepo.createQueryBuilder.mockReturnValue(qbSensor);
+      medicionManualRepo.createQueryBuilder.mockReturnValue(qbManual);
+
+      const result = await service.getEvolucionIndicadores(tenant, query as any);
+
+      // Periodo DIA genera 30 días continuos
+      expect(result.series[0].puntos).toHaveLength(30);
+      result.series[0].puntos.forEach((p) => {
+        expect(p.valor).toBeNull();
+      });
+    });
+
+    describe('Resolución de Granularidad por Rango Personalizado (PeriodoEvolucion.RANGO)', () => {
+      it('debe asignar granularidad DIA si el rango es menor o igual a 45 días', async () => {
+        const tenant = { empresaId: 1 } as any;
+        const query = {
+          periodo: PeriodoEvolucion.RANGO,
+          desde: '2026-07-01',
+          hasta: '2026-07-10', // 9 días
+          indicadores: [Parametro.TEMPERATURA],
+        };
+
+        const { qbSensor, qbManual } = createQueryBuilderMock([], []);
+        sensorLecturaRepo.createQueryBuilder.mockReturnValue(qbSensor);
+        medicionManualRepo.createQueryBuilder.mockReturnValue(qbManual);
+
+        const result = await service.getEvolucionIndicadores(tenant, query as any);
+
+        expect(result.granularidadAplicada).toBe(GranularidadAgregacion.DIA);
+        expect(result.series[0].puntos).toHaveLength(10);
+      });
+
+      it('debe asignar granularidad SEMANA si el rango está entre 46 y 180 días', async () => {
+        const tenant = { empresaId: 1 } as any;
+        const query = {
+          periodo: PeriodoEvolucion.RANGO,
+          desde: '2026-01-01',
+          hasta: '2026-03-31', // 89 días
+          indicadores: [Parametro.TEMPERATURA],
+        };
+
+        const { qbSensor, qbManual } = createQueryBuilderMock([], []);
+        sensorLecturaRepo.createQueryBuilder.mockReturnValue(qbSensor);
+        medicionManualRepo.createQueryBuilder.mockReturnValue(qbManual);
+
+        const result = await service.getEvolucionIndicadores(tenant, query as any);
+
+        expect(result.granularidadAplicada).toBe(GranularidadAgregacion.SEMANA);
+      });
+
+      it('debe asignar granularidad MES si el rango es mayor a 180 días y formatear como YYYY-MM', async () => {
+        const tenant = { empresaId: 1 } as any;
+        const query = {
+          periodo: PeriodoEvolucion.RANGO,
+          desde: '2025-01-01',
+          hasta: '2026-01-01', // 365 días
+          indicadores: [Parametro.TEMPERATURA],
+        };
+
+        const { qbSensor, qbManual } = createQueryBuilderMock([], []);
+        sensorLecturaRepo.createQueryBuilder.mockReturnValue(qbSensor);
+        medicionManualRepo.createQueryBuilder.mockReturnValue(qbManual);
+
+        const result = await service.getEvolucionIndicadores(tenant, query as any);
+
+        expect(result.granularidadAplicada).toBe(GranularidadAgregacion.MES);
+        expect(result.series[0].puntos[0].fecha).toMatch(/^\d{4}-\d{2}$/);
+      });
+    });
+
+    describe('Validaciones de Excepciones', () => {
+      it('debe lanzar BadRequestException si el periodo es RANGO pero falta "desde" o "hasta"', async () => {
+        const tenant = { empresaId: 1 } as any;
+        const queryIncompleto = {
+          periodo: PeriodoEvolucion.RANGO,
+          desde: '2026-01-01',
+          indicadores: [Parametro.TEMPERATURA],
+        };
+
+        await expect(
+          service.getEvolucionIndicadores(tenant, queryIncompleto as any),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('debe lanzar BadRequestException si "hasta" es menor a "desde"', async () => {
+        const tenant = { empresaId: 1 } as any;
+        const queryInvalido = {
+          periodo: PeriodoEvolucion.RANGO,
+          desde: '2026-08-10',
+          hasta: '2026-08-01',
+          indicadores: [Parametro.TEMPERATURA],
+        };
+
+        await expect(
+          service.getEvolucionIndicadores(tenant, queryInvalido as any),
+        ).rejects.toThrow(BadRequestException);
+      });
     });
   });
 });

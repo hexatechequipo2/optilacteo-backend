@@ -10,6 +10,8 @@ import { CrearConfiguracionNotificacionDto } from '../dto/crear-configuracion-no
 import { HistorialAlertasQueryDto } from '../dto/historial-alertas-query.dto';
 import { ResolverAlertaDto } from '../dto/resolver-alerta.dto';
 import { ActualizarConfiguracionAlertaDesconexionDto } from '../dto/actualizar-configuracion-alerta-desconexion.dto';
+import { CrearConfiguracionSilencioDto } from '../dto/crear-configuracion-silencio.dto';
+import { ActualizarConfiguracionSilencioDto } from '../dto/actualizar-configuracion-silencio.dto';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/unbound-method */
@@ -40,6 +42,11 @@ describe('NotificacionesController', () => {
       exportarHistorialCsv: jest.fn(),
       exportarHistorialPdf: jest.fn(),
       resolverAlerta: jest.fn(),
+      marcarFalsoPositivo: jest.fn(),
+      listarHorariosSilencio: jest.fn(),
+      crearHorarioSilencio: jest.fn(),
+      actualizarHorarioSilencio: jest.fn(),
+      eliminarHorarioSilencio: jest.fn(),
     };
 
     mockConfiguracionAlertaDesconexionService = {
@@ -275,6 +282,88 @@ describe('NotificacionesController', () => {
         dto,
       );
       expect(resultado).toEqual({ id: 3, resuelta: true });
+    });
+  });
+
+  describe('marcarFalsoPositivo (HU-50)', () => {
+    it('debe delegar el marcado de falso positivo parseando el ID a entero', async () => {
+      mockNotificacionesService.marcarFalsoPositivo.mockResolvedValue({
+        id: 7,
+        estado: 'FALSO_POSITIVO',
+      });
+
+      const resultado = await controller.marcarFalsoPositivo(
+        '7',
+        mockTenantContext,
+        mockReq,
+      );
+
+      expect(mockNotificacionesService.marcarFalsoPositivo).toHaveBeenCalledWith(
+        7,
+        1,
+        'user-uuid-1',
+      );
+      expect(resultado).toEqual({ id: 7, estado: 'FALSO_POSITIVO' });
+    });
+  });
+
+  describe('Horarios de Silencio (HU-30)', () => {
+    it('listarHorariosSilencio: debe solicitar los horarios del tenant', async () => {
+      mockNotificacionesService.listarHorariosSilencio.mockResolvedValue([]);
+
+      const resultado = await controller.listarHorariosSilencio(mockTenantContext);
+
+      expect(mockNotificacionesService.listarHorariosSilencio).toHaveBeenCalledWith(1);
+      expect(resultado).toEqual([]);
+    });
+
+    it('crearHorarioSilencio: debe enviar el DTO y el tenant al servicio', async () => {
+      const dto: CrearConfiguracionSilencioDto = { horaInicio: '22:00', horaFin: '06:00' };
+      mockNotificacionesService.crearHorarioSilencio.mockResolvedValue({
+        id: 1,
+        ...dto,
+      });
+
+      const resultado = await controller.crearHorarioSilencio(dto, mockTenantContext);
+
+      expect(mockNotificacionesService.crearHorarioSilencio).toHaveBeenCalledWith(
+        1,
+        dto,
+      );
+      expect(resultado).toEqual({ id: 1, ...dto });
+    });
+
+    it('actualizarHorarioSilencio: debe enviar el ID numérico, DTO y tenant al servicio', async () => {
+      const dto: ActualizarConfiguracionSilencioDto = { horaInicio: '23:00' };
+      mockNotificacionesService.actualizarHorarioSilencio.mockResolvedValue({
+        id: 1,
+        horaInicio: '23:00',
+        horaFin: '06:00',
+      });
+
+      const resultado = await controller.actualizarHorarioSilencio(
+        '1',
+        dto,
+        mockTenantContext,
+      );
+
+      expect(mockNotificacionesService.actualizarHorarioSilencio).toHaveBeenCalledWith(
+        1,
+        1,
+        dto,
+      );
+      expect(resultado).toEqual({ id: 1, horaInicio: '23:00', horaFin: '06:00' });
+    });
+
+    it('eliminarHorarioSilencio: debe delegar la eliminación parseando el ID a número', async () => {
+      mockNotificacionesService.eliminarHorarioSilencio.mockResolvedValue(undefined);
+
+      await controller.eliminarHorarioSilencio('1', mockTenantContext);
+
+      expect(mockNotificacionesService.eliminarHorarioSilencio).toHaveBeenCalledWith(
+        1,
+        1,
+      );
     });
   });
 
