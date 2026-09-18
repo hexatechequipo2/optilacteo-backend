@@ -14,12 +14,16 @@ import { AuditLog } from './module/audit/entity/audit-log.entity';
 import { ConfiguracionParametro } from './module/config-parametro/entities/config-parametro.entity';
 import { Lote } from './module/lote/entities/lote.entity';
 import { LoteParametro } from './module/lote/entities/lote-parametro.entity';
+import { LoteProduccion } from './module/lote/entities/lote-produccion.entity';
+import { LoteConsumo } from './module/lote/entities/lote-consumo.entity';
+import { LoteConsumoParametro } from './module/lote/entities/lote-consumo-parametro.entity';
 import { Sensor } from './module/sensor/entities/sensor.entity';
 import { SensorLoteHistorial } from './module/sensor/entities/sensor-lote-historial.entity';
 import { SensorLectura } from './module/lectura-sensor/entities/sensor-lectura.entity';
 import { SensorEvento } from './module/lectura-sensor/entities/sensor-evento.entity';
 import { Notificacion } from './module/notificaciones/entities/notificacion.entity';
 import { LoteClasificacionHistorial } from './module/lote/entities/lote-clasificacion-historial.entity';
+import { MedicionManualLote } from './module/medicion-manual/entities/medicion-manual-lote.entity';
 import { Tambo } from './module/tambo/entities/tambo.entity';
 import { RecomendacionDestino } from './module/ml/entities/recomendacion-destino.entity'; // <-- NUEVO (HU-49)
 import { DestinoProductivo } from './module/destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
@@ -48,12 +52,16 @@ export default new DataSource({
     ConfiguracionParametro,
     Lote,
     LoteParametro,
+    LoteProduccion,
+    LoteConsumo,
+    LoteConsumoParametro,
     Sensor,
     SensorLoteHistorial,
     SensorLectura,
     SensorEvento,
     Notificacion,
     LoteClasificacionHistorial,
+    MedicionManualLote,
     Tambo,
     RecomendacionDestino,
     DestinoProductivo,
