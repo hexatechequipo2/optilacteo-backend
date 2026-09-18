@@ -12,12 +12,14 @@ import { Empresa } from '../../empresa/entities/empresa.entity';
 import { Proveedor } from '../../proveedores/entities/proveedor.entity';
 import { Tambo } from '../../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 import { LoteParametro } from './lote-parametro.entity';
+import { DestinoProductivo } from '../../destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
 import { EstadoLote } from '../enums/estado-lote.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 import { UnidadRendimiento } from '../enums/unidad-rendimiento.enum';
+import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
 
 @Entity('lotes')
 export class Lote {
@@ -62,6 +64,18 @@ export class Lote {
   @Column({ type: 'enum', enum: DestinoLote, nullable: true })
   destinoInicial?: DestinoLote | null;
 
+  // HU-34: destino productivo real del lote (ej. "manteca", "queso
+  // cremoso"), configurable por empresa vía tabla destinos_productivos.
+  // Distinto de destinoInicial (arriba): ese es un enum fijo que representa
+  // la ubicacion/tratamiento inicial del lote, no su destino productivo.
+  // Ambos campos conviven.
+  @Column({ nullable: true })
+  destinoProductivoId?: number | null;
+
+  @ManyToOne(() => DestinoProductivo, { nullable: true })
+  @JoinColumn({ name: 'destinoProductivoId' })
+  destinoProductivo?: DestinoProductivo | null;
+
   @Column({ type: 'enum', enum: EstadoLote, default: EstadoLote.REGISTRADO })
   estado!: EstadoLote;
 
@@ -90,9 +104,27 @@ export class Lote {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   cantidad?: number | null;
 
+  // HU-51: unidad física de `cantidad`. Nullable por los mismos motivos que
+  // `cantidad` (lotes previos a esta columna no la tienen) y porque se
+  // infiere server-side a partir de `materiaPrima` en LoteService.create()
+  // en vez de depender de que el cliente la envíe correctamente.
+  @Column({
+    name: 'unidad_cantidad',
+    type: 'enum',
+    enum: UnidadCantidad,
+    nullable: true,
+  })
+  unidadCantidad?: UnidadCantidad | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   cantidadDisponible?: number | null;
 
+  // HU-69: número de remito del proveedor, obligatorio, vincula el lote a
+  // su documentación de origen. Default temporal 'S/D' para lotes previos
+  // a esta HU (ver migración) — a partir de acá siempre viene del DTO.
+  @Column({ type: 'varchar' })
+  numeroRemito!: string;
+  
   // HU-66: cantidad comprometida según remito del proveedor. Opcional (AC4) —
   // puede no estar disponible al momento de la carga si aún no llegó el remito.
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })

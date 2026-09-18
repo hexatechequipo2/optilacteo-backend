@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MedicionManualLote } from '../entities/medicion-manual-lote.entity';
+import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import {
   HistorialMedicionManualFiltro,
   IMedicionManualLoteRepository,
@@ -48,5 +49,31 @@ export class MedicionManualLoteRepository implements IMedicionManualLoteReposito
       .skip((filtro.page - 1) * filtro.limit)
       .take(filtro.limit)
       .getManyAndCount();
+  }
+
+  // ============================================================
+  // HU-50
+  // ============================================================
+
+  async findUltimosValores(
+    loteId: number,
+    parametro: Parametro,
+    empresaId: number,
+    limit: number,
+  ): Promise<number[]> {
+    const filas = await this.repo
+      .createQueryBuilder('medicion')
+      .where('medicion.empresaId = :empresaId', { empresaId })
+      .andWhere('medicion.loteId = :loteId', { loteId })
+      .andWhere('medicion.parametro = :parametro', { parametro })
+      .orderBy('medicion.createdAt', 'DESC')
+      .take(limit)
+      .select('medicion.valor', 'valor')
+      .getRawMany<{ valor: string }>();
+
+    // Se invierte para quedar en orden cronológico ascendente — el
+    // microservicio ML espera el histórico en ese orden para poder
+    // detectar tendencia (diffs consecutivos).
+    return filas.map((f) => Number(f.valor)).reverse();
   }
 }

@@ -22,10 +22,23 @@ export class RolRepository implements IRolRepository {
     });
   }
 
-  async findAll(): Promise<Rol[]> {
-    return this.repository.find({
-      relations: { permisos: true, empresa: true },
-    });
+  async findAll(empresaId?: number): Promise<Rol[]> {
+    const qb = this.repository
+      .createQueryBuilder('rol')
+      .leftJoinAndSelect('rol.empresa', 'empresa');
+
+    if (empresaId) {
+      qb.leftJoinAndSelect(
+        'rol.permisos',
+        'permisos',
+        'permisos.empresaId = :empresaId',
+        { empresaId },
+      );
+    } else {
+      qb.leftJoinAndSelect('rol.permisos', 'permisos');
+    }
+
+    return qb.getMany();
   }
 
   async findByEmpresa(empresaId: number): Promise<Rol[]> {

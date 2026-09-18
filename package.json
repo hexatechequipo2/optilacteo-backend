@@ -12,8 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "simulate:iot:prod": "node dist/simulators/iot-simulator.js --modo=normal --email=iot@optilacteo.com --password=Iot2026! --url=http://localhost:${PORT:-3000}",
-    "deploy": "npm run build && npm run migration:run:prod && (npm run start:prod &) && wait-on -t 60000 http://localhost:${PORT:-3000}/health && npm run simulate:iot:prod",
+    "deploy": "npm run build && npm run migration:run:prod && npm run start:prod",
     "deploy:docker": "sh scripts/docker-start.sh",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
@@ -28,10 +27,12 @@
     "migration:revert:prod": "typeorm migration:revert -d dist/data-source.js",
     "seed": "ts-node -r tsconfig-paths/register src/seeds/seed.ts",
     "simulate:iot": "ts-node -r tsconfig-paths/register src/simulators/iot-simulator.ts",
-    "ws:test": "ts-node scripts/ws-test-client.ts"
+    "ws:test": "ts-node scripts/ws-test-client.ts",
+    "ws:test:notificaciones": "ts-node scripts/ws-test-notificaciones.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
+    "@nestjs/axios": "4.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -44,6 +45,7 @@
     "@nestjs/typeorm": "^11.0.2",
     "@nestjs/websockets": "^11.1.28",
     "@types/bcrypt": "^6.0.0",
+    "axios": "^1.20.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
@@ -58,8 +60,7 @@
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^1.0.0",
-    "uuid": "^14.0.1",
-    "wait-on": "^9.1.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

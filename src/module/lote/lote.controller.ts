@@ -27,6 +27,7 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 import { RevisarLoteDto } from './dto/revisar-lote.dto';
 import { FinalizarLoteDto } from './dto/finalizar-lote.dto';
 import { CreateLoteConsumoDto } from './dto/create-lote-consumo.dto';
+import { AsignarDestinoProductivoDto } from './dto/asignar-destino-productivo.dto'; // <-- NUEVO (HU-34)
 import { LoteConsumoService } from './lote-consumo.service';
 
 @ApiTags('lote')
@@ -114,7 +115,12 @@ export class LoteController {
   }
 
   @Get(':id')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
   findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.loteService.findOne(+id, tenant);
@@ -153,8 +159,12 @@ export class LoteController {
     return this.loteTrazabilidadService.getTrazabilidad(+id, tenant);
   }
 
+  // HU-49: la recomendación de destino productivo se muestra y confirma
+  // desde este mismo endpoint (modal "Editar lote"), y está dirigida
+  // explícitamente al Responsable de producción — se habilita el rol acá
+  // junto con Responsable de calidad, que ya podía editar el lote.
   @Patch(':id')
-  @Roles(ROLES.RESPONSABLE_CALIDAD)
+  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
   @Permissions(
     [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
     'canWrite',
@@ -166,6 +176,46 @@ export class LoteController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.loteService.update(+id, updateLoteDto, tenant);
+  }
+
+  // HU-34 AC1/AC3: asignación o cambio manual del destino productivo del
+  // lote, independiente de aceptar/rechazar una recomendación ML (HU-49).
+  @Patch(':id/destino-productivo')
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @AuditLog('LOTE_DESTINO_ASIGNAR', 'Lote')
+  asignarDestinoProductivo(
+    @Param('id') id: string,
+    @Body() dto: AsignarDestinoProductivoDto,
+    @CurrentEmpresa() tenant: TenantContext,
+    @Req() req: any, // TODO: reemplazar por tu @CurrentUser() real
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const usuarioId = req.user.sub;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return this.loteService.asignarDestinoProductivo(+id, dto, tenant, usuarioId);
+  }
+
+  // HU-34 AC2: historial unificado de cambios de destino productivo del
+  // lote (asignaciones manuales + aceptaciones/rechazos de recomendaciones ML).
+  @Get(':id/destino-productivo/historial')
+  @Roles(
+    ROLES.RESPONSABLE_CALIDAD,
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  getHistorialDestinoProductivo(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.loteService.getHistorialDestino(+id, tenant);
   }
 
   @Patch(':id/finalizar')

@@ -22,6 +22,7 @@ export class RolMapper {
         : null,
       permisos:
         rol.permisos?.map((p) => ({
+          id: p.id,
           modulo: p.modulo,
           canRead: p.canRead,
           canWrite: p.canWrite,

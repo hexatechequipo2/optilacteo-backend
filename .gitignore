@@ -54,3 +54,5 @@ pids
 *.seed
 *.pid.lock
 *.tsbuildinfo
+optilacteo_frontend.code-workspace
+.vscode/

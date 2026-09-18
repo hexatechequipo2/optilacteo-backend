@@ -47,8 +47,8 @@ export class RolService {
     return RolMapper.toResponse(rolConPermisos!);
   }
 
-  async findAll() {
-    const roles = await this.rolRepository.findAll();
+  async findAll(empresaId?: number) {
+    const roles = await this.rolRepository.findAll(empresaId);
     return RolMapper.toResponseList(roles);
   }
 

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HU-55 · Captura cruda de dictado (Web Speech API)</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #161d2e;
+    --panel-2: #1d2740;
+    --border: #2a3552;
+    --text: #e6ebf5;
+    --text-dim: #8b96b3;
+    --green: #34d399;
+    --red: #f87171;
+    --gray: #64748b;
+    --accent: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 24px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+  .subtitle code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin: 0 0 10px 0;
+  }
+
+  /* Estado */
+  .status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--gray); flex-shrink: 0; transition: background 0.2s; }
+  .dot.listening { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.4s infinite; }
+  .dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  #statusText { font-size: 14px; font-weight: 600; }
+  #statusDetail { font-size: 12px; color: var(--text-dim); margin-left: 4px; }
+
+  /* Botones */
+  .btn-row { display: flex; gap: 12px; }
+  button {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 16px 28px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    flex: 1;
+    transition: transform 0.05s, opacity 0.15s;
+  }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  #btnStart { background: var(--green); color: #05261a; }
+  #btnStop { background: var(--red); color: #350707; }
+  .btn-secondary {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 14px;
+    flex: none;
+  }
+
+  /* Transcripción en vivo */
+  #liveInterim {
+    min-height: 48px;
+    font-size: 17px;
+    color: var(--accent);
+    font-style: italic;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #liveInterim:empty::before { content: "( esperando habla… )"; color: var(--text-dim); font-style: normal; font-size: 13px; }
+
+  /* Historial */
+  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .history-header h2 { margin: 0; }
+  #historyList {
+    list-style: none;
+    margin: 0; padding: 0;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  #historyList li {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  #historyList li:last-child { border-bottom: none; }
+  .h-idx { color: var(--text-dim); font-size: 11px; font-variant-numeric: tabular-nums; flex-shrink: 0; width: 18px; }
+  .h-time { color: var(--text-dim); font-size: 11px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .h-text { flex: 1; word-break: break-word; }
+  .h-conf { color: var(--text-dim); font-size: 11px; flex-shrink: 0; }
+  #historyEmpty { color: var(--text-dim); font-size: 13px; padding: 8px 0; }
+
+  textarea#copyArea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    resize: vertical;
+    margin-top: 10px;
+  }
+
+  /* Log de errores/eventos */
+  #eventLog {
+    max-height: 160px;
+    overflow-y: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  #eventLog .ev { color: var(--text-dim); }
+  #eventLog .ev.err { color: var(--red); }
+  #eventLog .ev.warn { color: #fbbf24; }
+  #eventLogEmpty { color: var(--text-dim); font-size: 13px; }
+
+  .toast {
+    position: fixed;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--green);
+    color: #05261a;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  #unsupported {
+    display: none;
+    background: #3b1414;
+    border: 1px solid var(--red);
+    color: #fca5a5;
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>HU-55 — Captura cruda de dictado</h1>
+  <p class="subtitle">
+    Herramienta descartable para el spike del asistente de voz. Usa Web Speech API
+    (<code>lang=es-AR</code>, <code>continuous</code>, <code>interimResults</code>) y muestra la
+    transcripción <strong>tal cual la devuelve el motor</strong>, sin ningún procesamiento propio.
+    Objetivo: ver cómo maneja "coma", "punto", números en palabras y qué puntuación inserta sola.<br/><br/>
+    Frases sugeridas para probar: <em>"grasa tres coma seis, proteína tres punto dos, acidez catorce"</em>,
+    <em>"grasa tres con seis"</em>, <em>"grasa tres sesenta"</em>, <em>"acidez catorce coma cinco"</em>.<br/>
+    Si al tocar Iniciar no pide permiso de micrófono o tira error <code>not-allowed</code>,
+    este archivo abierto como <code>file://</code> puede estar siendo bloqueado — probá servirlo con
+    <code>npx serve .</code> (o similar) y abrirlo por <code>http://localhost</code>.
+  </p>
+
+  <div id="unsupported">
+    Este navegador no soporta <code>SpeechRecognition</code>/<code>webkitSpeechRecognition</code>.
+    Abrí este archivo en Chrome de escritorio.
+  </div>
+
+  <div class="card">
+    <h2>Estado</h2>
+    <div class="status-row">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Detenido</span>
+      <span id="statusDetail"></span>
+    </div>
+    <div class="btn-row">
+      <button id="btnStart">🎙️ Iniciar</button>
+      <button id="btnStop" disabled>⏹ Detener</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Transcripción en vivo (interim, sin confirmar)</h2>
+    <div id="liveInterim"></div>
+  </div>
+
+  <div class="card">
+    <div class="history-header">
+      <h2>Historial de la sesión (resultados finales)</h2>
+      <button class="btn-secondary" id="btnClear">Limpiar todo</button>
+    </div>
+    <div id="historyEmpty">Todavía no hay resultados finales.</div>
+    <ul id="historyList"></ul>
+    <textarea id="copyArea" readonly placeholder="Acá se acumula, una línea por resultado final, para copiar."></textarea>
+    <button class="btn-secondary" id="btnCopy" style="margin-top: 8px; width: 100%;">📋 Copiar todo</button>
+  </div>
+
+  <div class="card">
+    <h2>Eventos / errores del reconocedor</h2>
+    <div id="eventLogEmpty">Sin eventos todavía.</div>
+    <div id="eventLog"></div>
+  </div>
+
+  <div class="toast" id="toast">Copiado</div>
+
+<script>
+(function () {
+  const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const statusDetail = document.getElementById('statusDetail');
+  const btnStart = document.getElementById('btnStart');
+  const btnStop = document.getElementById('btnStop');
+  const btnClear = document.getElementById('btnClear');
+  const btnCopy = document.getElementById('btnCopy');
+  const liveInterim = document.getElementById('liveInterim');
+  const historyList = document.getElementById('historyList');
+  const historyEmpty = document.getElementById('historyEmpty');
+  const copyArea = document.getElementById('copyArea');
+  const eventLog = document.getElementById('eventLog');
+  const eventLogEmpty = document.getElementById('eventLogEmpty');
+  const toast = document.getElementById('toast');
+
+  if (!SpeechRecognitionImpl) {
+    document.getElementById('unsupported').style.display = 'block';
+    btnStart.disabled = true;
+    btnStop.disabled = true;
+    return;
+  }
+
+  const history = []; // { idx, time, text, confidence }
+  let shouldBeListening = false;
+  let recognition = null;
+
+  const FATAL_ERRORS = new Set([
+    'not-allowed',
+    'service-not-allowed',
+    'audio-capture',
+    'bad-grammar',
+    'language-not-supported',
+  ]);
+
+  function nowStr() {
+    const d = new Date();
+    return d.toLocaleTimeString('es-AR', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  function setStatus(state, detail) {
+    statusDot.className = 'dot' + (state === 'listening' ? ' listening' : state === 'error' ? ' error' : '');
+    statusText.textContent =
+      state === 'listening' ? 'Escuchando…' :
+      state === 'error' ? 'Error' :
+      'Detenido';
+    statusDetail.textContent = detail || '';
+  }
+
+  function logEvent(msg, level) {
+    eventLogEmpty.style.display = 'none';
+    const line = document.createElement('div');
+    line.className = 'ev' + (level ? ' ' + level : '');
+    line.textContent = `[${nowStr()}] ${msg}`;
+    eventLog.appendChild(line);
+    eventLog.scrollTop = eventLog.scrollHeight;
+  }
+
+  function addFinalResult(text, confidence) {
+    const entry = {
+      idx: history.length + 1,
+      time: nowStr(),
+      text: text,
+      confidence: (typeof confidence === 'number' && !isNaN(confidence)) ? confidence.toFixed(2) : 'n/a',
+    };
+    history.push(entry);
+    historyEmpty.style.display = 'none';
+
+    const li = document.createElement('li');
+    li.innerHTML =
+      `<span class="h-idx">#${entry.idx}</span>` +
+      `<span class="h-time">${entry.time}</span>` +
+      `<span class="h-text"></span>` +
+      `<span class="h-conf">conf: ${entry.confidence}</span>`;
+    li.querySelector('.h-text').textContent = entry.text; // sin procesar, texto crudo
+    historyList.appendChild(li);
+    historyList.scrollTop = historyList.scrollHeight;
+
+    copyArea.value += (copyArea.value ? '\n' : '') + entry.text;
+  }
+
+  function createRecognition() {
+    const r = new SpeechRecognitionImpl();
+    r.lang = 'es-AR';
+    r.continuous = true;
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+
+    r.onstart = () => {
+      setStatus('listening');
+      logEvent('onstart — reconocimiento activo');
+    };
+
+    r.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = result[0].transcript; // crudo, sin procesar
+        if (result.isFinal) {
+          addFinalResult(transcript, result[0].confidence);
+        } else {
+          interim += transcript;
+        }
+      }
+      liveInterim.textContent = interim;
+    };
+
+    r.onerror = (event) => {
+      const isFatal = FATAL_ERRORS.has(event.error);
+      logEvent(`onerror — ${event.error}${event.message ? ': ' + event.message : ''}`, isFatal ? 'err' : 'warn');
+      if (isFatal) {
+        shouldBeListening = false;
+        setStatus('error', event.error);
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+      }
+      // errores no fatales (no-speech, network, aborted) se resuelven en onend,
+      // que reinicia automáticamente si shouldBeListening sigue en true.
+    };
+
+    r.onend = () => {
+      liveInterim.textContent = '';
+      if (shouldBeListening) {
+        logEvent('onend — el motor cortó la sesión, reiniciando automáticamente (continuous real)', 'warn');
+        try {
+          recognition = createRecognition();
+          recognition.start();
+        } catch (e) {
+          logEvent('No se pudo reiniciar automáticamente: ' + e.message, 'err');
+          shouldBeListening = false;
+          setStatus('idle');
+          btnStart.disabled = false;
+          btnStop.disabled = true;
+        }
+      } else {
+        logEvent('onend — detenido manualmente');
+        setStatus('idle');
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+      }
+    };
+
+    return r;
+  }
+
+  btnStart.addEventListener('click', () => {
+    shouldBeListening = true;
+    recognition = createRecognition();
+    try {
+      recognition.start();
+      btnStart.disabled = true;
+      btnStop.disabled = false;
+    } catch (e) {
+      logEvent('Error al iniciar: ' + e.message, 'err');
+      shouldBeListening = false;
+    }
+  });
+
+  btnStop.addEventListener('click', () => {
+    shouldBeListening = false;
+    if (recognition) recognition.stop();
+    btnStop.disabled = true;
+  });
+
+  btnClear.addEventListener('click', () => {
+    history.length = 0;
+    historyList.innerHTML = '';
+    historyEmpty.style.display = 'block';
+    copyArea.value = '';
+    liveInterim.textContent = '';
+    eventLog.innerHTML = '';
+    eventLogEmpty.style.display = 'block';
+  });
+
+  btnCopy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(copyArea.value);
+    } catch (e) {
+      copyArea.select();
+      document.execCommand('copy');
+    }
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1200);
+  });
+
+  setStatus('idle');
+})();
+</script>
+
+</body>
+</html>

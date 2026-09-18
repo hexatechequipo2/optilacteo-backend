@@ -34,11 +34,14 @@ export class RolController {
   }
 
   @Get()
-  findAll(@Query('empresaId') empresaId?: string) {
+  findAll(
+    @Query('empresaId') empresaId?: string,
+    @CurrentEmpresa() tenant?: TenantContext,
+  ) {
     if (empresaId) {
       return this.rolService.findByEmpresa(+empresaId);
     }
-    return this.rolService.findAll();
+    return this.rolService.findAll(tenant?.empresaId ?? undefined);
   }
 
   @Get(':id')

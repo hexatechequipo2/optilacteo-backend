@@ -24,6 +24,9 @@ import {
   GranularidadHistorico,
 } from './dto/dashboard-historico.dto';
 
+import { EvolucionIndicadoresQueryDto } from './dto/evolucion-indicadores-query.dto';
+import { EvolucionIndicadoresResponseDto } from './dto/evolucion-indicadores-response.dto';
+
 @ApiTags('dashboard')
 @ApiBearerAuth()
 @Controller('dashboard')
@@ -81,5 +84,18 @@ export class DashboardController {
       granularidad,
       cantidad,
     );
+  }
+
+  @Get('indicadores/evolucion')
+  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  @Permissions(ModuloSistema.DASHBOARD, 'canRead')
+  getEvolucionIndicadores(
+    @CurrentEmpresa() tenant: TenantContext,
+    @Query() query: EvolucionIndicadoresQueryDto,
+  ): Promise<EvolucionIndicadoresResponseDto> {
+    if (tenant.empresaId === null) {
+      throw new ForbiddenException('El usuario no tiene una empresa asociada.');
+    }
+    return this.dashboardService.getEvolucionIndicadores(tenant, query);
   }
 }

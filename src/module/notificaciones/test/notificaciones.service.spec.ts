@@ -12,6 +12,8 @@ import { EstadoAlerta } from '../enums/estado-alerta.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { ROLES } from '../../rol/constants/roles.constants';
+import { CONFIGURACION_SILENCIO_REPOSITORY } from '../repository/configuracion-silencio-alerta.repository.interface';
+import { HttpMlClient } from '../../ml/infrastructure/http-ml-client';
 
 describe('NotificacionesService', () => {
   let service: NotificacionesService;
@@ -22,10 +24,12 @@ describe('NotificacionesService', () => {
     markAsLeida: jest.Mock;
     countNoLeidas: jest.Mock;
     findAlertaAbiertaPorLoteYParametro: jest.Mock;
+    findAlertaAbiertaAnomalia: jest.Mock;
     findAlertaAbiertaPorSensor: jest.Mock;
     cerrarAlertasAbiertasPorSensor: jest.Mock;
     findById: jest.Mock;
     resolver: jest.Mock;
+    marcarFalsoPositivo: jest.Mock;
     findHistorial: jest.Mock;
     findHistorialCompleto: jest.Mock;
   };
@@ -49,6 +53,18 @@ describe('NotificacionesService', () => {
     emitirNotificacion: jest.Mock;
   };
 
+  let mockConfiguracionSilencioRepository: {
+    findByEmpresa: jest.Mock;
+    findById: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+  };
+
+  let mockHttpMlClient: {
+    detectarAnomalia: jest.Mock;
+  };
+
   beforeEach(async () => {
     mockNotificacionRepository = {
       create: jest.fn(),
@@ -56,10 +72,12 @@ describe('NotificacionesService', () => {
       markAsLeida: jest.fn(),
       countNoLeidas: jest.fn(),
       findAlertaAbiertaPorLoteYParametro: jest.fn(),
+      findAlertaAbiertaAnomalia: jest.fn(),
       findAlertaAbiertaPorSensor: jest.fn(),
       cerrarAlertasAbiertasPorSensor: jest.fn(),
       findById: jest.fn(),
       resolver: jest.fn(),
+      marcarFalsoPositivo: jest.fn(),
       findHistorial: jest.fn(),
       findHistorialCompleto: jest.fn(),
     };
@@ -73,6 +91,14 @@ describe('NotificacionesService', () => {
       delete: jest.fn(),
     };
 
+    mockConfiguracionSilencioRepository = {
+      findByEmpresa: jest.fn(),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
+
     mockUserRepository = {
       find: jest.fn(),
       findOne: jest.fn(),
@@ -81,6 +107,10 @@ describe('NotificacionesService', () => {
 
     mockGateway = {
       emitirNotificacion: jest.fn(),
+    };
+
+    mockHttpMlClient = {
+      detectarAnomalia: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -95,12 +125,20 @@ describe('NotificacionesService', () => {
           useValue: mockConfiguracionRepository,
         },
         {
+          provide: CONFIGURACION_SILENCIO_REPOSITORY,
+          useValue: mockConfiguracionSilencioRepository,
+        },
+        {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
         },
         {
           provide: NotificacionesGateway,
           useValue: mockGateway,
+        },
+        {
+          provide: HttpMlClient,
+          useValue: mockHttpMlClient,
         },
       ],
     }).compile();
@@ -121,7 +159,7 @@ describe('NotificacionesService', () => {
 
       await service.notificarResponsablesCalidad(
         empresaId,
-        'NUEVA_NOTIFICACION' as TipoNotificacion,
+        TipoNotificacion.ALERTA_UMBRAL,
         'Mensaje de prueba',
       );
 
@@ -144,7 +182,7 @@ describe('NotificacionesService', () => {
       loteId: 100,
       loteCodigo: 'L-001',
       parametro: Parametro.TEMPERATURA,
-      materiaPrima: 'LECHE' as TipoMateriaPrima,
+      materiaPrima: TipoMateriaPrima.LECHE_CRUDA,
       valor: 8,
       umbralMin: 2,
       umbralMax: 6,
@@ -183,6 +221,7 @@ describe('NotificacionesService', () => {
           usuarioIds: [5],
         },
       );
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([]);
 
       const queryBuilderMock: any = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -191,7 +230,6 @@ describe('NotificacionesService', () => {
         getMany: jest.fn().mockResolvedValue([{ id: 10, idRol: 2 }]),
       };
       mockUserRepository.createQueryBuilder.mockReturnValue(queryBuilderMock);
-
       mockUserRepository.find.mockResolvedValue([{ id: 5 }]);
 
       mockNotificacionRepository.create.mockImplementation((entity) =>
@@ -214,6 +252,7 @@ describe('NotificacionesService', () => {
           usuarioIds: [10],
         },
       );
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([]);
 
       const usuarioDuplicado = { id: 10 } as User;
 
@@ -234,6 +273,284 @@ describe('NotificacionesService', () => {
 
       expect(resultado.length).toBe(1);
       expect(mockNotificacionRepository.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('debe persistir la alerta pero NO emitir por Gateway si está en horario de silencio (HU-30)', async () => {
+      const paramsInformativa = {
+        ...paramsBase,
+        valor: 6.2, // Genera desvío <= 5% -> Nivel INFORMATIVA
+      };
+
+      mockNotificacionRepository.findAlertaAbiertaPorLoteYParametro.mockResolvedValue(
+        null,
+      );
+      mockConfiguracionRepository.findDestinatariosConfigByNivel.mockResolvedValue(
+        {
+          rolIds: [],
+          usuarioIds: [10],
+        },
+      );
+      mockUserRepository.find.mockResolvedValue([{ id: 10 } as User]);
+
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([
+        { horaInicio: '00:00', horaFin: '23:59', diasSemana: null },
+      ]);
+
+      mockNotificacionRepository.create.mockImplementation((entity) =>
+        Promise.resolve({ id: 1, ...entity }),
+      );
+
+      const resultado = await service.generarAlertaPorUmbral(paramsInformativa);
+
+      expect(resultado.length).toBe(1);
+      expect(mockNotificacionRepository.create).toHaveBeenCalledTimes(1);
+      expect(mockGateway.emitirNotificacion).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('HU-50: Detección de Anomalías con ML', () => {
+    const paramsAnomalia = {
+      empresaId: 1,
+      loteId: 100,
+      loteCodigo: 'L-001',
+      parametro: Parametro.TEMPERATURA,
+      valor: 15.5,
+    };
+
+    it('no debe generar alerta si ML responde que no es anomalía', async () => {
+      mockHttpMlClient.detectarAnomalia.mockResolvedValue({
+        status: 'ok',
+        esAnomalia: false,
+      });
+
+      const res = await service.generarAlertaAnomalia(paramsAnomalia);
+
+      expect(res).toEqual([]);
+      expect(
+        mockNotificacionRepository.findAlertaAbiertaAnomalia,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('no debe generar alerta si ya existe una alerta abierta de anomalía', async () => {
+      mockHttpMlClient.detectarAnomalia.mockResolvedValue({
+        status: 'ok',
+        esAnomalia: true,
+        confianza: 0.95,
+      });
+      mockNotificacionRepository.findAlertaAbiertaAnomalia.mockResolvedValue({
+        id: 1,
+      });
+
+      const res = await service.generarAlertaAnomalia(paramsAnomalia);
+
+      expect(res).toEqual([]);
+      expect(mockNotificacionRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('debe crear y notificar la alerta de anomalía si es detectada', async () => {
+      mockHttpMlClient.detectarAnomalia.mockResolvedValue({
+        status: 'ok',
+        esAnomalia: true,
+        confianza: 0.95,
+      });
+      mockNotificacionRepository.findAlertaAbiertaAnomalia.mockResolvedValue(null);
+      mockConfiguracionRepository.findDestinatariosConfigByNivel.mockResolvedValue(
+        {
+          rolIds: [],
+          usuarioIds: [5],
+        },
+      );
+      mockUserRepository.find.mockResolvedValue([{ id: 5 } as User]);
+      mockNotificacionRepository.create.mockImplementation((entity) =>
+        Promise.resolve({ id: 10, ...entity }),
+      );
+
+      const res = await service.generarAlertaAnomalia(paramsAnomalia);
+
+      expect(res.length).toBe(1);
+      expect(mockGateway.emitirNotificacion).toHaveBeenCalledTimes(1);
+    });
+
+    it('marcarFalsoPositivo: debe cambiar el estado a FALSO_POSITIVO si está abierta', async () => {
+      mockNotificacionRepository.findById.mockResolvedValue({
+        id: 10,
+        tipo: TipoNotificacion.ALERTA_ANOMALIA,
+        estado: EstadoAlerta.ABIERTA,
+      });
+      mockNotificacionRepository.marcarFalsoPositivo.mockResolvedValue({
+        id: 10,
+        estado: EstadoAlerta.FALSO_POSITIVO,
+      });
+
+      const res = await service.marcarFalsoPositivo(10, 1, 5);
+
+      expect(res.estado).toBe(EstadoAlerta.FALSO_POSITIVO);
+      expect(mockNotificacionRepository.marcarFalsoPositivo).toHaveBeenCalledWith(
+        10,
+        1,
+        5,
+      );
+    });
+
+    it('marcarFalsoPositivo: debe lanzar BadRequestException si la alerta no es de tipo ALERTA_ANOMALIA', async () => {
+      mockNotificacionRepository.findById.mockResolvedValue({
+        id: 10,
+        tipo: TipoNotificacion.ALERTA_UMBRAL,
+        estado: EstadoAlerta.ABIERTA,
+      });
+
+      await expect(service.marcarFalsoPositivo(10, 1, 5)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('HU-30: Gestión de Horarios de Silencio (CRUD y Validaciones)', () => {
+    it('listarHorariosSilencio: debe listar las configuraciones de la empresa', async () => {
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([
+        { id: 1, horaInicio: '22:00', horaFin: '06:00', diasSemana: null, nombre: 'Noche' },
+      ]);
+
+      const res = await service.listarHorariosSilencio(1);
+
+      expect(res).toHaveLength(1);
+      expect(mockConfiguracionSilencioRepository.findByEmpresa).toHaveBeenCalledWith(1);
+    });
+
+    it('crearHorarioSilencio: debe lanzar BadRequestException si horaInicio es igual a horaFin', async () => {
+      await expect(
+        service.crearHorarioSilencio(1, {
+          horaInicio: '08:00',
+          horaFin: '08:00',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('crearHorarioSilencio: debe lanzar BadRequestException si el horario se solapa con uno existente', async () => {
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([
+        { id: 1, horaInicio: '22:00', horaFin: '06:00', diasSemana: null, nombre: 'Noche' },
+      ]);
+
+      await expect(
+        service.crearHorarioSilencio(1, {
+          horaInicio: '05:00',
+          horaFin: '09:00',
+          diasSemana: [1, 2],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('crearHorarioSilencio: debe crear exitosamente si no hay solapamientos', async () => {
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([]);
+      mockConfiguracionSilencioRepository.create.mockResolvedValue({
+        id: 10,
+        empresaId: 1,
+        horaInicio: '13:00',
+        horaFin: '14:00',
+        diasSemana: [1, 2, 3],
+        nombre: 'Almuerzo',
+      });
+
+      const res = await service.crearHorarioSilencio(1, {
+        horaInicio: '13:00',
+        horaFin: '14:00',
+        diasSemana: [1, 2, 3],
+        nombre: 'Almuerzo',
+      });
+
+      expect(res.id).toBe(10);
+      expect(mockConfiguracionSilencioRepository.create).toHaveBeenCalled();
+    });
+
+    it('actualizarHorarioSilencio: debe lanzar NotFoundException si el horario no existe', async () => {
+      mockConfiguracionSilencioRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.actualizarHorarioSilencio(99, 1, { horaInicio: '10:00' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('actualizarHorarioSilencio: debe lanzar NotFoundException si update devuelve nulo', async () => {
+      mockConfiguracionSilencioRepository.findById.mockResolvedValue({
+        id: 1,
+        horaInicio: '08:00',
+        horaFin: '12:00',
+      });
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([]);
+      mockConfiguracionSilencioRepository.update.mockResolvedValue(null);
+
+      await expect(
+        service.actualizarHorarioSilencio(1, 1, { horaInicio: '09:00' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('actualizarHorarioSilencio: debe actualizar correctamente el horario', async () => {
+      mockConfiguracionSilencioRepository.findById.mockResolvedValue({
+        id: 1,
+        horaInicio: '08:00',
+        horaFin: '12:00',
+        diasSemana: null,
+      });
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([]);
+      mockConfiguracionSilencioRepository.update.mockResolvedValue({
+        id: 1,
+        horaInicio: '09:00',
+        horaFin: '12:00',
+        diasSemana: null,
+      });
+
+      const res = await service.actualizarHorarioSilencio(1, 1, { horaInicio: '09:00' });
+
+      expect(res.horaInicio).toBe('09:00');
+      expect(mockConfiguracionSilencioRepository.update).toHaveBeenCalled();
+    });
+
+    it('eliminarHorarioSilencio: debe eliminar el registro exitosamente', async () => {
+      mockConfiguracionSilencioRepository.delete.mockResolvedValue(true);
+
+      await service.eliminarHorarioSilencio(1, 1);
+
+      expect(mockConfiguracionSilencioRepository.delete).toHaveBeenCalledWith(1, 1);
+    });
+
+    it('eliminarHorarioSilencio: debe lanzar NotFoundException si el registro a eliminar no existe', async () => {
+      mockConfiguracionSilencioRepository.delete.mockResolvedValue(false);
+
+      await expect(service.eliminarHorarioSilencio(99, 1)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('debeSilenciarse: NO debe silenciar alertas de nivel CRITICA o ADVERTENCIA aunque coincida el horario', async () => {
+      const paramsCritica = {
+        empresaId: 1,
+        loteId: 100,
+        loteCodigo: 'L-001',
+        parametro: Parametro.TEMPERATURA,
+        materiaPrima: TipoMateriaPrima.LECHE_CRUDA,
+        valor: 20,
+        umbralMin: 2,
+        umbralMax: 6,
+      };
+
+      mockNotificacionRepository.findAlertaAbiertaPorLoteYParametro.mockResolvedValue(null);
+      mockConfiguracionRepository.findDestinatariosConfigByNivel.mockResolvedValue({
+        rolIds: [],
+        usuarioIds: [10],
+      });
+      mockUserRepository.find.mockResolvedValue([{ id: 10 } as User]);
+
+      mockConfiguracionSilencioRepository.findByEmpresa.mockResolvedValue([
+        { horaInicio: '00:00', horaFin: '23:59', diasSemana: null },
+      ]);
+
+      mockNotificacionRepository.create.mockImplementation((entity) =>
+        Promise.resolve({ id: 1, ...entity }),
+      );
+
+      await service.generarAlertaPorUmbral(paramsCritica);
+
+      expect(mockGateway.emitirNotificacion).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -282,14 +599,12 @@ describe('NotificacionesService', () => {
   describe('crearConfiguracion', () => {
     it('debe lanzar BadRequestException si no se envía rolId ni usuarioId, o si se envían ambos', async () => {
       await expect(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         service.crearConfiguracion(1, {
           nivelAlerta: NivelAlerta.CRITICA,
         } as any),
       ).rejects.toThrow(BadRequestException);
 
       await expect(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         service.crearConfiguracion(1, {
           nivelAlerta: NivelAlerta.CRITICA,
           rolId: 1,
@@ -302,7 +617,6 @@ describe('NotificacionesService', () => {
       mockUserRepository.findOne.mockResolvedValue(null);
 
       await expect(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         service.crearConfiguracion(1, {
           nivelAlerta: NivelAlerta.CRITICA,
           usuarioId: 99,
@@ -378,10 +692,14 @@ describe('NotificacionesService', () => {
     });
 
     it('debe lanzar BadRequestException si el tipo de notificación no es ALERTA_UMBRAL', async () => {
-      mockNotificacionRepository.findById.mockResolvedValue({
+      const alertaInvalida = {
         id: 1,
-        tipo: 'NUEVA_NOTIFICACION' as TipoNotificacion,
-      });
+        tipo: TipoNotificacion.ALERTA_ANOMALIA,
+        estado: EstadoAlerta.ABIERTA,
+      };
+
+      mockNotificacionRepository.findById.mockResolvedValue(alertaInvalida);
+      mockNotificacionRepository.resolver.mockResolvedValue(alertaInvalida);
 
       await expect(
         service.resolverAlerta(1, 1, 10, { accionCorrectiva: 'Test' }),

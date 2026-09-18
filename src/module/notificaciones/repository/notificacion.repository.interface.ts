@@ -3,6 +3,7 @@ import { NotificacionFilterQueryDto } from '../dto/notificacion-filter-query.dto
 import { HistorialAlertasQueryDto } from '../dto/historial-alertas-query.dto';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
+import { TipoDesvioAnomalia } from '../enums/tipo-desvio-anomalia.enum';
 
 export const NOTIFICACION_REPOSITORY = 'NOTIFICACION_REPOSITORY';
 
@@ -63,4 +64,18 @@ export interface INotificacionRepository {
     sensorId: number,
     tipo: TipoNotificacion,
   ): Promise<void>;
+
+  // HU-50
+  findAlertaAbiertaAnomalia(
+    empresaId: number,
+    loteId: number,
+    parametro: Parametro,
+    tipoDesvio: TipoDesvioAnomalia,
+  ): Promise<Notificacion | null>;
+
+  marcarFalsoPositivo(
+    id: number,
+    empresaId: number,
+    marcadaPorId: number,
+  ): Promise<Notificacion | null>;
 }

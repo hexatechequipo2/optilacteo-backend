@@ -1,5 +1,6 @@
 import { LoteMapper } from '../mappers/lote.mapper';
 import { Lote } from '../entities/lote.entity';
+import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
@@ -23,6 +24,7 @@ describe('LoteMapper', () => {
         rendimiento: '95.5' as any,
         unidadRendimiento: '%',
         cantidad: '1000' as any,
+        unidadCantidad: UnidadCantidad.KILOGRAMOS,
         cantidadDisponible: '800' as any,
         cantidadComprometidaKg: '200' as any,
         parametros: [
@@ -40,6 +42,7 @@ describe('LoteMapper', () => {
       expect(resultado.tamboId).toBe('tambo-1');
       expect(resultado.rendimiento).toBe(95.5);
       expect(resultado.cantidad).toBe(1000);
+      expect(resultado.unidadCantidad).toBe(UnidadCantidad.KILOGRAMOS);
       expect(resultado.cantidadDisponible).toBe(800);
       expect(resultado.cantidadComprometidaKg).toBe(200);
       expect(resultado.parametros[0]).toEqual({
@@ -58,6 +61,7 @@ describe('LoteMapper', () => {
         rendimiento: null,
         unidadRendimiento: undefined,
         cantidad: null,
+        unidadCantidad: undefined,
         cantidadDisponible: null,
         cantidadComprometidaKg: null,
         parametros: [
@@ -70,6 +74,7 @@ describe('LoteMapper', () => {
       expect(resultado.clasificacion).toBeNull();
       expect(resultado.rendimiento).toBeNull();
       expect(resultado.cantidad).toBeNull();
+      expect(resultado.unidadCantidad).toBeNull();
       expect(resultado.cantidadDisponible).toBeNull();
       expect(resultado.cantidadComprometidaKg).toBeNull();
       expect(resultado.parametros[0].valorComprometido).toBeNull();
@@ -77,13 +82,14 @@ describe('LoteMapper', () => {
   });
 
   describe('toDesvioResponseDto', () => {
-    it('cuando hay valores válidos de comprometido y real, debe calcular el porcentaje de desvío con 2 decimales', () => {
+    it('cuando hay valores válidos de comprometido y real (en KILOGRAMOS), debe calcular el porcentaje de desvío con 2 decimales', () => {
       const mockLote: Lote = {
         id: 'lote-desvio-1',
         codigo: 'LOT-DESV-01',
         fechaIngreso: new Date('2026-08-20'),
         cantidadComprometidaKg: '1000' as any,
         cantidad: '1050' as any, // 5% de desvío positivo: ((1050 - 1000) / 1000) * 100 = 5
+        unidadCantidad: UnidadCantidad.KILOGRAMOS, // <-- Necesario para que coincida con kilogramos
         parametros: [
           {
             parametro: 'Grasa',
@@ -105,11 +111,26 @@ describe('LoteMapper', () => {
       });
     });
 
+    it('cuando la unidad de cantidad no es KILOGRAMOS, el desvío de cantidad debe ser null', () => {
+      const mockLote: Lote = {
+        id: 'lote-desvio-litros',
+        cantidadComprometidaKg: '1000' as any,
+        cantidad: '1050' as any,
+        unidadCantidad: UnidadCantidad.LITROS, // No comparable directamente con Kg
+        parametros: [],
+      } as unknown as Lote;
+
+      const resultado = LoteMapper.toDesvioResponseDto(mockLote);
+
+      expect(resultado.desvioCantidadPorcentaje).toBeNull();
+    });
+
     it('cuando cantidadComprometida es nula o 0, el desvío general debe ser null', () => {
       const mockLote: Lote = {
         id: 'lote-desvio-2',
         cantidadComprometidaKg: null,
         cantidad: '1000' as any,
+        unidadCantidad: UnidadCantidad.KILOGRAMOS,
         parametros: [],
       } as unknown as Lote;
 

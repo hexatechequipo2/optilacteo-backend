@@ -19,6 +19,9 @@ import {
   LoteProduccionResponseDto,
 } from '../lote/dto/lote-consumo-response.dto';
 import { LoteConsumoMapper } from '../lote/mappers/lote-consumo.mapper';
+import { MlService } from '../ml/ml.service';
+import { RecomendacionMapper } from '../ml/mappers/recomendacion.mapper';
+import { RecomendacionResponseDto } from '../ml/dto/recomendacion-response.dto';
 
 @Injectable()
 export class LoteConsumoService {
@@ -29,9 +32,12 @@ export class LoteConsumoService {
     private readonly loteProduccionRepository: Repository<LoteProduccion>,
     @InjectRepository(LoteConsumo)
     private readonly loteConsumoRepository: Repository<LoteConsumo>,
+    private readonly mlService: MlService,
   ) {}
 
   // HU-68 (criterios 1, 2, 3, y caso "falla": consumir más de lo disponible)
+  // + HU-49 AC1: cada consumo con parámetros nuevos dispara su propia
+  // recomendación.
   async registrarConsumo(
     loteIngresoId: number,
     dto: CreateLoteConsumoDto,
@@ -109,11 +115,44 @@ export class LoteConsumoService {
     }
     if (lote.cantidadDisponible <= 0) {
       lote.cantidadDisponible = 0;
-      lote.estado = EstadoLote.FINALIZADO;
+      // HU-34 AC4: no cerrar el ciclo automáticamente si todavía no tiene
+      // destino productivo asignado. Queda EN_PROCESO con saldo 0 hasta
+      // que LoteService.asignarDestinoProductivo() (o responder una
+      // recomendación ML) lo finalice.
+      if (lote.destinoProductivoId) {
+        lote.estado = EstadoLote.FINALIZADO;
+      }
     }
     await this.loteRepository.save(lote);
 
-    return LoteConsumoMapper.toResponseDto(consumo, loteProduccion.codigo);
+    // HU-49 AC1: solo se genera cuando hay parámetros nuevos en este
+    // consumo (2do en adelante). El 1er consumo reutiliza los del alta
+    // del lote y ya tiene su propia recomendación generada en LoteService.create().
+    let recomendacion: RecomendacionResponseDto | null = null;
+    if (dto.parametros && dto.parametros.length > 0) {
+      const recomendacionEntity = await this.mlService.generarRecomendacion({
+        empresaId,
+        loteId: lote.id,
+        loteConsumoId: consumo.id,
+        parametros: dto.parametros.map((p) => ({
+          parametro: p.parametro,
+          valor: p.valor,
+        })),
+      });
+      recomendacion = recomendacionEntity
+        ? RecomendacionMapper.toResponseDto(recomendacionEntity)
+        : null;
+    }
+
+    return {
+      // HU-51: se propaga la unidad del lote de origen al DTO de consumo.
+      ...LoteConsumoMapper.toResponseDto(
+        consumo,
+        loteProduccion.codigo,
+        lote.unidadCantidad,
+      ),
+      recomendacion,
+    };
   }
 
   // Criterio 2 y 4: consulta del saldo remanente y del historial de consumos.
@@ -134,7 +173,12 @@ export class LoteConsumoService {
       order: { createdAt: 'ASC' },
     });
 
-    return LoteConsumoMapper.toResponseDtoList(consumos);
+    // HU-51: se propaga la unidad del lote de origen a todo el historial.
+    return LoteConsumoMapper.toResponseDtoList(
+      consumos,
+      undefined,
+      lote.unidadCantidad,
+    );
   }
 
   // Alimenta el selector "lote de producción existente" del frontend.

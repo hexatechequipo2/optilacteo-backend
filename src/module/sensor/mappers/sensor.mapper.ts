@@ -32,6 +32,7 @@ export class SensorMapper {
       ubicacion: sensor.ubicacion,
       rangoMinFavor: sensor.rangoMinFavor,
       rangoMaxFavor: sensor.rangoMaxFavor,
+      umbralDesconexionMinutos: sensor.umbralDesconexionMinutos,
       estado: sensor.estado,
       ultimaLectura: sensor.ultimaLectura,
       loteActualId,

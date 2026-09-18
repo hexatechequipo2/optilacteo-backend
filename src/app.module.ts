@@ -19,9 +19,15 @@ import { SensorModule } from './module/sensor/sensor.module';
 import { PlcConfigModule } from './module/plc-config/plc-config.module'; // <-- NUEVO (HU-61)
 import { LecturaSensorModule } from './module/lectura-sensor/lectura-sensor.module';
 import { MedicionManualModule } from './module/medicion-manual/medicion-manual.module';
+import { AsistenteVozModule } from './module/asistente-voz/asistente-voz.module'; // <-- NUEVO (HU-55, spike)
 import { NotificacionesModule } from './module/notificaciones/notificaciones.module';
 import { DashboardModule } from './module/dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
+import { MlModule } from './module/ml/ml.module';
+import { InternalModule } from './module/internal/internal.module';
+import { DestinoProductivoModule } from './module/destino-productivo/destino-productivo.module';
+// --- NUEVO (HU-51) ---
+import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-volumen.module';
 
 @Module({
   imports: [
@@ -58,9 +64,14 @@ import { HealthModule } from './health/health.module';
     PlcConfigModule,
     LecturaSensorModule,
     MedicionManualModule,
+    AsistenteVozModule,
     NotificacionesModule,
     DashboardModule,
     HealthModule,
+    MlModule,
+    InternalModule,
+    DestinoProductivoModule,
+    PrediccionVolumenModule,
   ],
   controllers: [AppController],
   providers: [AppService],

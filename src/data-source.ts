@@ -21,6 +21,10 @@ import { SensorEvento } from './module/lectura-sensor/entities/sensor-evento.ent
 import { Notificacion } from './module/notificaciones/entities/notificacion.entity';
 import { LoteClasificacionHistorial } from './module/lote/entities/lote-clasificacion-historial.entity';
 import { Tambo } from './module/tambo/entities/tambo.entity';
+import { RecomendacionDestino } from './module/ml/entities/recomendacion-destino.entity'; // <-- NUEVO (HU-49)
+import { DestinoProductivo } from './module/destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
+import { LoteDestinoHistorial } from './module/lote/entities/lote-destino-historial.entity';
+import { ConfiguracionSilencioAlerta } from './module/notificaciones/entities/configuracion-silencio-alerta.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -51,6 +55,10 @@ export default new DataSource({
     Notificacion,
     LoteClasificacionHistorial,
     Tambo,
+    RecomendacionDestino,
+    DestinoProductivo,
+    LoteDestinoHistorial,
+    ConfiguracionSilencioAlerta
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,

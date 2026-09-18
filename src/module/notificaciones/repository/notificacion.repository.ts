@@ -10,6 +10,7 @@ import { HistorialAlertasQueryDto } from '../dto/historial-alertas-query.dto';
 
 import { TipoNotificacion } from '../enums/tipo-notificacion.enum';
 import { EstadoAlerta } from '../enums/estado-alerta.enum';
+import { TipoDesvioAnomalia } from '../enums/tipo-desvio-anomalia.enum';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 
 @Injectable()
@@ -196,7 +197,7 @@ export class NotificacionRepository implements INotificacionRepository {
   }
 
   // ============================================================
-  // Query común HU-28
+  // Query común HU-28 + HU-50 (filtros de tipo/parametro sumados)
   // ============================================================
 
   private crearQueryHistorial(
@@ -210,12 +211,24 @@ export class NotificacionRepository implements INotificacionRepository {
       .where('notificacion.empresaId = :empresaId', {
         empresaId,
       });
-    qb.andWhere('notificacion.tipo IN (:...tipos)', {
-      tipos: [
-        TipoNotificacion.ALERTA_UMBRAL,
-        TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
-      ],
-    });
+
+    // HU-50: si viene un tipo puntual en el filtro (ej. el dashboard de
+    // anomalías pidiendo solo ALERTA_ANOMALIA), se respeta ese único tipo.
+    // Si no viene, se mantiene el comportamiento anterior de traer los
+    // tres tipos de alerta juntos.
+    if (query.tipo) {
+      qb.andWhere('notificacion.tipo = :tipoUnico', {
+        tipoUnico: query.tipo,
+      });
+    } else {
+      qb.andWhere('notificacion.tipo IN (:...tipos)', {
+        tipos: [
+          TipoNotificacion.ALERTA_UMBRAL,
+          TipoNotificacion.ALERTA_SENSOR_DESCONECTADO,
+          TipoNotificacion.ALERTA_ANOMALIA,
+        ],
+      });
+    }
 
     if (query.estado) {
       qb.andWhere('notificacion.estado = :estado', {
@@ -232,6 +245,13 @@ export class NotificacionRepository implements INotificacionRepository {
     if (query.nivelAlerta) {
       qb.andWhere('notificacion.nivelAlerta = :nivelAlerta', {
         nivelAlerta: query.nivelAlerta,
+      });
+    }
+
+    // HU-50 criterio 8: filtro del dashboard por parámetro
+    if (query.parametro) {
+      qb.andWhere('notificacion.parametro = :parametro', {
+        parametro: query.parametro,
       });
     }
 
@@ -297,5 +317,58 @@ export class NotificacionRepository implements INotificacionRepository {
         fechaResolucion: new Date(),
       },
     );
+  }
+
+  // ============================================================
+  // HU-50
+  // ============================================================
+
+  findAlertaAbiertaAnomalia(
+    empresaId: number,
+    loteId: number,
+    parametro: Parametro,
+    tipoDesvio: TipoDesvioAnomalia,
+  ): Promise<Notificacion | null> {
+    return this.repository.findOne({
+      where: {
+        empresaId,
+        loteId,
+        parametro,
+        tipoDesvio,
+        tipo: TipoNotificacion.ALERTA_ANOMALIA,
+        estado: EstadoAlerta.ABIERTA,
+      },
+    });
+  }
+
+  async marcarFalsoPositivo(
+    id: number,
+    empresaId: number,
+    marcadaPorId: number,
+  ): Promise<Notificacion | null> {
+    const result = await this.repository.update(
+      {
+        id,
+        empresaId,
+        tipo: TipoNotificacion.ALERTA_ANOMALIA,
+        estado: EstadoAlerta.ABIERTA,
+      },
+      {
+        estado: EstadoAlerta.FALSO_POSITIVO,
+        marcadaFalsoPositivoPorId: marcadaPorId,
+        fechaMarcadoFalsoPositivo: new Date(),
+      },
+    );
+
+    if (!result.affected) {
+      return null;
+    }
+
+    return this.repository.findOne({
+      where: {
+        id,
+        empresaId,
+      },
+    });
   }
 }

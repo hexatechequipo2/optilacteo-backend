@@ -19,6 +19,10 @@ import { REVOKED_TOKEN_REPOSITORY } from './repository/revoked-token-repository.
 import type { IRefreshTokenRepository } from './repository/refresh-token-repository.interface';
 import { REFRESH_TOKEN_REPOSITORY } from './repository/refresh-token-repository.interface';
 
+// --- nuevo: permisos por empresa ---
+import type { IPermisoRepository } from '../permiso/repository/permiso-interface.repository';
+import { PERMISO_REPOSITORY } from '../permiso/repository/permiso-interface.repository';
+
 import type { JwtPayload } from './types/jwt-payload.type';
 import { ROLES, type RolNombre } from '../rol/constants/roles.constants';
 
@@ -28,20 +32,8 @@ const REFRESH_TOKEN_BYTES = 64;
 const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS = 7;
 const DEFAULT_REFRESH_TOKEN_EXPIRES_DAYS_REMEMBER_ME = 30;
 
-// Mensaje único para TODO fallo de login (usuario inexistente, password
-// incorrecto, cuenta bloqueada o inactiva). Nunca debe variar el texto ni
-// el status code entre estos casos: hacerlo permite enumerar cuentas
-// existentes y su estado (MITRE ATT&CK T1589.002 - Gather Victim Identity
-// Information). El detalle real de qué pasó queda solo en los logs
-// internos (this.logger.warn), nunca en la respuesta al cliente.
 const GENERIC_LOGIN_ERROR = 'Credenciales incorrectas';
 
-// Hash bcrypt precalculado una sola vez al cargar el módulo, contra el que
-// se compara cuando el email no existe. Esto asegura que bcrypt.compare()
-// se ejecute SIEMPRE con un costo equivalente, exista o no el usuario,
-// evitando que la diferencia de tiempo de respuesta funcione como side
-// channel para enumerar emails (mismo objetivo que el punto anterior,
-// pero por timing en vez de por mensaje).
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
   'valor-fijo-solo-para-normalizar-timing',
   10,
@@ -79,6 +71,10 @@ export class AuthService {
     @Inject(REFRESH_TOKEN_REPOSITORY)
     private readonly refreshTokenRepository: IRefreshTokenRepository,
 
+    // --- nuevo: permisos por empresa ---
+    @Inject(PERMISO_REPOSITORY)
+    private readonly permisoRepository: IPermisoRepository,
+
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -90,9 +86,6 @@ export class AuthService {
   async login(dto: LoginDto): Promise<LoginResponse> {
     const user = await this.userRepository.findByEmail(dto.email);
 
-    // bcrypt.compare corre siempre, exista o no el usuario: contra el hash
-    // real si existe, contra el hash dummy si no. Normaliza el tiempo de
-    // respuesta entre ambos casos (ver comentario de DUMMY_PASSWORD_HASH).
     const passwordValid = await bcrypt.compare(
       dto.password,
       user?.password ?? DUMMY_PASSWORD_HASH,
@@ -109,10 +102,6 @@ export class AuthService {
         isInactive,
       });
 
-      // Solo se registra el intento fallido (y se evalúa lockout) cuando
-      // el usuario existe, está activo y no estaba ya bloqueado: si ya
-      // está bloqueado o inactivo no tiene sentido seguir sumando
-      // intentos ni extender el bloqueo por esta vía.
       if (user && !isLocked && !isInactive && !passwordValid) {
         await this.registerFailedAttempt(
           user.id,
@@ -128,9 +117,8 @@ export class AuthService {
       await this.userRepository.resetFailedAttempts(user.id);
     }
 
-    const payload = this.buildJwtPayload(user);
+    const payload = await this.buildJwtPayload(user);
 
-    // 👇 Log para depurar el usuario y sus permisos
     this.logger.debug('Usuario autenticado:', {
       id: user.id,
       email: user.email,
@@ -177,8 +165,6 @@ export class AuthService {
     }
 
     if (existing.revokedAt) {
-      // El token ya fue rotado antes: esta presentación es un reuso,
-      // posible robo. Se corta toda la sesión (familia) como contención.
       await this.refreshTokenRepository.revokeFamily(existing.familyId);
       this.logger.warn(
         `Reuso de refresh token detectado, sesión revocada [userId=${existing.userId}]`,
@@ -200,11 +186,9 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token inválido');
     }
 
-    const payload = this.buildJwtPayload(user);
+    const payload = await this.buildJwtPayload(user);
     const access_token = await this.jwtService.signAsync(payload);
 
-    // Límite absoluto de sesión: se copia el mismo expiresAt del token
-    // original en vez de extenderlo en cada rotación.
     const newRefreshToken = await this.issueRefreshToken({
       userId: existing.userId,
       empresaId: existing.empresaId,
@@ -220,25 +204,39 @@ export class AuthService {
     return { access_token, refresh_token: newRefreshToken };
   }
 
-  private buildJwtPayload(user: User): JwtPayload {
+  private async buildJwtPayload(user: User): Promise<JwtPayload> {
     const rolNombre: RolNombre | null =
       user.rol?.nombre &&
       Object.values(ROLES).includes(user.rol.nombre as RolNombre)
         ? (user.rol.nombre as RolNombre)
         : null;
 
+    const empresaId = user.empresa?.id ?? null;
+
+    // HU multi-tenant de permisos: en vez de leer user.rol.permisos
+    // (relación sin scoping, traería las filas de TODAS las empresas
+    // para ese rol), se consulta explícitamente por (rolId, empresaId)
+    // del usuario que está logueando. Si no hay rol o empresa, no hay
+    // permisos que cargar.
+    const permisosEntities =
+      user.rol?.id && empresaId
+        ? await this.permisoRepository.findByRolYEmpresa(
+            user.rol.id,
+            empresaId,
+          )
+        : [];
+
     return {
       sub: user.id,
       email: user.email,
       rolId: user.rol?.id ?? null,
       rolNombre,
-      permisos:
-        user.rol?.permisos?.map((p) => ({
-          modulo: p.modulo,
-          canRead: p.canRead,
-          canWrite: p.canWrite,
-        })) ?? [],
-      empresaId: user.empresa?.id ?? null,
+      permisos: permisosEntities.map((p) => ({
+        modulo: p.modulo,
+        canRead: p.canRead,
+        canWrite: p.canWrite,
+      })),
+      empresaId,
       jti: '',
     };
   }
@@ -275,12 +273,6 @@ export class AuthService {
     return plainToken;
   }
 
-  /**
-   * Centraliza el logging de los distintos motivos de fallo de login. El
-   * detalle real (bloqueado, inactivo, password incorrecto, no existe)
-   * queda únicamente acá, del lado servidor: la respuesta HTTP siempre es
-   * GENERIC_LOGIN_ERROR sin importar el motivo.
-   */
   private logFailedLogin(
     email: string,
     reason: {
@@ -334,8 +326,6 @@ export class AuthService {
     accessToken: string,
     refreshToken?: string,
   ): Promise<{ message: string }> {
-    // Paso 1: verificar el JWT de forma aislada. Si falla aca, es un
-    // problema del cliente (token invalido/expirado) -> 401, con warn.
     let payload: JwtPayload;
     try {
       payload = await this.jwtService.verifyAsync(accessToken);
@@ -346,9 +336,6 @@ export class AuthService {
       throw new UnauthorizedException('Token inválido');
     }
 
-    // Paso 2: efectos de logout (DB, revocacion). Si algo falla aca, NO es
-    // culpa del token: es un fallo interno (DB caida, etc) -> debe
-    // propagarse como 500, con log completo, en vez de disfrazarse de 401.
     try {
       const expiresAt = this.getTokenExpirationDate(payload);
 
@@ -375,8 +362,6 @@ export class AuthService {
         `Error inesperado en logout [userId=${payload.sub}]`,
         error instanceof Error ? error.stack : String(error),
       );
-      // Se re-lanza tal cual: el AllExceptionsFilter lo trata como 500
-      // y loguea el stack, en vez de mentirle al cliente con "Token inválido".
       throw error;
     }
   }

@@ -21,7 +21,10 @@ import { LoteResponseDto } from './dto/lote-response.dto';
 import { LoteCreateResponseDto } from './dto/lote-create-response.dto';
 import { MetricasCalidadResponseDto } from './dto/metricas-calidad-response.dto';
 import { DesvioProveedorResponseDto } from './dto/desvio-proveedor-response.dto';
+import { AsignarDestinoProductivoDto } from './dto/asignar-destino-productivo.dto'; // <-- NUEVO (HU-34)
+import { LoteDestinoHistorialResponseDto } from './dto/lote-destino-historial-response.dto'; // <-- NUEVO (HU-34)
 import { LoteMapper } from './mappers/lote.mapper';
+import { LoteDestinoHistorialMapper } from './mappers/lote-destino-historial.mapper'; // <-- NUEVO (HU-34)
 import { EstadoLote } from './enums/estado-lote.enum';
 import type { ILoteRepository } from './repository/lote-repository.interface';
 import { LOTE_REPOSITORY } from './repository/lote-repository.interface';
@@ -34,6 +37,7 @@ import { UNIDAD_POR_PARAMETRO } from '../config-parametro/validators/unidades-pa
 import { ClasificacionLote } from './enums/clasificacion-lote.enum';
 import { ClasificacionLoteService } from './clasificacion-lote.service';
 import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
+import { LoteDestinoHistorial } from './entities/lote-destino-historial.entity'; // <-- NUEVO (HU-34)
 import { RevisarLoteDto } from './dto/revisar-lote.dto';
 import { DecisionRevision } from './enums/decision-revision.enum';
 import { ConfiguracionComparacionHistoricaService } from '../config-parametro/configuracion-comparacion-historica.service';
@@ -41,6 +45,21 @@ import { ComparacionHistoricaResponseDto } from './dto/comparacion-historica-res
 import { ComparacionHistoricaMapper } from './mappers/comparacion-historica.mapper';
 import { AuditLogService } from '../audit/audit-log.service';
 import { ROLES } from '../rol/constants/roles.constants';
+import { MlService } from '../ml/ml.service';
+import { RecomendacionMapper } from '../ml/mappers/recomendacion.mapper';
+import { RecomendacionResponseDto } from '../ml/dto/recomendacion-response.dto';
+import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-enum';
+import { UnidadCantidad } from './enums/unidad-cantidad.enum';
+import { DestinoProductivo } from '../destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
+
+// HU-51: unidad física de la cantidad recepcionada según materia prima.
+// leche_cruda y crema se reciben en volumen; masa_hilada es semisólida y
+// se pesa. Server-side para no depender de que el cliente la envíe bien.
+const UNIDAD_POR_MATERIA_PRIMA: Record<TipoMateriaPrima, UnidadCantidad> = {
+  [TipoMateriaPrima.LECHE_CRUDA]: UnidadCantidad.LITROS,
+  [TipoMateriaPrima.CREMA_DE_LECHE]: UnidadCantidad.KILOGRAMOS,
+  [TipoMateriaPrima.MASA_HILADA]: UnidadCantidad.KILOGRAMOS,
+};
 
 @Injectable()
 export class LoteService {
@@ -60,8 +79,13 @@ export class LoteService {
     private readonly clasificacionLoteService: ClasificacionLoteService,
     @InjectRepository(LoteRevisionCalidad)
     private readonly loteRevisionRepository: Repository<LoteRevisionCalidad>,
+    @InjectRepository(LoteDestinoHistorial) // <-- NUEVO (HU-34)
+    private readonly loteDestinoHistorialRepository: Repository<LoteDestinoHistorial>,
+    @InjectRepository(DestinoProductivo) // <-- NUEVO (HU-34)
+    private readonly destinoProductivoRepository: Repository<DestinoProductivo>,
     private readonly configuracionComparacionHistoricaService: ConfiguracionComparacionHistoricaService,
     private readonly auditLogService: AuditLogService,
+    private readonly mlService: MlService,
   ) {}
 
   // HU-63
@@ -90,11 +114,6 @@ export class LoteService {
     }
 
     // --- NUEVO (HU-36): validar tambo de origen ---
-    // El tambo tiene que existir, pertenecer a la empresa del usuario
-    // autenticado, y pertenecer efectivamente al proveedor indicado en
-    // el mismo request (evita que llegue una combinación inconsistente
-    // si el request no viene del formulario normal con el select
-    // encadenado proveedor -> tambo).
     const tambo = await this.tamboRepository.findOne({
       where: { id: dto.tamboId, empresaId },
     });
@@ -132,6 +151,9 @@ export class LoteService {
       return parametro;
     });
 
+    // HU-51: unidad inferida a partir de la materia prima, no del cliente.
+    const unidadCantidad = UNIDAD_POR_MATERIA_PRIMA[dto.materiaPrima];
+
     const lote = this.loteRepository.create({
       codigo,
       empresaId,
@@ -145,13 +167,30 @@ export class LoteService {
       estado: EstadoLote.REGISTRADO,
       parametros,
       cantidad: dto.cantidad,
+      unidadCantidad, // HU-51
       cantidadDisponible: dto.cantidad,
+      numeroRemito: dto.numeroRemito,
       cantidadComprometidaKg: dto.cantidadComprometidaKg ?? null, // HU-66
     });
 
     const saved = await this.loteRepository.save(lote);
 
     await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
+
+    // HU-49 AC1: se dispara automáticamente al registrar los parámetros
+    // del lote. Devuelve null si la empresa todavía no tiene historial
+    // suficiente — no es un error, el alta del lote nunca depende de esto.
+    const recomendacionEntity = await this.mlService.generarRecomendacion({
+      empresaId,
+      loteId: saved.id,
+      parametros: dto.parametros.map((p) => ({
+        parametro: p.parametro,
+        valor: p.valor,
+      })),
+    });
+    const recomendacion: RecomendacionResponseDto | null = recomendacionEntity
+      ? RecomendacionMapper.toResponseDto(recomendacionEntity)
+      : null;
 
     const actualizado = await this.loteRepository.findById(saved.id, empresaId);
 
@@ -169,6 +208,7 @@ export class LoteService {
     return {
       lote: LoteMapper.toResponseDto(actualizado!),
       sensoresDisponibles,
+      recomendacion,
       warnings,
     };
   }
@@ -236,11 +276,6 @@ export class LoteService {
     if (dto.destinoInicial !== undefined)
       lote.destinoInicial = dto.destinoInicial;
 
-    // Nota (HU-36): a propósito NO se permite reasignar proveedorId ni
-    // tamboId desde update(), igual que ya pasaba con proveedorId antes
-    // de esta HU — el origen de un lote ya registrado no se edita, para
-    // no romper la trazabilidad histórica.
-
     const saved = await this.loteRepository.save(lote);
     return LoteMapper.toResponseDto(saved);
   }
@@ -257,14 +292,16 @@ export class LoteService {
       throw new NotFoundException(`Lote ${id} no encontrado`);
     }
 
-    // HU-62 + HU-68: el lote puede llegar a FINALIZADO por dos caminos —
-    // manualmente vía este endpoint, o automáticamente cuando el consumo
-    // parcial agota el saldo disponible (ver LoteConsumoService). En el
-    // segundo caso el rendimiento todavía no se cargó, así que la guardia
-    // no bloquea por estado sino por si el rendimiento ya está cargado.
     if (lote.estado === EstadoLote.FINALIZADO && lote.rendimiento != null) {
       throw new BadRequestException(
         `El lote ${id} ya está finalizado con rendimiento cargado y no puede modificarse`,
+      );
+    }
+
+    // HU-34 AC4: el destino productivo es obligatorio para cerrar el ciclo.
+    if (!lote.destinoProductivoId) {
+      throw new BadRequestException(
+        `El lote ${id} no tiene un destino productivo asignado; es requerido para finalizar el ciclo.`,
       );
     }
 
@@ -276,6 +313,100 @@ export class LoteService {
 
     const saved = await this.loteRepository.save(lote);
     return LoteMapper.toResponseDto(saved);
+  }
+
+  // HU-34 AC1/AC3: asignación o cambio manual del destino productivo de un
+  // lote, independiente del flujo de recomendación ML (HU-49/HU-37). Deja
+  // registro en el historial unificado con fecha y usuario, y respeta el
+  // ciclo del lote: no se puede tocar una vez finalizado o rechazado.
+  async asignarDestinoProductivo(
+    id: number,
+    dto: AsignarDestinoProductivoDto,
+    tenant: TenantContext,
+    usuarioId: number,
+  ): Promise<LoteResponseDto> {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    const lote = await this.loteRepository.findById(id, empresaId);
+    if (!lote) {
+      throw new NotFoundException(`Lote ${id} no encontrado`);
+    }
+
+    if (
+      lote.estado === EstadoLote.FINALIZADO ||
+      lote.estado === EstadoLote.RECHAZADO
+    ) {
+      throw new BadRequestException(
+        `El lote ${id} está en estado ${lote.estado} y no admite cambios de destino productivo`,
+      );
+    }
+
+    const destino = await this.destinoProductivoRepository.findOne({
+      where: { id: dto.destinoProductivoId, empresaId, activo: true },
+    });
+    if (!destino) {
+      throw new NotFoundException(
+        `El destino productivo ${dto.destinoProductivoId} no existe, no está activo o no pertenece a la empresa`,
+      );
+    }
+
+    // HU-34: si el destino elegido es el mismo que ya tiene el lote, no hay
+    // cambio real que registrar en el historial (mismo criterio que la
+    // validación de divergencia de HU-37, ver MlService.responderRecomendacion).
+    if (lote.destinoProductivoId === destino.id) {
+      throw new BadRequestException(
+        `El lote ${id} ya tiene asignado el destino productivo "${destino.nombre}"; no hay cambio que registrar.`,
+      );
+    }
+
+    const destinoAnteriorId = lote.destinoProductivoId ?? null;
+    lote.destinoProductivoId = destino.id;
+
+    // AC4 + HU-68: si el lote ya había agotado su saldo esperando destino
+    // (ver LoteConsumoService.registrarConsumo), asignarlo ahora cierra el
+    // ciclo que había quedado pendiente.
+    if (
+      lote.estado === EstadoLote.EN_PROCESO &&
+      lote.cantidadDisponible != null &&
+      Number(lote.cantidadDisponible) <= 0
+    ) {
+      lote.estado = EstadoLote.FINALIZADO;
+    }
+
+    const saved = await this.loteRepository.save(lote);
+
+    const historial = this.loteDestinoHistorialRepository.create({
+      loteId: id,
+      empresaId,
+      destinoProductivoId: destino.id,
+      destinoAnteriorId,
+      usuarioId,
+      origen: 'manual',
+    });
+    await this.loteDestinoHistorialRepository.save(historial);
+
+    return LoteMapper.toResponseDto(saved);
+  }
+
+  // HU-34 AC2: historial unificado de cambios de destino de un lote
+  // (asignaciones manuales + aceptaciones/rechazos de recomendaciones ML).
+  async getHistorialDestino(
+    id: number,
+    tenant: TenantContext,
+  ): Promise<LoteDestinoHistorialResponseDto[]> {
+    const empresaId = this.resolveEmpresaId(tenant);
+    const lote = await this.loteRepository.findById(id, empresaId);
+    if (!lote) {
+      throw new NotFoundException(`Lote ${id} no encontrado`);
+    }
+
+    const historial = await this.loteDestinoHistorialRepository.find({
+      where: { loteId: id, empresaId },
+      relations: { destinoProductivo: true, destinoAnterior: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    return LoteDestinoHistorialMapper.toResponseDtoList(historial);
   }
 
   async getMetricasCalidad(

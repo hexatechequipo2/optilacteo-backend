@@ -2,10 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PermisoController } from '../permiso.controller';
 import { PermisoService } from '../permiso.service';
 import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
-
-// Los metadatos de @Roles (GERENTE/ADMINISTRADOR a nivel de clase) no se
-// testean aqui por reflexion; este archivo se enfoca en que cada metodo
-// del controller delegue en PermisoService con los parametros correctos.
+import { TenantContext } from '../../../common/types/tenant-context.type';
 
 describe('PermisoController', () => {
   let controller: PermisoController;
@@ -15,6 +12,8 @@ describe('PermisoController', () => {
     findOne: jest.Mock;
     update: jest.Mock;
   };
+
+  const mockTenant: TenantContext = { empresaId: 1, rolNombre: null };
 
   beforeEach(async () => {
     mockPermisoService = {
@@ -36,9 +35,9 @@ describe('PermisoController', () => {
     it('deberia convertir el query rolId a number y delegar en permisoService.findByRol', async () => {
       mockPermisoService.findByRol.mockResolvedValue([]);
 
-      await controller.findByRol('5');
+      await controller.findByRol('5', mockTenant);
 
-      expect(mockPermisoService.findByRol).toHaveBeenCalledWith(5);
+      expect(mockPermisoService.findByRol).toHaveBeenCalledWith(5, mockTenant.empresaId);
     });
   });
 
@@ -46,9 +45,9 @@ describe('PermisoController', () => {
     it('deberia convertir el param userId a number y delegar en permisoService.findByUsuario', async () => {
       mockPermisoService.findByUsuario.mockResolvedValue([]);
 
-      await controller.findByUsuario('10');
+      await controller.findByUsuario('10', mockTenant);
 
-      expect(mockPermisoService.findByUsuario).toHaveBeenCalledWith(10);
+      expect(mockPermisoService.findByUsuario).toHaveBeenCalledWith(10, mockTenant.empresaId);
     });
   });
 
@@ -56,9 +55,9 @@ describe('PermisoController', () => {
     it('deberia convertir el id a number y delegar en permisoService.findOne', async () => {
       mockPermisoService.findOne.mockResolvedValue({ id: 1 });
 
-      await controller.findOne('1');
+      await controller.findOne('1', mockTenant);
 
-      expect(mockPermisoService.findOne).toHaveBeenCalledWith(1);
+      expect(mockPermisoService.findOne).toHaveBeenCalledWith(1, mockTenant.empresaId);
     });
   });
 
@@ -71,9 +70,9 @@ describe('PermisoController', () => {
       };
       mockPermisoService.update.mockResolvedValue({ id: 1, ...dto });
 
-      await controller.update('1', dto);
+      await controller.update('1', dto, mockTenant);
 
-      expect(mockPermisoService.update).toHaveBeenCalledWith(1, dto);
+      expect(mockPermisoService.update).toHaveBeenCalledWith(1, mockTenant.empresaId, dto);
     });
   });
 });

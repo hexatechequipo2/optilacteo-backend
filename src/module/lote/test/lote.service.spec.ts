@@ -16,8 +16,11 @@ import { SensorLectura } from '../../lectura-sensor/entities/sensor-lectura.enti
 import { SensorService } from '../../sensor/sensor.service';
 import { ClasificacionLoteService } from '../clasificacion-lote.service';
 import { LoteRevisionCalidad } from '../entities/lote-revision-calidad.entity';
+import { LoteDestinoHistorial } from '../entities/lote-destino-historial.entity'; // <-- NUEVO (HU-34)
+import { DestinoProductivo } from '../../destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
 import { ConfiguracionComparacionHistoricaService } from '../../config-parametro/configuracion-comparacion-historica.service';
 import { AuditLogService } from '../../audit/audit-log.service';
+import { MlService } from '../../ml/ml.service'; // <-- NUEVO (HU-34)
 
 import { EstadoProveedor } from '../../proveedores/enums/estado-proveedor.enum';
 import { EstadoLote } from '../enums/estado-lote.enum';
@@ -82,6 +85,8 @@ describe('LoteService', () => {
   let configParametroRepository: MockRepository<ConfiguracionParametro>;
   let sensorLecturaRepository: MockRepository<SensorLectura>;
   let loteRevisionRepository: MockRepository<LoteRevisionCalidad>;
+  let loteDestinoHistorialRepository: MockRepository<LoteDestinoHistorial>;
+  let destinoProductivoRepository: MockRepository<DestinoProductivo>;
   let sensorService: jest.Mocked<Partial<SensorService>>;
   let clasificacionLoteService: jest.Mocked<
     Pick<ClasificacionLoteService, 'evaluarYClasificar' | 'historialDeLote'>
@@ -92,6 +97,7 @@ describe('LoteService', () => {
   let auditLogService: jest.Mocked<
     Pick<AuditLogService, 'getTrazabilidad' | 'getTrazabilidadBatch'>
   >;
+  let mlService: jest.Mocked<Pick<MlService, 'generarRecomendacion'>>;
 
   const mockTenant: TenantContext = {
     empresaId: 1,
@@ -116,6 +122,8 @@ describe('LoteService', () => {
     configParametroRepository = createMockRepository();
     sensorLecturaRepository = createMockRepository();
     loteRevisionRepository = createMockRepository();
+    loteDestinoHistorialRepository = createMockRepository();
+    destinoProductivoRepository = createMockRepository();
 
     sensorService = {
       findAll: jest.fn().mockResolvedValue([]),
@@ -135,6 +143,10 @@ describe('LoteService', () => {
     auditLogService = {
       getTrazabilidad: jest.fn().mockResolvedValue(undefined),
       getTrazabilidadBatch: jest.fn().mockResolvedValue(new Map()),
+    };
+
+    mlService = {
+      generarRecomendacion: jest.fn().mockResolvedValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -165,6 +177,14 @@ describe('LoteService', () => {
           useValue: loteRevisionRepository,
         },
         {
+          provide: getRepositoryToken(LoteDestinoHistorial),
+          useValue: loteDestinoHistorialRepository,
+        },
+        {
+          provide: getRepositoryToken(DestinoProductivo),
+          useValue: destinoProductivoRepository,
+        },
+        {
           provide: SensorService,
           useValue: sensorService,
         },
@@ -179,6 +199,10 @@ describe('LoteService', () => {
         {
           provide: AuditLogService,
           useValue: auditLogService,
+        },
+        {
+          provide: MlService,
+          useValue: mlService,
         },
       ],
     }).compile();
@@ -608,10 +632,14 @@ describe('LoteService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    // HU-34 AC4: el destino productivo es obligatorio para cerrar el ciclo,
+    // así que los lotes de este describe necesitan destinoProductivoId ya
+    // asignado — si no, finalizar() corta antes con BadRequestException.
     it('debe cambiar el estado del lote a FINALIZADO y guardarlo', async () => {
       const loteExistente: any = {
         id: 10,
         estado: EstadoLote.EN_PROCESO,
+        destinoProductivoId: 5,
         fechaIngreso: new Date(),
         parametros: [],
       };
@@ -639,6 +667,7 @@ describe('LoteService', () => {
       const loteExistente: any = {
         id: 10,
         estado: EstadoLote.EN_PROCESO,
+        destinoProductivoId: 5,
         fechaIngreso: new Date(),
         parametros: [],
       };
@@ -674,6 +703,7 @@ describe('LoteService', () => {
       const loteExistente: any = {
         id: 10,
         estado: EstadoLote.EN_PROCESO,
+        destinoProductivoId: 5,
         fechaIngreso: new Date(),
         parametros: [],
       };
@@ -1085,6 +1115,160 @@ describe('LoteService', () => {
           100,
         );
       });
+    });
+  });
+
+  describe('asignarDestinoProductivo — asignación manual de destino (HU-34)', () => {
+    const dto: any = { destinoProductivoId: 4 };
+
+    it('cuando el lote no existe, debe lanzar NotFoundException', async () => {
+      loteRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.asignarDestinoProductivo(999, dto, mockTenant, 7),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(destinoProductivoRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('cuando el lote está FINALIZADO o RECHAZADO, debe lanzar BadRequestException sin consultar el destino', async () => {
+      loteRepository.findById.mockResolvedValue({
+        id: 10,
+        estado: EstadoLote.FINALIZADO,
+        destinoProductivoId: 1,
+      });
+
+      await expect(
+        service.asignarDestinoProductivo(10, dto, mockTenant, 7),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(destinoProductivoRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('cuando el destino productivo no existe, no está activo o no pertenece a la empresa, debe lanzar NotFoundException', async () => {
+      loteRepository.findById.mockResolvedValue({
+        id: 10,
+        estado: EstadoLote.EN_PROCESO,
+        destinoProductivoId: 1,
+      });
+
+      destinoProductivoRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.asignarDestinoProductivo(10, dto, mockTenant, 7),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(loteDestinoHistorialRepository.save).not.toHaveBeenCalled();
+    });
+
+    // HU-34: mismo criterio que la validación de divergencia de HU-37 — si
+    // el destino elegido es el mismo que ya tiene el lote, no hay cambio
+    // real que registrar en el historial.
+    it('cuando el destino elegido es igual al destino actual del lote, debe lanzar BadRequestException sin guardar nada', async () => {
+      const lote = {
+        id: 10,
+        estado: EstadoLote.EN_PROCESO,
+        destinoProductivoId: 4,
+      };
+
+      loteRepository.findById.mockResolvedValue(lote);
+
+      destinoProductivoRepository.findOne.mockResolvedValue({
+        id: 4,
+        nombre: 'manteca',
+        empresaId: 1,
+        activo: true,
+      });
+
+      await expect(
+        service.asignarDestinoProductivo(10, dto, mockTenant, 7),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(loteRepository.save).not.toHaveBeenCalled();
+      expect(loteDestinoHistorialRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('cuando los datos son válidos, debe asignar el nuevo destino y dejar registro en el historial', async () => {
+      const lote: any = {
+        id: 10,
+        estado: EstadoLote.EN_PROCESO,
+        destinoProductivoId: 1,
+        cantidadDisponible: 50,
+        fechaIngreso: new Date(),
+        parametros: [],
+      };
+
+      loteRepository.findById.mockResolvedValue(lote);
+
+      destinoProductivoRepository.findOne.mockResolvedValue({
+        id: 4,
+        nombre: 'manteca',
+        empresaId: 1,
+        activo: true,
+      });
+
+      loteRepository.save.mockImplementation((entidad) =>
+        Promise.resolve(entidad),
+      );
+
+      loteDestinoHistorialRepository.create.mockImplementation((h) => h);
+      loteDestinoHistorialRepository.save.mockResolvedValue(undefined);
+
+      const resultado = await service.asignarDestinoProductivo(
+        10,
+        dto,
+        mockTenant,
+        7,
+      );
+
+      expect(lote.destinoProductivoId).toBe(4);
+      expect(lote.estado).toBe(EstadoLote.EN_PROCESO);
+
+      expect(loteDestinoHistorialRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          loteId: 10,
+          empresaId: 1,
+          destinoProductivoId: 4,
+          destinoAnteriorId: 1,
+          usuarioId: 7,
+          origen: 'manual',
+        }),
+      );
+      expect(loteDestinoHistorialRepository.save).toHaveBeenCalled();
+      expect(resultado).toBeDefined();
+    });
+
+    // AC4 + HU-68: si el lote ya había agotado su saldo esperando destino,
+    // asignarlo ahora tiene que cerrar el ciclo que había quedado pendiente.
+    it('cuando el lote EN_PROCESO ya agotó su cantidad disponible, asignar destino debe finalizarlo', async () => {
+      const lote: any = {
+        id: 10,
+        estado: EstadoLote.EN_PROCESO,
+        destinoProductivoId: null,
+        cantidadDisponible: 0,
+        fechaIngreso: new Date(),
+        parametros: [],
+      };
+
+      loteRepository.findById.mockResolvedValue(lote);
+
+      destinoProductivoRepository.findOne.mockResolvedValue({
+        id: 4,
+        nombre: 'manteca',
+        empresaId: 1,
+        activo: true,
+      });
+
+      loteRepository.save.mockImplementation((entidad) =>
+        Promise.resolve(entidad),
+      );
+
+      loteDestinoHistorialRepository.create.mockImplementation((h) => h);
+      loteDestinoHistorialRepository.save.mockResolvedValue(undefined);
+
+      await service.asignarDestinoProductivo(10, dto, mockTenant, 7);
+
+      expect(lote.estado).toBe(EstadoLote.FINALIZADO);
     });
   });
 });

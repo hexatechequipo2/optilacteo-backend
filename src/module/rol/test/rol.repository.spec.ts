@@ -19,6 +19,10 @@ function buildRol(overrides: Partial<Rol> = {}): Rol {
 
 describe('RolRepository', () => {
   let repository: RolRepository;
+  let mockQueryBuilder: {
+    leftJoinAndSelect: jest.Mock;
+    getMany: jest.Mock;
+  };
   let mockRolTypeormRepo: {
     find: jest.Mock;
     findOne: jest.Mock;
@@ -26,6 +30,7 @@ describe('RolRepository', () => {
     save: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
+    createQueryBuilder: jest.Mock;
   };
   let mockPermisoTypeormRepo: {
     find: jest.Mock;
@@ -36,6 +41,11 @@ describe('RolRepository', () => {
   };
 
   beforeEach(() => {
+    mockQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+
     mockRolTypeormRepo = {
       find: jest.fn(),
       findOne: jest.fn(),
@@ -43,7 +53,9 @@ describe('RolRepository', () => {
       save: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
     };
+
     mockPermisoTypeormRepo = {
       find: jest.fn(),
       findOne: jest.fn(),
@@ -51,6 +63,7 @@ describe('RolRepository', () => {
       save: jest.fn(),
       update: jest.fn(),
     };
+
     repository = new RolRepository(
       mockRolTypeormRepo as unknown as Repository<Rol>,
       mockPermisoTypeormRepo as unknown as Repository<PermisoModulo>,
@@ -58,84 +71,120 @@ describe('RolRepository', () => {
   });
 
   describe('findById', () => {
-    it('deberia buscar por id cargando las relaciones permisos y empresa', async () => {
-      mockRolTypeormRepo.findOne.mockResolvedValue(null);
+    it('debería retornar un rol por ID con sus relaciones', async () => {
+      const mockRol = buildRol({ id: 5 });
+      mockRolTypeormRepo.findOne.mockResolvedValue(mockRol);
 
-      await repository.findById(5);
+      const result = await repository.findById(5);
 
       expect(mockRolTypeormRepo.findOne).toHaveBeenCalledWith({
         where: { id: 5 },
         relations: { permisos: true, empresa: true },
       });
+      expect(result).toBe(mockRol);
+    });
+
+    it('debería retornar null si no encuentra el rol', async () => {
+      mockRolTypeormRepo.findOne.mockResolvedValue(null);
+
+      const result = await repository.findById(999);
+
+      expect(result).toBeNull();
     });
   });
 
   describe('findAll', () => {
-    it('deberia listar cargando las relaciones permisos y empresa', async () => {
-      mockRolTypeormRepo.find.mockResolvedValue([]);
+    it('debería listar cargando las relaciones sin filtro de empresaId', async () => {
+      const rolesMock = [buildRol()];
+      mockQueryBuilder.getMany.mockResolvedValue(rolesMock);
 
-      await repository.findAll();
+      const result = await repository.findAll();
 
-      expect(mockRolTypeormRepo.find).toHaveBeenCalledWith({
-        relations: { permisos: true, empresa: true },
-      });
+      expect(mockRolTypeormRepo.createQueryBuilder).toHaveBeenCalledWith('rol');
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('rol.empresa', 'empresa');
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('rol.permisos', 'permisos');
+      expect(result).toBe(rolesMock);
+    });
+
+    it('debería filtrar permisos por empresaId si se le proporciona', async () => {
+      const rolesMock = [buildRol()];
+      mockQueryBuilder.getMany.mockResolvedValue(rolesMock);
+
+      await repository.findAll(1);
+
+      expect(mockRolTypeormRepo.createQueryBuilder).toHaveBeenCalledWith('rol');
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('rol.empresa', 'empresa');
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+        'rol.permisos',
+        'permisos',
+        'permisos.empresaId = :empresaId',
+        { empresaId: 1 },
+      );
     });
   });
 
   describe('findByEmpresa', () => {
-    it('deberia filtrar por el id de empresa cargando permisos y empresa', async () => {
-      mockRolTypeormRepo.find.mockResolvedValue([]);
+    it('debería buscar roles filtrados por el ID de empresa', async () => {
+      const rolesMock = [buildRol({ id: 1 }), buildRol({ id: 2 })];
+      mockRolTypeormRepo.find.mockResolvedValue(rolesMock);
 
-      await repository.findByEmpresa(1);
+      const result = await repository.findByEmpresa(1);
 
       expect(mockRolTypeormRepo.find).toHaveBeenCalledWith({
         where: { empresa: { id: 1 } },
         relations: { permisos: true, empresa: true },
       });
+      expect(result).toBe(rolesMock);
     });
   });
 
   describe('createRol', () => {
-    it('deberia crear la instancia con create() y persistirla con save()', async () => {
-      const partial = { nombre: 'Supervisor de calidad' };
-      const created = buildRol();
-      mockRolTypeormRepo.create.mockReturnValue(created);
-      mockRolTypeormRepo.save.mockResolvedValue(created);
+    it('debería instanciar y guardar un nuevo rol', async () => {
+      const dtoPartial: Partial<Rol> = { nombre: 'Nuevo Rol' };
+      const createdEntity = { ...dtoPartial } as Rol;
+      const savedEntity = { id: 10, ...dtoPartial } as Rol;
 
-      const result = await repository.createRol(partial);
+      mockRolTypeormRepo.create.mockReturnValue(createdEntity);
+      mockRolTypeormRepo.save.mockResolvedValue(savedEntity);
 
-      expect(mockRolTypeormRepo.create).toHaveBeenCalledWith(partial);
-      expect(mockRolTypeormRepo.save).toHaveBeenCalledWith(created);
-      expect(result).toBe(created);
+      const result = await repository.createRol(dtoPartial);
+
+      expect(mockRolTypeormRepo.create).toHaveBeenCalledWith(dtoPartial);
+      expect(mockRolTypeormRepo.save).toHaveBeenCalledWith(createdEntity);
+      expect(result).toBe(savedEntity);
     });
   });
 
   describe('updateRol', () => {
-    it('deberia actualizar y devolver el rol recargado con sus relaciones', async () => {
-      const updated = buildRol({ nombre: 'Nuevo nombre' });
+    it('debería actualizar el rol y retornar la entidad actualizada', async () => {
+      const updateDto: Partial<Rol> = { nombre: 'Nombre Editado' };
+      const updatedRol = buildRol({ id: 5, nombre: 'Nombre Editado' });
+
       mockRolTypeormRepo.update.mockResolvedValue({ affected: 1 });
-      mockRolTypeormRepo.findOne.mockResolvedValue(updated);
+      mockRolTypeormRepo.findOne.mockResolvedValue(updatedRol);
 
-      const result = await repository.updateRol(5, { nombre: 'Nuevo nombre' });
+      const result = await repository.updateRol(5, updateDto);
 
-      expect(mockRolTypeormRepo.update).toHaveBeenCalledWith(5, {
-        nombre: 'Nuevo nombre',
+      expect(mockRolTypeormRepo.update).toHaveBeenCalledWith(5, updateDto);
+      expect(mockRolTypeormRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 5 },
+        relations: { permisos: true, empresa: true },
       });
-      expect(result).toBe(updated);
+      expect(result).toBe(updatedRol);
     });
 
-    it('deberia lanzar un Error si el rol no aparece al recargarlo tras el update', async () => {
+    it('debería lanzar un error si el rol no se encuentra tras la actualización', async () => {
       mockRolTypeormRepo.update.mockResolvedValue({ affected: 0 });
       mockRolTypeormRepo.findOne.mockResolvedValue(null);
 
-      await expect(repository.updateRol(999, { nombre: 'x' })).rejects.toThrow(
-        'Rol with id 999 not found after update',
+      await expect(repository.updateRol(99, { nombre: 'Test' })).rejects.toThrow(
+        'Rol with id 99 not found after update',
       );
     });
   });
 
   describe('deleteRol', () => {
-    it('deberia delegar en el delete de TypeORM', async () => {
+    it('debería llamar al método delete del repositorio TypeORM', async () => {
       mockRolTypeormRepo.delete.mockResolvedValue({ affected: 1 });
 
       await repository.deleteRol(5);
@@ -144,78 +193,69 @@ describe('RolRepository', () => {
     });
   });
 
+  describe('hasActiveUsers', () => {
+    it('debería retornar false por defecto', async () => {
+      const result = await repository.hasActiveUsers(5);
+      expect(result).toBe(false);
+    });
+  });
+
   describe('createPermisos', () => {
-    it('deberia crear las instancias con create() y persistirlas con save()', async () => {
-      const partial = [
-        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
-      ];
-      const created = [{ id: 1, ...partial[0] }] as PermisoModulo[];
-      mockPermisoTypeormRepo.create.mockReturnValue(created);
-      mockPermisoTypeormRepo.save.mockResolvedValue(created);
+    it('debería instanciar y guardar la lista de permisos', async () => {
+      const permisosInput = [{ modulo: ModuloSistema.RECEPCION, canRead: true }];
+      const createdPermisos = [...permisosInput] as PermisoModulo[];
+      const savedPermisos = [{ id: 1, ...permisosInput[0] }] as PermisoModulo[];
 
-      const result = await repository.createPermisos(partial);
+      mockPermisoTypeormRepo.create.mockReturnValue(createdPermisos);
+      mockPermisoTypeormRepo.save.mockResolvedValue(savedPermisos);
 
-      expect(mockPermisoTypeormRepo.create).toHaveBeenCalledWith(partial);
-      expect(mockPermisoTypeormRepo.save).toHaveBeenCalledWith(created);
-      expect(result).toBe(created);
+      const result = await repository.createPermisos(permisosInput as any);
+
+      expect(mockPermisoTypeormRepo.create).toHaveBeenCalledWith(permisosInput);
+      expect(mockPermisoTypeormRepo.save).toHaveBeenCalledWith(createdPermisos);
+      expect(result).toBe(savedPermisos);
     });
   });
 
   describe('findPermiso', () => {
-    it('deberia buscar el permiso de un rol para un modulo especifico', async () => {
-      mockPermisoTypeormRepo.findOne.mockResolvedValue(null);
+    it('debería buscar un permiso por rolId y modulo', async () => {
+      const permisoMock = { id: 10, modulo: ModuloSistema.RECEPCION } as PermisoModulo;
+      mockPermisoTypeormRepo.findOne.mockResolvedValue(permisoMock);
 
-      await repository.findPermiso(5, ModuloSistema.DASHBOARD);
+      const result = await repository.findPermiso(5, ModuloSistema.RECEPCION);
 
       expect(mockPermisoTypeormRepo.findOne).toHaveBeenCalledWith({
-        where: { rol: { id: 5 }, modulo: ModuloSistema.DASHBOARD },
+        where: { rol: { id: 5 }, modulo: ModuloSistema.RECEPCION },
         relations: { rol: true },
       });
+      expect(result).toBe(permisoMock);
     });
   });
 
   describe('updatePermiso', () => {
-    it('deberia actualizar canRead/canWrite y devolver el permiso recargado', async () => {
-      const updated = {
-        id: 1,
-        modulo: ModuloSistema.DASHBOARD,
-        canRead: true,
-        canWrite: true,
-      } as PermisoModulo;
+    it('debería actualizar los permisos canRead y canWrite y retornar la entidad', async () => {
+      const updatedPermiso = { id: 10, canRead: true, canWrite: false } as PermisoModulo;
+
       mockPermisoTypeormRepo.update.mockResolvedValue({ affected: 1 });
-      mockPermisoTypeormRepo.findOne.mockResolvedValue(updated);
+      mockPermisoTypeormRepo.findOne.mockResolvedValue(updatedPermiso);
 
-      const result = await repository.updatePermiso(1, true, true);
+      const result = await repository.updatePermiso(10, true, false);
 
-      expect(mockPermisoTypeormRepo.update).toHaveBeenCalledWith(1, {
+      expect(mockPermisoTypeormRepo.update).toHaveBeenCalledWith(10, {
         canRead: true,
-        canWrite: true,
+        canWrite: false,
       });
-      expect(result).toBe(updated);
+      expect(mockPermisoTypeormRepo.findOne).toHaveBeenCalledWith({ where: { id: 10 } });
+      expect(result).toBe(updatedPermiso);
     });
 
-    it('deberia lanzar un Error si el permiso no aparece al recargarlo tras el update', async () => {
+    it('debería lanzar un error si el permiso no existe tras la actualización', async () => {
       mockPermisoTypeormRepo.update.mockResolvedValue({ affected: 0 });
       mockPermisoTypeormRepo.findOne.mockResolvedValue(null);
 
-      await expect(repository.updatePermiso(999, true, false)).rejects.toThrow(
-        'PermisoModulo with id 999 not found after update',
+      await expect(repository.updatePermiso(99, true, true)).rejects.toThrow(
+        'PermisoModulo with id 99 not found after update',
       );
-    });
-  });
-
-  describe('hasActiveUsers', () => {
-    // NOTA: este metodo es codigo muerto -- RolService.remove() valida
-    // usuarios activos directamente contra userRepository, sin pasar por
-    // aca. La implementacion actual siempre devuelve false sin importar
-    // el resultado de la query. Se documenta el comportamiento actual,
-    // no se afirma que sea la fuente de verdad del negocio.
-    it('siempre devuelve false, independientemente de lo que encuentre la query', async () => {
-      mockRolTypeormRepo.findOne.mockResolvedValue(buildRol());
-
-      const result = await repository.hasActiveUsers(5);
-
-      expect(result).toBe(false);
     });
   });
 });

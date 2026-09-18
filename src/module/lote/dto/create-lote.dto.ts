@@ -11,11 +11,14 @@ import {
   ValidateNested,
   IsNumber,
   IsPositive,
+  IsNotEmpty,
+  Matches
 } from 'class-validator';
 import { TipoMateriaPrima } from '../../config-parametro/enums/tipo-materia-prima-enum';
 import { DestinoLote } from '../enums/destino-lote.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 import { CreateLoteParametroDto } from './create-lote-parametro.dto';
+
 
 export class CreateLoteDto {
   @ApiPropertyOptional({
@@ -70,6 +73,20 @@ export class CreateLoteDto {
   @IsNumber()
   @IsPositive()
   cantidad!: number;
+
+  // HU-69: número de remito del proveedor. Obligatorio (AC1), no vacío y
+  // alfanumérico (AC3). Se permite '-' porque es formato común de remito
+  // (ej. '0001-00012345'); avisame si lo querés más estricto.
+  @ApiProperty({
+    example: '0001-00012345',
+    description: 'Número de remito del proveedor asociado al lote',
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'El número de remito no puede estar vacío' })
+  @Matches(/^[a-zA-Z0-9-]+$/, {
+    message: 'El número de remito debe tener formato alfanumérico válido',
+  })
+  numeroRemito!: string;
 
   // HU-66: cantidad comprometida según remito del proveedor. Opcional (AC4) —
   // puede no estar disponible al momento de la carga si aún no llegó el remito.

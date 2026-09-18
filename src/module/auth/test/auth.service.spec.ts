@@ -8,6 +8,7 @@ import { AuthService } from '../auth.service';
 import { LoginDto } from '../dto/login.dto';
 import { REVOKED_TOKEN_REPOSITORY } from '../repository/revoked-token-repository.interface';
 import { REFRESH_TOKEN_REPOSITORY } from '../repository/refresh-token-repository.interface';
+import { PERMISO_REPOSITORY } from '../../permiso/repository/permiso-interface.repository';
 
 // Mock a nivel de modulo para evitar el problema con ESModules de bcrypt.
 jest.mock('bcrypt', () => ({
@@ -48,6 +49,9 @@ describe('AuthService', () => {
     revokeById: jest.Mock;
     revokeFamily: jest.Mock;
   };
+  let mockPermisoRepository: {
+    findByRolYEmpresa: jest.Mock;
+  };
   let mockJwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
   let mockConfigService: { get: jest.Mock };
   const bcryptCompare = bcrypt.compare as jest.Mock;
@@ -68,6 +72,9 @@ describe('AuthService', () => {
       revokeById: jest.fn().mockResolvedValue(undefined),
       revokeFamily: jest.fn().mockResolvedValue(undefined),
     };
+    mockPermisoRepository = {
+      findByRolYEmpresa: jest.fn().mockResolvedValue([]),
+    };
     mockJwtService = {
       signAsync: jest.fn().mockResolvedValue('token_jwt_firmado'),
       verifyAsync: jest.fn(),
@@ -85,6 +92,10 @@ describe('AuthService', () => {
         {
           provide: REFRESH_TOKEN_REPOSITORY,
           useValue: mockRefreshTokenRepository,
+        },
+        {
+          provide: PERMISO_REPOSITORY,
+          useValue: mockPermisoRepository,
         },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },

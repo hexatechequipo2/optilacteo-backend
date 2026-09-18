@@ -4,8 +4,7 @@ import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
 
 export interface IRolRepository {
   findById(id: number): Promise<Rol | null>;
-  findAll(): Promise<Rol[]>;
-  findByEmpresa(empresaId: number): Promise<Rol[]>;
+  findAll(empresaId?: number): Promise<Rol[]>;  findByEmpresa(empresaId: number): Promise<Rol[]>;
   createRol(rol: Partial<Rol>): Promise<Rol>;
   updateRol(id: number, rol: Partial<Rol>): Promise<Rol>;
   deleteRol(id: number): Promise<void>;

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SensorLectura } from '../entities/sensor-lectura.entity';
+import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import {
   HistorialLecturaFiltro,
   HistorialLecturaFiltroPaginado,
@@ -61,5 +62,32 @@ export class SensorLecturaRepository implements ISensorLecturaRepository {
       });
     }
     return qb;
+  }
+
+  // ============================================================
+  // HU-50
+  // ============================================================
+
+  async findUltimosValores(
+    loteId: number,
+    parametro: Parametro,
+    empresaId: number,
+    limit: number,
+  ): Promise<number[]> {
+    const filas = await this.repo
+      .createQueryBuilder('lectura')
+      .innerJoin('lectura.sensor', 'sensor')
+      .where('lectura.empresaId = :empresaId', { empresaId })
+      .andWhere('lectura.loteId = :loteId', { loteId })
+      .andWhere('sensor.parametro = :parametro', { parametro })
+      .orderBy('lectura.timestampLectura', 'DESC')
+      .take(limit)
+      .select('lectura.valor', 'valor')
+      .getRawMany<{ valor: string }>();
+
+    // Se invierte para quedar en orden cronológico ascendente — el
+    // microservicio ML espera el histórico en ese orden para detectar
+    // tendencia (diffs consecutivos entre valores sucesivos).
+    return filas.map((f) => Number(f.valor)).reverse();
   }
 }

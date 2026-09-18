@@ -23,6 +23,13 @@ export class Rol {
   @Column({ default: true })
   isActive!: boolean;
 
+  // ATENCIÓN: PermisoModulo ahora tiene empresaId (multi-tenant). Esta
+  // relación NO filtra por empresa -- si se carga (eager o con
+  // `relations: { permisos: true }`), trae las filas de TODAS las
+  // empresas para este rol. Para leer los permisos de una empresa
+  // puntual, usar IPermisoRepository.findByRolYEmpresa(rolId, empresaId)
+  // en vez de esta relación. Se mantiene solo por si algún flujo de alta
+  // de rol la necesita para cascade de creación inicial.
   @OneToMany(() => PermisoModulo, (permiso) => permiso.rol, { cascade: true })
   permisos!: PermisoModulo[];
 

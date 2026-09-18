@@ -5,10 +5,6 @@ import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { ROLES } from '../constants/roles.constants';
 
-// Los metadatos de @Roles (GERENTE/ADMINISTRADOR a nivel de clase) no se
-// testean aqui por reflexion; este archivo se enfoca en que cada metodo
-// del controller delegue en RolService con los parametros correctos.
-
 const tenantGerente: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
 describe('RolController', () => {
@@ -54,12 +50,21 @@ describe('RolController', () => {
   });
 
   describe('findAll', () => {
-    it('sin query empresaId, deberia delegar en rolService.findAll', async () => {
+    it('sin query empresaId ni tenant, deberia delegar en rolService.findAll pasando undefined', async () => {
       mockRolService.findAll.mockResolvedValue([]);
 
       await controller.findAll();
 
-      expect(mockRolService.findAll).toHaveBeenCalledWith();
+      expect(mockRolService.findAll).toHaveBeenCalledWith(undefined);
+      expect(mockRolService.findByEmpresa).not.toHaveBeenCalled();
+    });
+
+    it('sin query empresaId pero con tenant, deberia pasar el empresaId del tenant a rolService.findAll', async () => {
+      mockRolService.findAll.mockResolvedValue([]);
+
+      await controller.findAll(undefined, tenantGerente);
+
+      expect(mockRolService.findAll).toHaveBeenCalledWith(1);
       expect(mockRolService.findByEmpresa).not.toHaveBeenCalled();
     });
 

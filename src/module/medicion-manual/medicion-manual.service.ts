@@ -24,6 +24,10 @@ import { MEDICION_MANUAL_LOTE_REPOSITORY } from './repository/medicion-manual-lo
 import { MedicionManualMapper } from './mappers/medicion-manual.mapper';
 // --- nuevo: HU-21 ---
 import { ClasificacionLoteService } from '../lote/clasificacion-lote.service';
+// --- nuevo: HU-50 ---
+import { AnomaliaService } from '../anomalia/anomalia.service';
+
+const VENTANA_HISTORICO_ANOMALIA = 10;
 
 @Injectable()
 export class MedicionManualService {
@@ -40,6 +44,8 @@ export class MedicionManualService {
     private readonly sensorLoteHistorialRepository: ISensorLoteHistorialRepository,
     // --- nuevo: HU-21 ---
     private readonly clasificacionLoteService: ClasificacionLoteService,
+    // --- nuevo: HU-50 ---
+    private readonly anomaliaService: AnomaliaService,
   ) {}
 
   async registrar(
@@ -71,19 +77,12 @@ export class MedicionManualService {
       );
     }
 
-    // AC3: parámetros obligatorios según el tipo de materia prima elegido.
+    // AC3 (corregido por HU-20): la operación real permite cargar
+    // mediciones por separado. Ya no se exige el conjunto completo de
+    // parámetros obligatorios; el DTO garantiza al menos uno (@ArrayMinSize).
     const configs = await this.configParametroRepository.find({
       where: { empresaId, tipoMateriaPrima: dto.tipoMateriaPrima },
     });
-    const obligatorios = new Set(configs.map((c) => c.parametro));
-    const enviados = new Set(dto.parametros.map((p) => p.parametro));
-
-    const faltantes = [...obligatorios].filter((p) => !enviados.has(p));
-    if (faltantes.length > 0) {
-      throw new BadRequestException(
-        `Faltan parámetros obligatorios para '${dto.tipoMateriaPrima}': ${faltantes.join(', ')}`,
-      );
-    }
 
     // AC5/6: fuera de rango se ACEPTA y se marca, no se rechaza.
     const nuevas = MedicionManualMapper.toEntities(
@@ -109,6 +108,36 @@ export class MedicionManualService {
       .catch((err) =>
         this.logger.error(`Error al clasificar lote ${lote.id}: ${err}`),
       );
+
+    // HU-50: por cada parámetro cargado, consulta al microservicio ML si
+    // el valor es una anomalía respecto al histórico reciente del mismo
+    // lote+parámetro. Best-effort: no debe romper el registro de la
+    // medición si el microservicio falla o está caído.
+    for (const medicion of creadas) {
+      this.medicionRepository
+        .findUltimosValores(
+          lote.id,
+          medicion.parametro,
+          empresaId,
+          VENTANA_HISTORICO_ANOMALIA,
+        )
+        .then((historico) =>
+          this.anomaliaService.evaluarAnomalia({
+            empresaId,
+            loteId: lote.id,
+            loteCodigo: lote.codigo,
+            parametro: medicion.parametro,
+            valor: Number(medicion.valor),
+            historicoReciente: historico,
+          }),
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Error al evaluar anomalía para lote ${lote.id}, parámetro ` +
+              `${medicion.parametro}: ${err}`,
+          ),
+        );
+    }
 
     return {
       loteId: lote.id,
