@@ -1,0 +1,23 @@
+{
+  "version": "20260902034642",
+  "trained_at": "2026-09-02T03:46:42.431896+00:00",
+  "algorithm": "RandomForestClassifier",
+  "n_samples": 66,
+  "accuracy": 1.0,
+  "features": [
+    "ph",
+    "temperatura",
+    "densidad",
+    "grasa",
+    "proteina",
+    "acidez",
+    "conductividad"
+  ],
+  "clases": [
+    "descarte",
+    "manteca",
+    "manteca pasteleria",
+    "queso cremoso"
+  ],
+  "origen_datos": "nestjs"
+}
