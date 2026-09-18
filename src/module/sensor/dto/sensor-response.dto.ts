@@ -30,6 +30,9 @@ export class SensorResponseDto {
   @ApiProperty()
   rangoMaxFavor!: number;
 
+  @ApiProperty({ nullable: true, required: false })
+  umbralDesconexionMinutos?: number | null;
+
   @ApiProperty({ enum: EstadoSensor })
   estado!: EstadoSensor;
 

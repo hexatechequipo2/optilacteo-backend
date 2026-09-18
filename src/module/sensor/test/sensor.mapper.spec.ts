@@ -42,6 +42,7 @@ describe('SensorMapper', () => {
       ubicacion: 'Siló 3',
       rangoMinFavor: 10,
       rangoMaxFavor: 35,
+      umbralDesconexionMinutos: 45,
       estado: EstadoSensor.ACTIVO,
       ultimaLectura: mockDate,
       empresaId: 10,
@@ -65,6 +66,7 @@ describe('SensorMapper', () => {
         ubicacion: sensorEntity.ubicacion,
         rangoMinFavor: sensorEntity.rangoMinFavor,
         rangoMaxFavor: sensorEntity.rangoMaxFavor,
+        umbralDesconexionMinutos: sensorEntity.umbralDesconexionMinutos,
         estado: sensorEntity.estado,
         ultimaLectura: sensorEntity.ultimaLectura,
         loteActualId: 55,
@@ -78,6 +80,27 @@ describe('SensorMapper', () => {
       const responseDto = SensorMapper.toResponseDto(sensorEntity);
 
       expect(responseDto.loteActualId).toBeNull();
+    });
+
+    // HU-31: regresión — este campo se agregó por migración después de
+    // escribirse el mapper original y quedó afuera de toResponseDto, por lo
+    // que el PATCH persistía el valor en la DB pero el body de respuesta (y
+    // cualquier GET posterior) nunca lo incluía.
+    it('debe incluir umbralDesconexionMinutos en la respuesta cuando la entidad tiene un valor', () => {
+      const responseDto = SensorMapper.toResponseDto(sensorEntity);
+
+      expect(responseDto.umbralDesconexionMinutos).toBe(45);
+    });
+
+    it('debe incluir umbralDesconexionMinutos como null cuando la entidad no tiene override propio', () => {
+      const sensorSinOverride = {
+        ...sensorEntity,
+        umbralDesconexionMinutos: null,
+      } as unknown as Sensor;
+
+      const responseDto = SensorMapper.toResponseDto(sensorSinOverride);
+
+      expect(responseDto.umbralDesconexionMinutos).toBeNull();
     });
   });
 
