@@ -21,9 +21,9 @@ export class PrediccionVolumenTask {
   ) {}
 
  //prueba para probar funcionamiento en el despliegue
-  @Cron(CronExpression.EVERY_MINUTE)
+  //@Cron(CronExpression.EVERY_MINUTE)
    // HU-51 criterio 6: actualización automática diaria.
-  //@Cron(CronExpression.EVERY_DAY_AT_3AM)
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async ejecutar(): Promise<void> {
     this.logger.log('Iniciando generación diaria de predicciones de volumen.');
 
