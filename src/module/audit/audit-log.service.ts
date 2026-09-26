@@ -2,12 +2,14 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { AuditLog } from './entity/audit-log.entity';
 import type {
+  AuditLogFilters,
   CreateAuditLogData,
   IAuditLogRepository,
 } from './repository/audit-log-interface.repository';
 import { AUDIT_LOG_REPOSITORY } from './repository/audit-log-interface.repository';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { TrazabilidadEntidadDto } from './dto/trazabilidad.dto';
+import type { QueryAuditLogDto } from './dto/query-audit-log.dto';
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -34,14 +36,87 @@ export class AuditLogService {
 
   findAll(
     tenant: TenantContext,
-    page = 1,
-    limit = DEFAULT_PAGE_SIZE,
+    query: QueryAuditLogDto,
   ): Promise<[AuditLog[], number]> {
-    const safePage = Math.max(1, page);
-    const safeLimit = Math.min(Math.max(1, limit), 200);
-    const skip = (safePage - 1) * safeLimit;
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(Math.max(1, query.limit ?? DEFAULT_PAGE_SIZE), 200);
+    const skip = (page - 1) * limit;
 
-    return this.auditLogRepository.findAllScoped(tenant, skip, safeLimit);
+    return this.auditLogRepository.findFiltered(
+      tenant,
+      this.buildFilters(query),
+      skip,
+      limit,
+    );
+  }
+
+  async exportarCsv(
+    tenant: TenantContext,
+    query: QueryAuditLogDto,
+  ): Promise<string> {
+    const registros = await this.auditLogRepository.findAllMatching(
+      tenant,
+      this.buildFilters(query),
+    );
+
+    return this.toCsv(registros);
+  }
+
+  private buildFilters(query: QueryAuditLogDto): AuditLogFilters {
+    return {
+      userId: query.userId,
+      accion: query.accion,
+      estado: query.estado,
+      tipo: query.tipo,
+      fechaDesde: query.fechaDesde ? new Date(query.fechaDesde) : undefined,
+      fechaHasta: query.fechaHasta ? new Date(query.fechaHasta) : undefined,
+    };
+  }
+
+  private toCsv(registros: AuditLog[]): string {
+    const headers = [
+      'id',
+      'userId',
+      'userEmail',
+      'userNombre',
+      'userRol',
+      'empresaId',
+      'accion',
+      'entidad',
+      'entidadId',
+      'tipo',
+      'descripcion',
+      'createdAt',
+    ];
+
+    const escape = (value: unknown): string => {
+      if (value === null || value === undefined) return '';
+      const str =
+        typeof value === 'object' ? JSON.stringify(value) : String(value);
+      const escaped = str.replace(/"/g, '""');
+      return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+    };
+
+    const rows = registros.map((r) =>
+      [
+        r.id,
+        r.userId,
+        r.userEmail,
+        r.userNombre,
+        r.userRol,
+        r.empresaId,
+        r.accion,
+        r.entidad,
+        r.entidadId,
+        r.tipo,
+        r.descripcion,
+        r.createdAt.toISOString(),
+      ]
+        .map(escape)
+        .join(','),
+    );
+
+    return [headers.join(','), ...rows].join('\n');
   }
 
   // HU-63: trazabilidad de una sola entidad (vistas de detalle).

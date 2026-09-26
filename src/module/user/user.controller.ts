@@ -8,6 +8,7 @@ import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorato
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { UserFilterQueryDto } from './dto/user-filter-query.dto';
 import { Query } from '@nestjs/common';
 
@@ -19,7 +20,7 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Post()
-  @AuditLog('USUARIO_CREAR', 'Usuario')
+  @AuditLog('USUARIO_CREAR', 'Usuario', TipoAccion.ALTA)
   create(@Body() dto: CreateUserDto, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.create(dto, tenant);
   }
@@ -41,7 +42,7 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
-  @AuditLog('USUARIO_ACTUALIZAR', 'Usuario')
+  @AuditLog('USUARIO_ACTUALIZAR', 'Usuario', TipoAccion.EDICION)
   update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
@@ -52,21 +53,21 @@ export class UserController {
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/activar')
-  @AuditLog('USUARIO_ACTIVAR', 'Usuario')
+  @AuditLog('USUARIO_ACTIVAR', 'Usuario', TipoAccion.ALTA)
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.activate(+id, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desactivar')
-  @AuditLog('USUARIO_DESACTIVAR', 'Usuario')
+  @AuditLog('USUARIO_DESACTIVAR', 'Usuario', TipoAccion.BAJA)
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.deactivate(+id, tenant);
   }
 
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desbloquear')
-  @AuditLog('USUARIO_DESBLOQUEAR', 'Usuario')
+  @AuditLog('USUARIO_DESBLOQUEAR', 'Usuario', TipoAccion.EDICION)
   unlock(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.unlock(+id, tenant);
   }

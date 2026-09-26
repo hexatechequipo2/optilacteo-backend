@@ -31,6 +31,7 @@ import { ROLES } from '../rol/constants/roles.constants';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 import { CrearConfiguracionNotificacionDto } from './dto/crear-configuracion-notificacion.dto';
 import { HistorialAlertasQueryDto } from './dto/historial-alertas-query.dto';
@@ -102,6 +103,7 @@ export class NotificacionesController {
   @AuditLog(
     'CONFIGURACION_NOTIFICACION_CREAR',
     'ConfiguracionNotificacionNivel',
+    TipoAccion.CONFIGURACION,
   )
   crearConfiguracion(
     @Body() dto: CrearConfiguracionNotificacionDto,
@@ -119,6 +121,7 @@ export class NotificacionesController {
   @AuditLog(
     'CONFIGURACION_NOTIFICACION_ELIMINAR',
     'ConfiguracionNotificacionNivel',
+    TipoAccion.CONFIGURACION,
   )
   eliminarConfiguracion(
     @Param('id') id: string,
@@ -169,6 +172,7 @@ export class NotificacionesController {
   )
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
   @ApiProduces('text/csv')
+  @AuditLog('HISTORIAL_ALERTAS_EXPORTAR_CSV', 'HistorialAlertas', TipoAccion.EXPORTACION)
   async exportarHistorialCsv(
     @Query() query: HistorialAlertasQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -204,6 +208,7 @@ export class NotificacionesController {
   )
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
   @ApiProduces('application/pdf')
+  @AuditLog('HISTORIAL_ALERTAS_EXPORTAR_PDF', 'HistorialAlertas', TipoAccion.EXPORTACION)
   async exportarHistorialPdf(
     @Query() query: HistorialAlertasQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -232,7 +237,7 @@ export class NotificacionesController {
   @Patch(':id/resolver')
   @Roles(ROLES.RESPONSABLE_PRODUCCION)
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('ALERTA_RESOLVER', 'Notificacion')
+  @AuditLog('ALERTA_RESOLVER', 'Notificacion', TipoAccion.EDICION)
   resolverAlerta(
     @Param('id') id: string,
     @Body() dto: ResolverAlertaDto,
@@ -256,7 +261,7 @@ export class NotificacionesController {
   @Patch(':id/falso-positivo')
   @Roles(ROLES.RESPONSABLE_PRODUCCION)
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('ANOMALIA_MARCAR_FALSO_POSITIVO', 'Notificacion')
+  @AuditLog('ANOMALIA_MARCAR_FALSO_POSITIVO', 'Notificacion', TipoAccion.EDICION)
   marcarFalsoPositivo(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -304,7 +309,7 @@ export class NotificacionesController {
   @Post('horarios-silencio')
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('HORARIO_SILENCIO_CREAR', 'ConfiguracionSilencioAlerta')
+  @AuditLog('HORARIO_SILENCIO_CREAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   crearHorarioSilencio(
     @Body() dto: CrearConfiguracionSilencioDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -318,7 +323,7 @@ export class NotificacionesController {
   @Patch('horarios-silencio/:id')
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('HORARIO_SILENCIO_ACTUALIZAR', 'ConfiguracionSilencioAlerta')
+  @AuditLog('HORARIO_SILENCIO_ACTUALIZAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   actualizarHorarioSilencio(
     @Param('id') id: string,
     @Body() dto: ActualizarConfiguracionSilencioDto,
@@ -334,7 +339,7 @@ export class NotificacionesController {
   @Delete('horarios-silencio/:id')
   @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('HORARIO_SILENCIO_ELIMINAR', 'ConfiguracionSilencioAlerta')
+  @AuditLog('HORARIO_SILENCIO_ELIMINAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   eliminarHorarioSilencio(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -351,6 +356,7 @@ export class NotificacionesController {
   @AuditLog(
     'CONFIGURACION_ALERTA_DESCONEXION_ACTUALIZAR',
     'ConfiguracionAlertaDesconexion',
+    TipoAccion.CONFIGURACION,
   )
   actualizarConfiguracionAlertaDesconexion(
     @Body() dto: ActualizarConfiguracionAlertaDesconexionDto,

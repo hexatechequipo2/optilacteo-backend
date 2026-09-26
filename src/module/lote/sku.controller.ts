@@ -14,6 +14,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { ROLES } from '../rol/constants/roles.constants';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -33,7 +34,7 @@ export class SkuController {
   @Post()
   @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('SKU_REGISTRAR', 'Sku')
+  @AuditLog('SKU_REGISTRAR', 'Sku', TipoAccion.ALTA)
   create(@Body() dto: CreateSkuDto, @CurrentEmpresa() tenant: TenantContext) {
     return this.skuService.create(dto, tenant);
   }
@@ -54,7 +55,7 @@ export class SkuController {
   @Patch(':id')
   @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('SKU_ACTUALIZAR', 'Sku')
+  @AuditLog('SKU_ACTUALIZAR', 'Sku', TipoAccion.EDICION)
   update(
     @Param('id') id: string,
     @Body() dto: UpdateSkuDto,
@@ -66,7 +67,7 @@ export class SkuController {
   @Delete(':id')
   @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('SKU_DESACTIVAR', 'Sku')
+  @AuditLog('SKU_DESACTIVAR', 'Sku', TipoAccion.BAJA)
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.skuService.deactivate(+id, tenant);
   }
@@ -74,7 +75,7 @@ export class SkuController {
   @Patch(':id/activar')
   @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('SKU_ACTIVAR', 'Sku')
+  @AuditLog('SKU_ACTIVAR', 'Sku', TipoAccion.ALTA)
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.skuService.activate(+id, tenant);
   }

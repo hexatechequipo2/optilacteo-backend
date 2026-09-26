@@ -26,6 +26,7 @@ import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { PlcConfigService } from './plc-config.service';
 import { UpdatePlcConfigDto } from './dto/update-plc-config.dto';
 import { TestConnectionDto } from './dto/test-connection.dto';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('plc-config')
 @ApiBearerAuth()
@@ -50,7 +51,7 @@ export class PlcConfigController {
 
   @Put()
   @Permissions(ModuloSistema.SENSORES_IOT, 'canWrite')
-  @AuditLog('PLC_CONFIG_ACTUALIZAR', 'PlcConfig')
+  @AuditLog('PLC_CONFIG_ACTUALIZAR', 'PlcConfig', TipoAccion.EDICION)
   @ApiOperation({ summary: 'Guardar/actualizar la URL del PLC de la empresa' })
   @ApiResponse({
     status: 200,

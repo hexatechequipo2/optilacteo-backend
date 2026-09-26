@@ -18,10 +18,12 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { ROLES } from '../rol/constants/roles.constants';
 import { ConfigParametroService } from './config-parametro.service';
 import { CreateConfigParametroDto } from './dto/create-config-parametro.dto';
 import { UpdateConfigParametroDto } from './dto/update-config-parametro.dto';
+import type { ConfigParametroResponseDto } from './dto/config-parametro-response.dto';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 
 @ApiTags('config-parametros')
@@ -36,7 +38,10 @@ export class ConfigParametroController {
   @Post()
   @Roles(ROLES.GERENTE)
   @Permissions(ModuloSistema.SENSORES_IOT, 'canWrite')
-  @AuditLog('CONFIG_PARAMETRO_CREAR', 'ConfiguracionParametro')
+  @AuditLog('CONFIG_PARAMETRO_CREAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION, (ctx) => {
+    const body = ctx.responseBody as Partial<ConfigParametroResponseDto> | undefined;
+    return `Umbral de ${body?.parametro ?? '?'} creado para ${body?.tipoMateriaPrima ?? '?'}: ${body?.umbralMin ?? '?'} - ${body?.umbralMax ?? '?'}`;
+  })
   crear(
     @CurrentEmpresa() tenant: TenantContext,
     @Body() dto: CreateConfigParametroDto,
@@ -50,7 +55,10 @@ export class ConfigParametroController {
   @Put(':id')
   @Roles(ROLES.GERENTE)
   @Permissions(ModuloSistema.SENSORES_IOT, 'canWrite')
-  @AuditLog('CONFIG_PARAMETRO_ACTUALIZAR', 'ConfiguracionParametro')
+  @AuditLog('CONFIG_PARAMETRO_ACTUALIZAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION, (ctx) => {
+    const body = ctx.responseBody as Partial<ConfigParametroResponseDto> | undefined;
+    return `Umbral de ${body?.parametro ?? '?'} modificado para ${body?.tipoMateriaPrima ?? '?'}: ${body?.umbralMin ?? '?'} - ${body?.umbralMax ?? '?'}`;
+  })
   editar(
     @CurrentEmpresa() tenant: TenantContext,
     @Param('id', ParseIntPipe) id: number,
@@ -78,7 +86,7 @@ export class ConfigParametroController {
   @Delete(':id')
   @Roles(ROLES.GERENTE)
   @Permissions(ModuloSistema.SENSORES_IOT, 'canWrite')
-  @AuditLog('CONFIG_PARAMETRO_ELIMINAR', 'ConfiguracionParametro')
+  @AuditLog('CONFIG_PARAMETRO_ELIMINAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION)
   eliminar(
     @CurrentEmpresa() tenant: TenantContext,
     @Param('id', ParseIntPipe) id: number,

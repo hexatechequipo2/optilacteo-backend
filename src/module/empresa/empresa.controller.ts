@@ -25,6 +25,7 @@ import { UpdateIdentidadEmpresaDto } from './dto/update-identidad-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
 import { ROLES } from '../rol/constants/roles.constants';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { EmpresaFilterQueryDto } from './dto/empresa-filter-query.dto';
 import { multerLogoOptions } from './config/multer-logo.config';
 
@@ -36,7 +37,7 @@ export class EmpresaController {
 
   @Post()
   @Roles(ROLES.ADMINISTRADOR)
-  @AuditLog('EMPRESA_CREAR', 'Empresa')
+  @AuditLog('EMPRESA_CREAR', 'Empresa', TipoAccion.ALTA)
   create(@Body() createEmpresaDto: CreateEmpresaDto) {
     return this.empresaService.create(createEmpresaDto);
   }
@@ -54,7 +55,7 @@ export class EmpresaController {
 
   @Patch('me/identidad')
   @Roles(ROLES.GERENTE)
-  @AuditLog('EMPRESA_IDENTIDAD_ACTUALIZAR', 'Empresa')
+  @AuditLog('EMPRESA_IDENTIDAD_ACTUALIZAR', 'Empresa', TipoAccion.EDICION)
   updateIdentidad(
     @Body() dto: UpdateIdentidadEmpresaDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -64,7 +65,7 @@ export class EmpresaController {
 
   @Post('me/logo')
   @Roles(ROLES.GERENTE)
-  @AuditLog('EMPRESA_LOGO_SUBIR', 'Empresa')
+  @AuditLog('EMPRESA_LOGO_SUBIR', 'Empresa', TipoAccion.EDICION)
   @UseInterceptors(FileInterceptor('logo', multerLogoOptions))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -93,7 +94,7 @@ export class EmpresaController {
   // HU-12: eliminar logo — solo Gerente.
   @Delete('me/logo')
   @Roles(ROLES.GERENTE)
-  @AuditLog('EMPRESA_LOGO_ELIMINAR', 'Empresa')
+  @AuditLog('EMPRESA_LOGO_ELIMINAR', 'Empresa', TipoAccion.EDICION)
   deleteLogo(@CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.deleteLogo(tenant);
   }
@@ -106,7 +107,7 @@ export class EmpresaController {
 
   @Patch(':id')
   @Roles(ROLES.ADMINISTRADOR)
-  @AuditLog('EMPRESA_ACTUALIZAR', 'Empresa')
+  @AuditLog('EMPRESA_ACTUALIZAR', 'Empresa', TipoAccion.EDICION)
   update(
     @Param('id') id: string,
     @Body() updateEmpresaDto: UpdateEmpresaDto,
@@ -117,21 +118,21 @@ export class EmpresaController {
 
   @Patch(':id/activar')
   @Roles(ROLES.ADMINISTRADOR)
-  @AuditLog('EMPRESA_ACTIVAR', 'Empresa')
+  @AuditLog('EMPRESA_ACTIVAR', 'Empresa', TipoAccion.ALTA)
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.activate(+id, tenant);
   }
 
   @Patch(':id/desactivar')
   @Roles(ROLES.ADMINISTRADOR)
-  @AuditLog('EMPRESA_DESACTIVAR', 'Empresa')
+  @AuditLog('EMPRESA_DESACTIVAR', 'Empresa', TipoAccion.BAJA)
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.deactivate(+id, tenant);
   }
 
   @Patch(':id/modulos/activar')
   @Roles(ROLES.ADMINISTRADOR)
-  @AuditLog('MODULO_ACTIVAR', 'Empresa')
+  @AuditLog('MODULO_ACTIVAR', 'Empresa', TipoAccion.CONFIGURACION)
   activarModulo(
     @Param('id') id: string,
     @Body() dto: ToggleModuloDto,
@@ -142,7 +143,7 @@ export class EmpresaController {
 
   @Patch(':id/modulos/desactivar')
   @Roles(ROLES.ADMINISTRADOR)
-  @AuditLog('MODULO_DESACTIVAR', 'Empresa')
+  @AuditLog('MODULO_DESACTIVAR', 'Empresa', TipoAccion.CONFIGURACION)
   desactivarModulo(
     @Param('id') id: string,
     @Body() dto: ToggleModuloDto,
@@ -153,7 +154,7 @@ export class EmpresaController {
 
   @Delete(':id')
   @Roles(ROLES.ADMINISTRADOR)
-  @AuditLog('EMPRESA_ELIMINAR', 'Empresa')
+  @AuditLog('EMPRESA_ELIMINAR', 'Empresa', TipoAccion.BAJA)
   remove(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.remove(+id, tenant);
   }
