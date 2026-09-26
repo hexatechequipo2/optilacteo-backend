@@ -108,7 +108,14 @@ export class DashboardController {
     ROLES.GERENTE,
     ROLES.ADMINISTRADOR,
   )
-  @Permissions(ModuloSistema.DASHBOARD, 'canRead')
+// HU-40: Operario de línea no tiene DASHBOARD en PERMISOS_POR_ROL, así que
+// se habilita vía MONITOREO_ALERTAS (PermissionsGuard evalúa el array como OR).
+// TODO(matriz-permisos): cuando la matriz gobierne el acceso (sin @Roles
+// hardcodeado), unificar en un solo módulo y gestionarlo desde permiso_modulos.
+  @Permissions(
+    [ModuloSistema.DASHBOARD, ModuloSistema.MONITOREO_ALERTAS],
+    'canRead',
+  )
   getSemaforoLote(
     @CurrentEmpresa() tenant: TenantContext,
     @Param('loteId', ParseIntPipe) loteId: number,
