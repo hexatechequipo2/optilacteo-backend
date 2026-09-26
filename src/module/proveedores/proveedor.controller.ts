@@ -23,6 +23,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 import type { PaginatedResponse } from '../../common/dto/paginated-response.dto';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -65,7 +66,7 @@ export class ProveedoresController {
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions(ModuloSistema.RECEPCION, 'canWrite')
   @HttpCode(HttpStatus.CREATED)
-  @AuditLog('PROVEEDOR_CREAR', 'Proveedor')
+  @AuditLog('PROVEEDOR_CREAR', 'Proveedor', TipoAccion.ALTA)
   create(
     @Body() createProveedorDto: CreateProveedorDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -76,7 +77,7 @@ export class ProveedoresController {
   @Patch(':id')
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions(ModuloSistema.RECEPCION, 'canWrite')
-  @AuditLog('PROVEEDOR_ACTUALIZAR', 'Proveedor')
+  @AuditLog('PROVEEDOR_ACTUALIZAR', 'Proveedor', TipoAccion.EDICION)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProveedorDto: UpdateProveedorDto,
@@ -88,7 +89,7 @@ export class ProveedoresController {
   @Patch(':id/activar')
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions(ModuloSistema.RECEPCION, 'canWrite')
-  @AuditLog('PROVEEDOR_ACTIVAR', 'Proveedor')
+  @AuditLog('PROVEEDOR_ACTIVAR', 'Proveedor', TipoAccion.ALTA)
   activate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentEmpresa() tenant: TenantContext,
@@ -99,7 +100,7 @@ export class ProveedoresController {
   @Delete(':id')
   @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions(ModuloSistema.RECEPCION, 'canWrite')
-  @AuditLog('PROVEEDOR_ELIMINAR', 'Proveedor')
+  @AuditLog('PROVEEDOR_ELIMINAR', 'Proveedor', TipoAccion.BAJA)
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentEmpresa() tenant: TenantContext,

@@ -22,6 +22,7 @@ import type { TenantContext } from '../../common/types/tenant-context.type';
 import { MedicionManualService } from './medicion-manual.service';
 import { CreateMedicionManualLoteDto } from './dto/create-medicion-manual-lote.dto';
 import { HistorialMedicionManualFilterQueryDto } from './dto/historial-medicion-manual-filter-query.dto';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('medicion-manual')
 @ApiBearerAuth()
@@ -37,7 +38,7 @@ export class MedicionManualController {
     [ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS],
     'canWrite',
   )
-  @AuditLog('MEDICION_MANUAL_LOTE_REGISTRAR', 'MedicionManualLote')
+  @AuditLog('MEDICION_MANUAL_LOTE_REGISTRAR', 'MedicionManualLote', TipoAccion.ALTA)
   registrar(
     @Param('id') id: string,
     @Body() dto: CreateMedicionManualLoteDto,

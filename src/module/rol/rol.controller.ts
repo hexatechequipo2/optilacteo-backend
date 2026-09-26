@@ -18,6 +18,7 @@ import { ROLES } from './constants/roles.constants';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('rol')
 @ApiBearerAuth()
@@ -28,7 +29,7 @@ export class RolController {
   constructor(private readonly rolService: RolService) {}
 
   @Post()
-  @AuditLog('ROL_CREAR', 'Rol')
+  @AuditLog('ROL_CREAR', 'Rol', TipoAccion.ALTA)
   create(@Body() createRolDto: CreateRolDto) {
     return this.rolService.create(createRolDto);
   }
@@ -50,13 +51,13 @@ export class RolController {
   }
 
   @Patch(':id')
-  @AuditLog('ROL_ACTUALIZAR', 'Rol')
+  @AuditLog('ROL_ACTUALIZAR', 'Rol', TipoAccion.EDICION)
   update(@Param('id') id: string, @Body() updateRolDto: UpdateRolDto) {
     return this.rolService.update(+id, updateRolDto);
   }
 
   @Patch(':id/permisos')
-  @AuditLog('ROL_PERMISOS_ACTUALIZAR', 'Rol')
+  @AuditLog('ROL_PERMISOS_ACTUALIZAR', 'Rol', TipoAccion.CONFIGURACION)
   updatePermiso(
     @Param('id') id: string,
     @Body() dto: UpdatePermisoDto,
@@ -66,7 +67,7 @@ export class RolController {
   }
 
   @Delete(':id')
-  @AuditLog('ROL_ELIMINAR', 'Rol')
+  @AuditLog('ROL_ELIMINAR', 'Rol', TipoAccion.BAJA)
   remove(@Param('id') id: string) {
     return this.rolService.remove(+id);
   }

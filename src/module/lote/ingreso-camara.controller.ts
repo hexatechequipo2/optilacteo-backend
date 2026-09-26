@@ -5,6 +5,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { ROLES } from '../rol/constants/roles.constants';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -24,7 +25,7 @@ export class IngresoCamaraController {
   @Post()
   @Roles(ROLES.RESPONSABLE_PRODUCCION)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('INGRESO_CAMARA_REGISTRAR', 'IngresoCamara')
+  @AuditLog('INGRESO_CAMARA_REGISTRAR', 'IngresoCamara', TipoAccion.ALTA)
   create(
     @Body() dto: CreateIngresoCamaraDto,
     @CurrentEmpresa() tenant: TenantContext,

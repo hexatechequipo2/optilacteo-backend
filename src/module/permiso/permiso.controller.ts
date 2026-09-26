@@ -7,6 +7,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('permiso')
 @ApiBearerAuth()
@@ -41,7 +42,7 @@ export class PermisoController {
   }
 
   @Patch(':id')
-  @AuditLog('PERMISO_ACTUALIZAR', 'Permiso')
+  @AuditLog('PERMISO_ACTUALIZAR', 'Permiso', TipoAccion.EDICION)
   update(
     @Param('id') id: string,
     @Body() dto: UpdatePermisoDto,

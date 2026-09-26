@@ -14,6 +14,7 @@ import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorato
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { ROLES } from '../rol/constants/roles.constants';
 import { LoteService } from './lote.service';
 import { LoteTrazabilidadService } from './lote-trazabilidad.service'; // <-- NUEVO (HU-32)
@@ -48,7 +49,7 @@ export class LoteController {
     [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
     'canWrite',
   )
-  @AuditLog('LOTE_REGISTRAR', 'Lote')
+  @AuditLog('LOTE_REGISTRAR', 'Lote', TipoAccion.ALTA)
   create(
     @Body() createLoteDto: CreateLoteDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -169,7 +170,7 @@ export class LoteController {
     [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
     'canWrite',
   )
-  @AuditLog('LOTE_ACTUALIZAR', 'Lote')
+  @AuditLog('LOTE_ACTUALIZAR', 'Lote', TipoAccion.EDICION)
   update(
     @Param('id') id: string,
     @Body() updateLoteDto: UpdateLoteDto,
@@ -188,7 +189,7 @@ export class LoteController {
     ROLES.ADMINISTRADOR,
   )
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('LOTE_DESTINO_ASIGNAR', 'Lote')
+  @AuditLog('LOTE_DESTINO_ASIGNAR', 'Lote', TipoAccion.EDICION)
   asignarDestinoProductivo(
     @Param('id') id: string,
     @Body() dto: AsignarDestinoProductivoDto,
@@ -224,7 +225,7 @@ export class LoteController {
     [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
     'canWrite',
   )
-  @AuditLog('LOTE_FINALIZAR', 'Lote')
+  @AuditLog('LOTE_FINALIZAR', 'Lote', TipoAccion.EDICION)
   finalizar(
     @Param('id') id: string,
     @Body() dto: FinalizarLoteDto,
@@ -251,7 +252,7 @@ export class LoteController {
   @Post(':id/revision')
   @Roles(ROLES.RESPONSABLE_CALIDAD)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('LOTE_REVISAR', 'Lote')
+  @AuditLog('LOTE_REVISAR', 'Lote', TipoAccion.EDICION)
   revisar(
     @Param('id') id: string,
     @Body() dto: RevisarLoteDto,
@@ -289,7 +290,7 @@ export class LoteController {
   @Post(':id/consumos')
   @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('LOTE_CONSUMO_REGISTRAR', 'LoteConsumo')
+  @AuditLog('LOTE_CONSUMO_REGISTRAR', 'LoteConsumo', TipoAccion.ALTA)
   registrarConsumo(
     @Param('id') id: string,
     @Body() dto: CreateLoteConsumoDto,

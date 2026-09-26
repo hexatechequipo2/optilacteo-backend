@@ -19,6 +19,7 @@ import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('recomendaciones')
 @ApiBearerAuth()
@@ -37,7 +38,7 @@ export class MlController {
     ROLES.ADMINISTRADOR,
   )
   @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
-  @AuditLog('RECOMENDACION_RESPONDER', 'RecomendacionDestino')
+  @AuditLog('RECOMENDACION_RESPONDER', 'RecomendacionDestino',TipoAccion.EDICION)
   responder(
     @Param('id') id: string,
     @Body() dto: ResponderRecomendacionDto,

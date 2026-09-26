@@ -18,6 +18,7 @@ import { ROLES } from '../rol/constants/roles.constants';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { ConfiguracionComparacionHistoricaService } from './configuracion-comparacion-historica.service';
 import { UpdateConfiguracionComparacionHistoricaDto } from './dto/update-configuracion-comparacion-historica.dto';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('configuracion-comparacion-historica')
 @ApiBearerAuth()
@@ -44,6 +45,7 @@ export class ConfiguracionComparacionHistoricaController {
   @AuditLog(
     'CONFIG_COMPARACION_HISTORICA_ACTUALIZAR',
     'ConfiguracionComparacionHistorica',
+    TipoAccion.CONFIGURACION,
   )
   update(
     @CurrentEmpresa() tenant: TenantContext,

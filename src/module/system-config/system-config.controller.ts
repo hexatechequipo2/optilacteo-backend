@@ -17,6 +17,7 @@ import { UpdateSystemConfigDto } from './dto/update-system-config.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('system-config')
 @ApiBearerAuth()
@@ -38,7 +39,7 @@ export class SystemConfigController {
   @Roles(ROLES.ADMINISTRADOR)
   @Patch('inactivity-timeout')
   @HttpCode(HttpStatus.OK)
-  @AuditLog('SYSTEM_CONFIG_UPDATE', 'SystemConfig')
+  @AuditLog('SYSTEM_CONFIG_UPDATE', 'SystemConfig', TipoAccion.EDICION)
   @ApiOperation({ summary: 'Actualizar tiempo de inactividad en minutos' })
   @ApiResponse({
     status: 200,

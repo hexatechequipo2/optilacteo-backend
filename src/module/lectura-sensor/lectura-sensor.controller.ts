@@ -14,6 +14,7 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { ROLES } from '../rol/constants/roles.constants';
@@ -52,7 +53,7 @@ export class LecturaSensorController {
     [ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS],
     'canWrite',
   )
-  @AuditLog('LECTURA_MANUAL_INGRESAR', 'SensorLectura')
+  @AuditLog('LECTURA_MANUAL_INGRESAR', 'SensorLectura', TipoAccion.ALTA)
   ingresarManual(
     @Body() dto: IngresarLecturaManualDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -89,7 +90,7 @@ export class LecturaSensorController {
     [ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD],
     'canRead',
   )
-  @AuditLog('HISTORIAL_LECTURAS_EXPORTAR', 'SensorLectura')
+  @AuditLog('HISTORIAL_LECTURAS_EXPORTAR', 'SensorLectura', TipoAccion.EXPORTACION)
   async exportarHistorial(
     @Query() query: HistorialLecturaFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
