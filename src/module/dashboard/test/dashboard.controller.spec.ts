@@ -1,9 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 import { DashboardController } from '../dashboard.controller';
 import { DashboardService } from '../dashboard.service';
 import { GranularidadHistorico } from '../dto/dashboard-historico.dto';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { PermissionsGuard } from '../../../common/guards/permissions.guard';
+import { ROLES } from '../../rol/constants/roles.constants';
+import { PERMISOS_POR_ROL } from '../../rol/config/roles-permisos.config';
+import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -204,6 +210,50 @@ describe('DashboardController', () => {
       expect(
         dashboardServiceMock.getHistoricoLotesProcesados,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getSemaforoLote — acceso por rol (HU-40)', () => {
+    const reflector = new Reflector();
+    const rolesGuard = new RolesGuard(reflector);
+    const permissionsGuard = new PermissionsGuard(reflector);
+
+    function buildContext(user: { rolNombre: string; permisos: unknown[] }) {
+      return {
+        getHandler: () => DashboardController.prototype.getSemaforoLote,
+        getClass: () => DashboardController,
+        switchToHttp: () => ({ getRequest: () => ({ user }) }),
+      } as unknown as ExecutionContext;
+    }
+
+    it('Operario de línea no tiene DASHBOARD en su config de roles', () => {
+      const modulos = PERMISOS_POR_ROL[ROLES.OPERARIO_LINEA].map(
+        (p) => p.modulo,
+      );
+      expect(modulos).not.toContain(ModuloSistema.DASHBOARD);
+    });
+
+    it('permite el acceso a Operario de línea vía MONITOREO_ALERTAS', () => {
+      const context = buildContext({
+        rolNombre: ROLES.OPERARIO_LINEA,
+        permisos: PERMISOS_POR_ROL[ROLES.OPERARIO_LINEA],
+      });
+
+      expect(rolesGuard.canActivate(context)).toBe(true);
+      expect(permissionsGuard.canActivate(context)).toBe(true);
+    });
+
+    it('rechaza a un rol permitido que no tiene DASHBOARD ni MONITOREO_ALERTAS', () => {
+      const context = buildContext({
+        rolNombre: ROLES.OPERARIO_LINEA,
+        permisos: [
+          { modulo: ModuloSistema.RECEPCION, canRead: true, canWrite: false },
+        ],
+      });
+
+      expect(() => permissionsGuard.canActivate(context)).toThrow(
+        ForbiddenException,
+      );
     });
   });
 });
