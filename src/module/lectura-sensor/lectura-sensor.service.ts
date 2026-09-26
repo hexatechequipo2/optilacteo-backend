@@ -36,7 +36,6 @@ import { SensorEvento } from './entities/sensor-evento.entity';
 
 import { TipoEvento } from './enums/tipo-evento.enum';
 import { OrigenLectura } from './enums/origen-lectura.enum';
-import { EstadoMedicion } from './enums/estado-medicion.enum';
 
 import { RANGOS_FISICOS } from '../config-parametro/validators/rangos-fisicos.constant';
 
@@ -48,7 +47,6 @@ import { EstadoSensor } from '../sensor/enums/estado-sensor.enum';
 
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
 import { Parametro } from '../config-parametro/enums/parametro.enum';
-import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-enum';
 
 import { ClasificacionLoteService } from '../lote/clasificacion-lote.service';
 
@@ -60,6 +58,9 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service'
 
 // --- nuevo: HU-50 ---
 import { AnomaliaService } from '../anomalia/anomalia.service';
+
+// --- nuevo: HU-40 ---
+import { SemaforoService } from '../config-parametro/semaforo.service';
 
 const RANGO_DIAS_SLA = 30;
 const VENTANA_HISTORICO_ANOMALIA = 10;
@@ -105,6 +106,9 @@ export class LecturaSensorService {
 
     // --- nuevo: HU-50 ---
     private readonly anomaliaService: AnomaliaService,
+
+    // --- nuevo: HU-40 ---
+    private readonly semaforoService: SemaforoService,
   ) {}
 
   private resolveEmpresaId(tenant: TenantContext): number {
@@ -316,10 +320,35 @@ export class LecturaSensorService {
       );
 
     // ------------------------------------------------------------
-    // Response + WebSocket
+    // Response
     // ------------------------------------------------------------
 
     const responseDto = LecturaMapper.toResponseDto(creada);
+
+    // ------------------------------------------------------------
+    // HU-40:
+    // Cálculo de semáforo (verde/amarillo/rojo). Se calcula ANTES de
+    // emitir por WebSocket para que el front reciba el estado ya
+    // resuelto en el mismo evento "lectura:nueva", sin pedir nada más.
+    //
+    // El mismo mapaUmbrales/configParametro se reutiliza más abajo
+    // para HU-25 (alerta por umbral): no se vuelve a golpear la DB.
+    // ------------------------------------------------------------
+
+    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
+
+    const configParametro = mapaUmbrales.get(
+      `${sensor.parametro}|${lote.materiaPrima}`,
+    );
+
+    responseDto.estado = this.semaforoService.calcularEstado(
+      dto.valor,
+      configParametro,
+    );
+
+    // ------------------------------------------------------------
+    // WebSocket
+    // ------------------------------------------------------------
 
     this.lecturasGateway.emitirLectura(responseDto, empresaId);
 
@@ -327,21 +356,13 @@ export class LecturaSensorService {
     // HU-25:
     // Evaluación de alerta por umbral.
     //
-    // IMPORTANTE:
-    // No volvemos a buscar el lote porque ya lo tenemos arriba.
-    // Se pasa directamente la materia prima del lote.
-    //
     // La alerta de umbral es independiente de:
     // - clasificación del lote
     // - lote no apto
     // - estado físico del sensor
     // ------------------------------------------------------------
 
-    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
-
-    const umbral = mapaUmbrales.get(`${sensor.parametro}|${lote.materiaPrima}`);
-
-    if (umbral) {
+    if (configParametro) {
       this.notificacionesService
         .generarAlertaPorUmbral({
           empresaId,
@@ -349,8 +370,8 @@ export class LecturaSensorService {
           loteCodigo: lote.codigo,
           parametro: sensor.parametro,
           valor: dto.valor,
-          umbralMin: umbral.umbralMin,
-          umbralMax: umbral.umbralMax,
+          umbralMin: configParametro.umbralMin,
+          umbralMax: configParametro.umbralMax,
           timestamp: timestampLectura,
           materiaPrima: lote.materiaPrima,
         })
@@ -505,26 +526,40 @@ export class LecturaSensorService {
     const creada = await this.lecturaRepository.create(lectura);
 
     // ------------------------------------------------------------
-    // WebSocket
+    // Response
     // ------------------------------------------------------------
 
     const responseDto = LecturaMapper.toResponseDto(creada);
+
+    // ------------------------------------------------------------
+    // HU-40:
+    // Mismo cálculo de semáforo que en la carga automática, y mismo
+    // mapaUmbrales/configParametro reutilizado para HU-25.
+    // ------------------------------------------------------------
+
+    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
+
+    const configParametro = mapaUmbrales.get(
+      `${sensor.parametro}|${lote.materiaPrima}`,
+    );
+
+    responseDto.estado = this.semaforoService.calcularEstado(
+      dto.valor,
+      configParametro,
+    );
+
+    // ------------------------------------------------------------
+    // WebSocket
+    // ------------------------------------------------------------
 
     this.lecturasGateway.emitirLectura(responseDto, empresaId);
 
     // ------------------------------------------------------------
     // HU-25:
     // alerta de umbral también para lecturas manuales.
-    //
-    // Se utiliza directamente el lote que acabamos de obtener.
-    // No se hace otra consulta dentro de la generación de alerta.
     // ------------------------------------------------------------
 
-    const mapaUmbrales = await this.construirMapaUmbrales(empresaId);
-
-    const umbral = mapaUmbrales.get(`${sensor.parametro}|${lote.materiaPrima}`);
-
-    if (umbral) {
+    if (configParametro) {
       this.notificacionesService
         .generarAlertaPorUmbral({
           empresaId,
@@ -532,8 +567,8 @@ export class LecturaSensorService {
           loteCodigo: lote.codigo,
           parametro: sensor.parametro,
           valor: dto.valor,
-          umbralMin: umbral.umbralMin,
-          umbralMax: umbral.umbralMax,
+          umbralMin: configParametro.umbralMin,
+          umbralMax: configParametro.umbralMax,
           timestamp,
           materiaPrima: lote.materiaPrima,
         })
@@ -663,11 +698,11 @@ export class LecturaSensorService {
     const data = lecturas.map((lectura) =>
       LecturaMapper.toHistorialItemDto(
         lectura,
-        this.calcularEstado(
+        this.semaforoService.calcularEstado(
           lectura.valor,
-          lectura.sensor.parametro,
-          lectura.lote.materiaPrima,
-          mapaUmbrales,
+          mapaUmbrales.get(
+            `${lectura.sensor.parametro}|${lectura.lote.materiaPrima}`,
+          ),
         ),
       ),
     );
@@ -753,11 +788,11 @@ export class LecturaSensorService {
     const data = lecturas.map((lectura) =>
       LecturaMapper.toHistorialItemDto(
         lectura,
-        this.calcularEstado(
+        this.semaforoService.calcularEstado(
           lectura.valor,
-          lectura.sensor.parametro,
-          lectura.lote.materiaPrima,
-          mapaUmbrales,
+          mapaUmbrales.get(
+            `${lectura.sensor.parametro}|${lectura.lote.materiaPrima}`,
+          ),
         ),
       ),
     );
@@ -797,36 +832,21 @@ export class LecturaSensorService {
   // ============================================================
   // CONFIGURACIÓN DE UMBRALES
   // ============================================================
+
+  // HU-40: ahora guarda el objeto ConfiguracionParametro completo (no
+  // solo umbralMin/umbralMax) porque SemaforoService también necesita
+  // umbralAlertaMin/umbralAlertaMax.
   private async construirMapaUmbrales(
     empresaId: number,
-  ): Promise<Map<string, { umbralMin: number; umbralMax: number }>> {
+  ): Promise<Map<string, ConfiguracionParametro>> {
     const configs = await this.configParametroRepository.find({
       where: { empresaId },
     });
-    const mapa = new Map<string, { umbralMin: number; umbralMax: number }>();
+    const mapa = new Map<string, ConfiguracionParametro>();
     for (const config of configs) {
-      mapa.set(`${config.parametro}|${config.tipoMateriaPrima}`, {
-        umbralMin: config.umbralMin,
-        umbralMax: config.umbralMax,
-      });
+      mapa.set(`${config.parametro}|${config.tipoMateriaPrima}`, config);
     }
     return mapa;
-  }
-
-  // ============================================================
-  // ESTADO DE MEDICIÓN
-  // ============================================================
-  private calcularEstado(
-    valor: number,
-    parametro: Parametro,
-    materiaPrima: TipoMateriaPrima,
-    mapa: Map<string, { umbralMin: number; umbralMax: number }>,
-  ): EstadoMedicion {
-    const umbral = mapa.get(`${parametro}|${materiaPrima}`);
-    if (!umbral) return EstadoMedicion.SIN_UMBRAL_CONFIGURADO;
-    if (valor < umbral.umbralMin || valor > umbral.umbralMax)
-      return EstadoMedicion.FUERA_DE_RANGO;
-    return EstadoMedicion.NORMAL;
   }
 
   // ============================================================

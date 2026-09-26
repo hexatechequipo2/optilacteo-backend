@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { OrigenLectura } from '../enums/origen-lectura.enum';
+import { EstadoMedicion } from '../enums/estado-medicion.enum';
 
 export class LecturaResponseDto {
   @ApiProperty()
@@ -28,4 +29,9 @@ export class LecturaResponseDto {
 
   @ApiProperty()
   createdAt!: Date;
+
+  // HU-40: seteado por LecturaSensorService justo antes de emitir por
+  // WebSocket / devolver la respuesta, no lo arma LecturaMapper.
+  @ApiProperty({ enum: EstadoMedicion, required: false })
+  estado?: EstadoMedicion;
 }

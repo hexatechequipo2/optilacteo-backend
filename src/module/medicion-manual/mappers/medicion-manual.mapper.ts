@@ -2,7 +2,7 @@ import { ConfiguracionParametro } from '../../config-parametro/entities/config-p
 import { MedicionManualLote } from '../entities/medicion-manual-lote.entity';
 import { CreateMedicionManualLoteDto } from '../dto/create-medicion-manual-lote.dto';
 import { MedicionManualItemResponseDto } from '../dto/medicion-manual-lote-response.dto';
-import { EstadoMedicion } from '../../lectura-sensor/enums/estado-medicion.enum';
+import { SemaforoService } from '../../config-parametro/semaforo.service';
 
 export class MedicionManualMapper {
   // Construye una entidad por cada parámetro del DTO. No persiste (eso lo
@@ -23,19 +23,20 @@ export class MedicionManualMapper {
     }));
   }
 
-  // Calcula el estado (NORMAL / FUERA_DE_RANGO / SIN_UMBRAL_CONFIGURADO)
-  // comparando contra la config de rango correspondiente al parametro +
-  // tipoMateriaPrima de la medición. AC5/6: fuera de rango se marca, no se
-  // rechaza — este cálculo es puramente informativo para el historial.
+  // HU-40: el estado (NORMAL / EN_LIMITE / FUERA_DE_RANGO /
+  // SIN_UMBRAL_CONFIGURADO) ahora lo calcula SemaforoService, la misma
+  // lógica que usan lectura-sensor y dashboard. AC5/6: fuera de rango se
+  // marca, no se rechaza — este cálculo es puramente informativo.
   static toResponseItem(
     entity: MedicionManualLote,
     config: ConfiguracionParametro | undefined,
+    semaforoService: SemaforoService,
   ): MedicionManualItemResponseDto {
     const dto = new MedicionManualItemResponseDto();
     dto.id = entity.id;
     dto.parametro = entity.parametro;
     dto.valor = Number(entity.valor);
-    dto.estado = this.calcularEstado(dto.valor, config);
+    dto.estado = semaforoService.calcularEstado(dto.valor, config);
     dto.createdAt = entity.createdAt;
     return dto;
   }
@@ -43,23 +44,14 @@ export class MedicionManualMapper {
   static toResponseItemList(
     entities: MedicionManualLote[],
     mapaConfig: Map<string, ConfiguracionParametro>,
+    semaforoService: SemaforoService,
   ): MedicionManualItemResponseDto[] {
     return entities.map((e) =>
       this.toResponseItem(
         e,
         mapaConfig.get(`${e.parametro}|${e.tipoMateriaPrima}`),
+        semaforoService,
       ),
     );
-  }
-
-  private static calcularEstado(
-    valor: number,
-    config: ConfiguracionParametro | undefined,
-  ): EstadoMedicion {
-    if (!config) return EstadoMedicion.SIN_UMBRAL_CONFIGURADO;
-    if (valor < config.umbralMin || valor > config.umbralMax) {
-      return EstadoMedicion.FUERA_DE_RANGO;
-    }
-    return EstadoMedicion.NORMAL;
   }
 }
