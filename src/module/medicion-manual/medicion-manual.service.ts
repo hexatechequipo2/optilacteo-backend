@@ -26,6 +26,8 @@ import { MedicionManualMapper } from './mappers/medicion-manual.mapper';
 import { ClasificacionLoteService } from '../lote/clasificacion-lote.service';
 // --- nuevo: HU-50 ---
 import { AnomaliaService } from '../anomalia/anomalia.service';
+// --- nuevo: HU-40 ---
+import { SemaforoService } from '../config-parametro/semaforo.service';
 
 const VENTANA_HISTORICO_ANOMALIA = 10;
 
@@ -46,6 +48,8 @@ export class MedicionManualService {
     private readonly clasificacionLoteService: ClasificacionLoteService,
     // --- nuevo: HU-50 ---
     private readonly anomaliaService: AnomaliaService,
+    // --- nuevo: HU-40 ---
+    private readonly semaforoService: SemaforoService,
   ) {}
 
   async registrar(
@@ -99,6 +103,7 @@ export class MedicionManualService {
     const mediciones = MedicionManualMapper.toResponseItemList(
       creadas,
       mapaConfig,
+      this.semaforoService,
     );
 
     // HU-21: dispara la clasificación automática si ya están todos los
@@ -188,6 +193,7 @@ export class MedicionManualService {
     const data = MedicionManualMapper.toResponseItemList(
       mediciones,
       mapaConfig,
+      this.semaforoService,
     );
 
     return { data, total, page, limit };

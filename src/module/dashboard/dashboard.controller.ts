@@ -7,6 +7,7 @@ import {
   UseGuards,
   DefaultValuePipe,
   ForbiddenException,
+  Param,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
@@ -26,6 +27,7 @@ import {
 
 import { EvolucionIndicadoresQueryDto } from './dto/evolucion-indicadores-query.dto';
 import { EvolucionIndicadoresResponseDto } from './dto/evolucion-indicadores-response.dto';
+import { SemaforoLoteResponseDto } from './dto/semaforo-lote-response.dto';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
@@ -97,5 +99,23 @@ export class DashboardController {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
     }
     return this.dashboardService.getEvolucionIndicadores(tenant, query);
+  }
+
+  @Get('lote/:loteId/semaforo')
+  @Roles(
+    ROLES.OPERARIO_LINEA, 
+    ROLES.RESPONSABLE_PRODUCCION,
+    ROLES.GERENTE,
+    ROLES.ADMINISTRADOR,
+  )
+  @Permissions(ModuloSistema.DASHBOARD, 'canRead')
+  getSemaforoLote(
+    @CurrentEmpresa() tenant: TenantContext,
+    @Param('loteId', ParseIntPipe) loteId: number,
+  ): Promise<SemaforoLoteResponseDto> {
+    if (tenant.empresaId === null) {
+      throw new ForbiddenException('El usuario no tiene una empresa asociada.');
+    }
+    return this.dashboardService.getSemaforoLote(loteId, tenant);
   }
 }
