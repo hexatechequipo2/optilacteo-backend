@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { createHash } from 'crypto';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import type { ILoteRepository } from './repository/lote-repository.interface';
 import { LOTE_REPOSITORY } from './repository/lote-repository.interface';
@@ -13,6 +14,7 @@ import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
 import { LoteUbicacionHistorial } from './entities/lote-ubicacion-historial.entity';
 import { IngresoCamara } from './entities/ingreso-camara.entity';
 import { RecomendacionDestino } from '../ml/entities/recomendacion-destino.entity'; // <-- NUEVO (HU-37): ajustar ruta real si difiere
+import { Empresa } from '../empresa/entities/empresa.entity'; // <-- NUEVO (HU-45)
 import { ClasificacionLoteService } from './clasificacion-lote.service';
 import { LoteConsumoService } from './lote-consumo.service';
 import { EstadoLote } from './enums/estado-lote.enum';
@@ -21,6 +23,7 @@ import {
   EventoTrazabilidadDto,
   TrazabilidadLoteResponseDto,
 } from './dto/trazabilidad-lote-response.dto';
+import { TrazabilidadPdfBuilder } from './pdf/trazabilidad-pdf.builder'; // <-- NUEVO (HU-45)
 
 @Injectable()
 export class LoteTrazabilidadService {
@@ -35,8 +38,11 @@ export class LoteTrazabilidadService {
     private readonly ingresoCamaraRepository: Repository<IngresoCamara>,
     @InjectRepository(RecomendacionDestino) // <-- NUEVO (HU-37)
     private readonly recomendacionRepository: Repository<RecomendacionDestino>,
+    @InjectRepository(Empresa) // <-- NUEVO (HU-45)
+    private readonly empresaRepository: Repository<Empresa>,
     private readonly clasificacionLoteService: ClasificacionLoteService,
     private readonly loteConsumoService: LoteConsumoService,
+    private readonly pdfBuilder: TrazabilidadPdfBuilder, // <-- NUEVO (HU-45)
   ) {}
 
   // HU-32: reconstruye el historial completo de un lote, desde la
@@ -218,6 +224,59 @@ export class LoteTrazabilidadService {
       codigoLote: lote.codigo,
       eventos,
     };
+  }
+
+  // HU-45: genera el PDF de trazabilidad reutilizando getTrazabilidad()
+  // como única fuente de verdad de los eventos. Vive en el mismo service
+  // porque es la misma feature vista en otro formato de salida.
+  async generarReportePdf(id: number, tenant: TenantContext): Promise<Buffer> {
+    const empresaId = this.resolveEmpresaId(tenant);
+
+    // Reutiliza toda la lógica de agregación de eventos + valida existencia
+    // del lote (AC2 de HU-32, que también sirve como validación acá).
+    const trazabilidad = await this.getTrazabilidad(id, tenant);
+
+    // getTrazabilidad ya confirmó que el lote existe; lo volvemos a traer
+    // acá solo porque necesitamos campos que el DTO de trazabilidad no
+    // expone (código, estado) para el header del PDF.
+    const lote = await this.loteRepository.findById(id, empresaId);
+    if (!lote) {
+      throw new NotFoundException(`Lote ${id} no encontrado`);
+    }
+
+    const empresa = await this.empresaRepository.findOneBy({ id: empresaId });
+    if (!empresa) {
+      throw new NotFoundException(`Empresa ${empresaId} no encontrada`);
+    }
+
+    const fechaGeneracion = new Date();
+    const firmaDigital = this.generarFirmaDigital(trazabilidad, fechaGeneracion);
+
+    return this.pdfBuilder.build({
+      lote,
+      empresa,
+      trazabilidad,
+      fechaGeneracion,
+      firmaDigital,
+    });
+  }
+
+  // AC4 (HU-45): hash SHA-256 del contenido + timestamp + secret del
+  // servidor. Verifica integridad del PDF; no es una firma PKI con
+  // certificado — si el negocio pide eso, es otro alcance.
+  private generarFirmaDigital(
+    trazabilidad: TrazabilidadLoteResponseDto,
+    fechaGeneracion: Date,
+  ): string {
+    const secret = process.env.REPORT_SIGNING_SECRET ?? '';
+    const payload = JSON.stringify({
+      loteId: trazabilidad.loteId,
+      codigoLote: trazabilidad.codigoLote,
+      eventos: trazabilidad.eventos,
+      fechaGeneracion: fechaGeneracion.toISOString(),
+    });
+
+    return createHash('sha256').update(payload + secret).digest('hex');
   }
 
   private resolveEmpresaId(tenant: TenantContext): number {
