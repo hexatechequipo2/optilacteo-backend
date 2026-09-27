@@ -30,6 +30,9 @@ import { FinalizarLoteDto } from './dto/finalizar-lote.dto';
 import { CreateLoteConsumoDto } from './dto/create-lote-consumo.dto';
 import { AsignarDestinoProductivoDto } from './dto/asignar-destino-productivo.dto'; // <-- NUEVO (HU-34)
 import { LoteConsumoService } from './lote-consumo.service';
+import { Res } from '@nestjs/common';
+import type { Response } from 'express';
+
 
 @ApiTags('lote')
 @ApiBearerAuth()
@@ -323,5 +326,25 @@ export class LoteController {
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.loteConsumoService.historial(+id, tenant);
+  }
+
+  // HU-45: descarga del reporte de trazabilidad en PDF, para presentar
+  // ante inspecciones del CAA/SENASA. Reutiliza los mismos datos de HU-32.
+  @Get(':id/reporte-trazabilidad')
+  @Roles(ROLES.RESPONSABLE_CALIDAD)
+  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @AuditLog('LOTE_REPORTE_TRAZABILIDAD_GENERAR', 'Lote', TipoAccion.EXPORTACION)
+  async getReporteTrazabilidad(
+    @Param('id') id: string,
+    @CurrentEmpresa() tenant: TenantContext,
+    @Res() res: Response,
+  ): Promise<void> {
+    const pdf = await this.loteTrazabilidadService.generarReportePdf(+id, tenant);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="trazabilidad-lote-${id}.pdf"`,
+      'Content-Length': pdf.length,
+    });
+    res.end(pdf);
   }
 }

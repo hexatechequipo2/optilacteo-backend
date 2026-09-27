@@ -45,6 +45,8 @@ import { MlModule } from '../ml/ml.module';
 // HU-34: historial unificado de destino productivo del lote
 import { LoteDestinoHistorial } from './entities/lote-destino-historial.entity';
 import { DestinoProductivo } from '../destino-productivo/entities/destino-productivo.entity';
+import { TrazabilidadPdfBuilder } from './pdf/trazabilidad-pdf.builder';
+import { Empresa } from '../empresa/entities/empresa.entity';
 
 @Module({
   imports: [
@@ -68,6 +70,7 @@ import { DestinoProductivo } from '../destino-productivo/entities/destino-produc
       LoteConsumoParametro,
       LoteDestinoHistorial, // <-- NUEVO (HU-34)
       DestinoProductivo, // <-- NUEVO (HU-34)
+      Empresa,
     ]),
     forwardRef(() => SensorModule),
     NotificacionesModule,
@@ -81,6 +84,7 @@ import { DestinoProductivo } from '../destino-productivo/entities/destino-produc
     ClasificacionLoteService,
     LoteConsumoService,
     LoteTrazabilidadService,
+    TrazabilidadPdfBuilder, 
     {
       provide: LOTE_REPOSITORY,
       useClass: LoteRepository,
