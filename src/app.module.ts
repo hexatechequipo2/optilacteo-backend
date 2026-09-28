@@ -28,6 +28,7 @@ import { InternalModule } from './module/internal/internal.module';
 import { DestinoProductivoModule } from './module/destino-productivo/destino-productivo.module';
 // --- NUEVO (HU-51) ---
 import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-volumen.module';
+import { RetencionModule } from './module/retencion/retencion.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-
     InternalModule,
     DestinoProductivoModule,
     PrediccionVolumenModule,
+    RetencionModule
   ],
   controllers: [AppController],
   providers: [AppService],
