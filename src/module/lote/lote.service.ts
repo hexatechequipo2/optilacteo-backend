@@ -51,6 +51,7 @@ import { RecomendacionResponseDto } from '../ml/dto/recomendacion-response.dto';
 import { TipoMateriaPrima } from '../config-parametro/enums/tipo-materia-prima-enum';
 import { UnidadCantidad } from './enums/unidad-cantidad.enum';
 import { DestinoProductivo } from '../destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
+import { EstabilidadProveedorService } from '../estabilidad-proveedor/estabilidad-proveedor.service'; // HU-64
 
 // HU-51: unidad física de la cantidad recepcionada según materia prima.
 // leche_cruda y crema se reciben en volumen; masa_hilada es semisólida y
@@ -86,6 +87,7 @@ export class LoteService {
     private readonly configuracionComparacionHistoricaService: ConfiguracionComparacionHistoricaService,
     private readonly auditLogService: AuditLogService,
     private readonly mlService: MlService,
+    private readonly estabilidadProveedorService: EstabilidadProveedorService, // HU-64
   ) {}
 
   // HU-63
@@ -176,6 +178,13 @@ export class LoteService {
     const saved = await this.loteRepository.save(lote);
 
     await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
+
+    // HU-64 AC3: recalcular estabilidad del proveedor con el lote nuevo.
+    // Best-effort: el alta del lote nunca depende de esto.
+    await this.estabilidadProveedorService.recalcularBestEffort(
+      dto.proveedorId,
+      empresaId,
+    );
 
     // HU-49 AC1: se dispara automáticamente al registrar los parámetros
     // del lote. Devuelve null si la empresa todavía no tiene historial

@@ -23,6 +23,7 @@ import {
 import { EstadoProveedor } from './enums/estado-proveedor.enum';
 import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
 import { AuditLogService } from '../audit/audit-log.service';
+import { EstabilidadProveedorService } from '../estabilidad-proveedor/estabilidad-proveedor.service'; // HU-64
 
 @Injectable()
 export class ProveedoresService {
@@ -31,6 +32,7 @@ export class ProveedoresService {
     private readonly proveedorRepository: IProveedorRepository,
     private readonly mapper: ProveedorMapper,
     private readonly auditLogService: AuditLogService,
+    private readonly estabilidadService: EstabilidadProveedorService, // HU-64
   ) {}
 
   // Guardia de seguridad para aislamiento multi-tenant
@@ -95,6 +97,14 @@ export class ProveedoresService {
     this.assertOwnEmpresa(proveedor, tenant);
 
     const dto = this.mapper.toResponseDto(proveedor);
+
+    // HU-64 AC2/AC4: indicador de estabilidad en la ficha. Se usa la empresa
+    // del proveedor (no la del tenant) porque un admin puede ver proveedores
+    // de otra empresa.
+    dto.estabilidad = await this.estabilidadService.obtener(
+      id,
+      proveedor.empresa.id,
+    );
 
     if (this.puedeVerAuditoria(tenant)) {
       dto.auditoria = await this.auditLogService.getTrazabilidad(
