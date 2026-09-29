@@ -1,21 +1,29 @@
+
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
 import { Lote } from './entities/lote.entity';
 import { LoteParametro } from './entities/lote-parametro.entity';
 import { Proveedor } from '../proveedores/entities/proveedor.entity';
-import { Tambo } from '../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
+import { Tambo } from '../tambo/entities/tambo.entity';
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
+
 import { LoteController } from './lote.controller';
 import { LoteService } from './lote.service';
 import { LoteRepository } from './repository/lote.repository';
 import { LOTE_REPOSITORY } from './repository/lote-repository.interface';
+
 import { SensorModule } from '../sensor/sensor.module';
-import { LOTE_UBICACION_HISTORIAL_REPOSITORY } from './repository/lote-ubicacion-historial.repository.interface';
+import {
+  LOTE_UBICACION_HISTORIAL_REPOSITORY,
+} from './repository/lote-ubicacion-historial.repository.interface';
 import { LoteUbicacionHistorialRepository } from './repository/lote-ubicacion-historial.repository';
 import { LoteUbicacionHistorial } from './entities/lote-ubicacion-historial.entity';
+
 import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity';
 import { MedicionManualLote } from '../medicion-manual/entities/medicion-manual-lote.entity';
 import { User } from '../user/entities/user.entity';
+
 import { ClasificacionLoteService } from './clasificacion-lote.service';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 import { LoteClasificacionHistorial } from './entities/lote-clasificacion-historial.entity';
@@ -35,11 +43,13 @@ import { IngresoCamaraService } from './ingreso-camara.service';
 import { IngresoCamaraController } from './ingreso-camara.controller';
 import { IngresoCamaraRepository } from './repository/ingreso-camara.repository';
 import { INGRESO_CAMARA_REPOSITORY } from './repository/ingreso-camara-repository.interface';
+
 import { LoteProduccion } from './entities/lote-produccion.entity';
 import { LoteConsumo } from './entities/lote-consumo.entity';
 import { LoteConsumoParametro } from './entities/lote-consumo-parametro.entity';
 import { LoteConsumoService } from './lote-consumo.service';
 import { LoteTrazabilidadService } from './lote-trazabilidad.service';
+
 import { MlModule } from '../ml/ml.module';
 
 // HU-34: historial unificado de destino productivo del lote
@@ -48,13 +58,16 @@ import { DestinoProductivo } from '../destino-productivo/entities/destino-produc
 import { TrazabilidadPdfBuilder } from './pdf/trazabilidad-pdf.builder';
 import { Empresa } from '../empresa/entities/empresa.entity';
 
+// HU-64: estabilidad de proveedores
+import { EstabilidadProveedorModule } from '../estabilidad-proveedor/estabilidad-proveedor.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Lote,
       LoteParametro,
       Proveedor,
-      Tambo, // <-- NUEVO (HU-36)
+      Tambo,
       LoteUbicacionHistorial,
       ConfiguracionParametro,
       SensorLectura,
@@ -68,42 +81,59 @@ import { Empresa } from '../empresa/entities/empresa.entity';
       LoteProduccion,
       LoteConsumo,
       LoteConsumoParametro,
-      LoteDestinoHistorial, // <-- NUEVO (HU-34)
-      DestinoProductivo, // <-- NUEVO (HU-34)
+      LoteDestinoHistorial,
+      DestinoProductivo,
       Empresa,
     ]),
+
     forwardRef(() => SensorModule),
     NotificacionesModule,
     ConfigParametroModule,
     AuditLogModule,
     MlModule,
+
+    // HU-64: importar el módulo que exporta EstabilidadProveedorService.
+    EstabilidadProveedorModule,
   ],
-  controllers: [LoteController, SkuController, IngresoCamaraController],
+
+  controllers: [
+    LoteController,
+    SkuController,
+    IngresoCamaraController,
+  ],
+
   providers: [
     LoteService,
     ClasificacionLoteService,
     LoteConsumoService,
     LoteTrazabilidadService,
-    TrazabilidadPdfBuilder, 
+    TrazabilidadPdfBuilder,
+
     {
       provide: LOTE_REPOSITORY,
       useClass: LoteRepository,
     },
+
     {
       provide: LOTE_UBICACION_HISTORIAL_REPOSITORY,
       useClass: LoteUbicacionHistorialRepository,
     },
+
     SkuService,
+
     {
       provide: SKU_REPOSITORY,
       useClass: SkuRepository,
     },
+
     IngresoCamaraService,
+
     {
       provide: INGRESO_CAMARA_REPOSITORY,
       useClass: IngresoCamaraRepository,
     },
   ],
+
   exports: [
     LoteService,
     LOTE_REPOSITORY,

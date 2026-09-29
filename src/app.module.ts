@@ -29,6 +29,8 @@ import { DestinoProductivoModule } from './module/destino-productivo/destino-pro
 // --- NUEVO (HU-51) ---
 import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-volumen.module';
 import { RetencionModule } from './module/retencion/retencion.module';
+import { DatasetMlModule } from './module/dataset-ml/dataset-ml.module';
+import { EstabilidadProveedorModule } from './module/estabilidad-proveedor/estabilidad-proveedor.module';
 
 @Module({
   imports: [
@@ -73,7 +75,9 @@ import { RetencionModule } from './module/retencion/retencion.module';
     InternalModule,
     DestinoProductivoModule,
     PrediccionVolumenModule,
-    RetencionModule
+    RetencionModule,
+    DatasetMlModule,
+    EstabilidadProveedorModule,
   ],
   controllers: [AppController],
   providers: [AppService],

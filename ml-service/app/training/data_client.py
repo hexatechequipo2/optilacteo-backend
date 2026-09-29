@@ -70,3 +70,14 @@ def fetch_training_data_anomalias(
     # Se conservan loteId/timestamp/origen por si en el futuro se quiere
     # filtrar por origen (ej. excluir manual_sin_sensor del entrenamiento).
     return df[["valor", "loteId", "timestamp", "origen"]]
+
+def fetch_dataset_estabilidad(empresa_id: int) -> list[dict]:
+    """HU-64: trae los valores de parámetros de lotes agrupados por proveedor."""
+    url = f"{settings.nest_internal_api_url}/internal/proveedores-lotes"
+    headers = {"X-Internal-Api-Key": settings.nest_internal_api_key}
+
+    response = httpx.get(
+        url, params={"empresaId": empresa_id}, headers=headers, timeout=30.0
+    )
+    response.raise_for_status()
+    return response.json()
