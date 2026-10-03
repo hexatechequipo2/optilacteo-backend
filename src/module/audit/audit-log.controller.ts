@@ -4,11 +4,14 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AuditLogService } from './audit-log.service';
 import { QueryAuditLogDto } from './dto/query-audit-log.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ROLES } from '../rol/constants/roles.constants';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { TIPO_ACCION_LABELS } from './enums/tipo-accion.enum';
+
+const AUDITORIA = ModuloAdministrativo.AUDITORIA;
 
 @ApiTags('audit-log')
 @ApiBearerAuth()
@@ -17,7 +20,7 @@ export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
   @Get()
-  @Roles(ROLES.GERENTE)
+  @Permissions(AUDITORIA, PermissionAction.READ)
   @ApiOperation({
     summary:
       'Historial de auditoría, con filtros por usuario, acción, tipo y período. ADMIN ve todas las empresas, GERENTE solo la propia.',
@@ -30,7 +33,7 @@ export class AuditLogController {
   }
 
   @Get('tipos')
-  @Roles(ROLES.GERENTE)
+  @Permissions(AUDITORIA, PermissionAction.READ)
   @ApiOperation({
     summary: 'Catálogo de tipos de acción, para el filtro "Tipo de acción" del log.',
   })
@@ -42,7 +45,7 @@ export class AuditLogController {
   }
 
   @Get('export')
-  @Roles(ROLES.GERENTE)
+  @Permissions(AUDITORIA, PermissionAction.EXPORT)
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @ApiOperation({
     summary:

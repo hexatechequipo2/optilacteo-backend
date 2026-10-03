@@ -31,6 +31,9 @@ import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-
 import { RetencionModule } from './module/retencion/retencion.module';
 import { DatasetMlModule } from './module/dataset-ml/dataset-ml.module';
 import { EstabilidadProveedorModule } from './module/estabilidad-proveedor/estabilidad-proveedor.module';
+import { JwtAuthGuard } from './module/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from './common/guards/permissions.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -80,6 +83,10 @@ import { EstabilidadProveedorModule } from './module/estabilidad-proveedor/estab
     EstabilidadProveedorModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },     // 1º autentica
+    { provide: APP_GUARD, useClass: PermissionsGuard }, // 2º autoriza
+  ],
 })
 export class AppModule {}

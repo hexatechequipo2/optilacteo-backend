@@ -12,32 +12,27 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
-import { ROLES } from '../rol/constants/roles.constants';
 import { ConfigParametroService } from './config-parametro.service';
 import { CreateConfigParametroDto } from './dto/create-config-parametro.dto';
 import { UpdateConfigParametroDto } from './dto/update-config-parametro.dto';
 import type { ConfigParametroResponseDto } from './dto/config-parametro-response.dto';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 @ApiTags('config-parametros')
 @ApiBearerAuth()
 @Controller('config-parametros')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class ConfigParametroController {
   constructor(
     private readonly configParametroService: ConfigParametroService,
   ) {}
 
   @Post()
-  @Roles(ROLES.GERENTE)
-  @Permissions(ModuloSistema.SENSORES_IOT, 'canWrite')
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.CREATE)
   @AuditLog('CONFIG_PARAMETRO_CREAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION, (ctx) => {
     const body = ctx.responseBody as Partial<ConfigParametroResponseDto> | undefined;
     return `Umbral de ${body?.parametro ?? '?'} creado para ${body?.tipoMateriaPrima ?? '?'}: ${body?.umbralMin ?? '?'} - ${body?.umbralMax ?? '?'}`;
@@ -53,8 +48,7 @@ export class ConfigParametroController {
   }
 
   @Put(':id')
-  @Roles(ROLES.GERENTE)
-  @Permissions(ModuloSistema.SENSORES_IOT, 'canWrite')
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.UPDATE)
   @AuditLog('CONFIG_PARAMETRO_ACTUALIZAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION, (ctx) => {
     const body = ctx.responseBody as Partial<ConfigParametroResponseDto> | undefined;
     return `Umbral de ${body?.parametro ?? '?'} modificado para ${body?.tipoMateriaPrima ?? '?'}: ${body?.umbralMin ?? '?'} - ${body?.umbralMax ?? '?'}`;
@@ -71,8 +65,7 @@ export class ConfigParametroController {
   }
 
   @Get()
-  @Roles(ROLES.GERENTE)
-  @Permissions(ModuloSistema.SENSORES_IOT, 'canRead')
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.READ)
   listar(@CurrentEmpresa() tenant: TenantContext) {
     if (tenant.empresaId === null) {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
@@ -84,8 +77,7 @@ export class ConfigParametroController {
   }
 
   @Delete(':id')
-  @Roles(ROLES.GERENTE)
-  @Permissions(ModuloSistema.SENSORES_IOT, 'canWrite')
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.DELETE)
   @AuditLog('CONFIG_PARAMETRO_ELIMINAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION)
   eliminar(
     @CurrentEmpresa() tenant: TenantContext,

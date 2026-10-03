@@ -11,33 +11,23 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MlService } from './ml.service';
 import { ResponderRecomendacionDto } from './dto/responder-recomendacion.dto';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
-import { ROLES } from '../rol/constants/roles.constants';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 @ApiTags('recomendaciones')
 @ApiBearerAuth()
 @Controller('recomendaciones')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class MlController {
   constructor(private readonly mlService: MlService) {}
 
   // HU-49 AC4 / HU-37: aceptar o rechazar la recomendación, con registro
   // del resultado real y, si difiere del recomendado, de la justificación.
   @Patch(':id/responder')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.UPDATE)
   @AuditLog('RECOMENDACION_RESPONDER', 'RecomendacionDestino',TipoAccion.EDICION)
   responder(
     @Param('id') id: string,
@@ -54,13 +44,7 @@ export class MlController {
   // HU-49: recomendación pendiente de un lote específico, para que el
   // frontend deje de depender de un mock.
   @Get('lote/:loteId')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   recomendacionPendientePorLote(
     @Param('loteId') loteId: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -70,13 +54,7 @@ export class MlController {
 
   // HU-49: historial de aciertos del modelo, para consulta agregada.
   @Get('historial')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   historial(@CurrentEmpresa() tenant: TenantContext) {
     return this.mlService.historialAciertos(tenant);
   }
@@ -84,20 +62,13 @@ export class MlController {
   // HU-37 AC8: reporte de lotes con divergencias justificadas
   // (recomendaciones rechazadas: destino elegido != destino recomendado).
   @Get('divergencias')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   historialDivergencias(@CurrentEmpresa() tenant: TenantContext) {
     return this.mlService.historialDivergencias(tenant);
   }
 
   @Get('todas')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   obtenerTodas(@CurrentEmpresa() tenant: TenantContext) {
     return this.mlService.obtenerTodas(tenant);
   }

@@ -6,7 +6,10 @@ export class PermisoMapper {
       id: permiso.id,
       modulo: permiso.modulo,
       canRead: permiso.canRead,
-      canWrite: permiso.canWrite,
+      canCreate: permiso.canCreate,
+      canUpdate: permiso.canUpdate,
+      canDelete: permiso.canDelete,
+      canExport: permiso.canExport,
       rol: permiso.rol
         ? { id: permiso.rol.id, nombre: permiso.rol.nombre }
         : null,
@@ -21,7 +24,10 @@ export class PermisoMapper {
     return permisos.map((p) => ({
       modulo: p.modulo,
       canRead: p.canRead,
-      canWrite: p.canWrite,
+      canCreate: p.canCreate,
+      canUpdate: p.canUpdate,
+      canDelete: p.canDelete,
+      canExport: p.canExport,
     }));
   }
 }

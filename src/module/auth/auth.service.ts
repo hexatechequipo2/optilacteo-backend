@@ -19,12 +19,7 @@ import { REVOKED_TOKEN_REPOSITORY } from './repository/revoked-token-repository.
 import type { IRefreshTokenRepository } from './repository/refresh-token-repository.interface';
 import { REFRESH_TOKEN_REPOSITORY } from './repository/refresh-token-repository.interface';
 
-// --- nuevo: permisos por empresa ---
-import type { IPermisoRepository } from '../permiso/repository/permiso-interface.repository';
-import { PERMISO_REPOSITORY } from '../permiso/repository/permiso-interface.repository';
-
 import type { JwtPayload } from './types/jwt-payload.type';
-import { ROLES, type RolNombre } from '../rol/constants/roles.constants';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MINUTES = 15;
@@ -71,10 +66,6 @@ export class AuthService {
     @Inject(REFRESH_TOKEN_REPOSITORY)
     private readonly refreshTokenRepository: IRefreshTokenRepository,
 
-    // --- nuevo: permisos por empresa ---
-    @Inject(PERMISO_REPOSITORY)
-    private readonly permisoRepository: IPermisoRepository,
-
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -117,14 +108,13 @@ export class AuthService {
       await this.userRepository.resetFailedAttempts(user.id);
     }
 
-    const payload = await this.buildJwtPayload(user);
+    const payload = this.buildJwtPayload(user);
 
     this.logger.debug('Usuario autenticado:', {
       id: user.id,
       email: user.email,
       rolNombre: payload.rolNombre,
       empresaId: payload.empresaId,
-      permisos: payload.permisos,
     });
 
     const access_token = await this.jwtService.signAsync(payload);
@@ -186,7 +176,7 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token inválido');
     }
 
-    const payload = await this.buildJwtPayload(user);
+    const payload = this.buildJwtPayload(user);
     const access_token = await this.jwtService.signAsync(payload);
 
     const newRefreshToken = await this.issueRefreshToken({
@@ -204,39 +194,18 @@ export class AuthService {
     return { access_token, refresh_token: newRefreshToken };
   }
 
-  private async buildJwtPayload(user: User): Promise<JwtPayload> {
-    const rolNombre: RolNombre | null =
-      user.rol?.nombre &&
-      Object.values(ROLES).includes(user.rol.nombre as RolNombre)
-        ? (user.rol.nombre as RolNombre)
-        : null;
-
-    const empresaId = user.empresa?.id ?? null;
-
-    // HU multi-tenant de permisos: en vez de leer user.rol.permisos
-    // (relación sin scoping, traería las filas de TODAS las empresas
-    // para ese rol), se consulta explícitamente por (rolId, empresaId)
-    // del usuario que está logueando. Si no hay rol o empresa, no hay
-    // permisos que cargar.
-    const permisosEntities =
-      user.rol?.id && empresaId
-        ? await this.permisoRepository.findByRolYEmpresa(
-            user.rol.id,
-            empresaId,
-          )
-        : [];
-
+  /**
+   * El JWT solo identifica al usuario. Los permisos NO viajan en el token:
+   * PermissionsGuard los lee de la BD en cada request, así que los cambios
+   * de la matriz o del rol se aplican sin necesidad de volver a loguearse.
+   */
+  private buildJwtPayload(user: User): JwtPayload {
     return {
       sub: user.id,
       email: user.email,
       rolId: user.rol?.id ?? null,
-      rolNombre,
-      permisos: permisosEntities.map((p) => ({
-        modulo: p.modulo,
-        canRead: p.canRead,
-        canWrite: p.canWrite,
-      })),
-      empresaId,
+      rolNombre: user.rol?.nombre ?? null,
+      empresaId: user.empresa?.id ?? null,
       jti: '',
     };
   }

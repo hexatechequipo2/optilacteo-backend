@@ -1,23 +1,21 @@
-import { Controller, Get, Body, Patch, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiExcludeController, ApiTags } from '@nestjs/swagger';
 import { PermisoService } from './permiso.service';
-import { UpdatePermisoDto } from './dto/update-permiso.dto';
-import { ROLES } from '../rol/constants/roles.constants';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
-import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
-import { TipoAccion } from '../audit/enums/tipo-accion.enum';
+import { ModuloAdministrativo } from './enums/modulo-administrativo.enum';
 
 @ApiTags('permiso')
 @ApiBearerAuth()
 @ApiExcludeController()
-@Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
 @Controller('permiso')
 export class PermisoController {
   constructor(private readonly permisoService: PermisoService) {}
 
   @Get()
+  @Permissions(ModuloAdministrativo.GESTION_ROLES, PermissionAction.READ)
   findByRol(
     @Query('rolId') rolId: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -26,6 +24,7 @@ export class PermisoController {
   }
 
   @Get('usuario/:userId')
+  @Permissions(ModuloAdministrativo.GESTION_ROLES, PermissionAction.READ)
   findByUsuario(
     @Param('userId') userId: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -34,20 +33,11 @@ export class PermisoController {
   }
 
   @Get(':id')
+  @Permissions(ModuloAdministrativo.GESTION_ROLES, PermissionAction.READ)
   findOne(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
   ) {
     return this.permisoService.findOne(+id, tenant.empresaId!);
-  }
-
-  @Patch(':id')
-  @AuditLog('PERMISO_ACTUALIZAR', 'Permiso', TipoAccion.EDICION)
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdatePermisoDto,
-    @CurrentEmpresa() tenant: TenantContext,
-  ) {
-    return this.permisoService.update(+id, tenant.empresaId!, dto);
   }
 }
