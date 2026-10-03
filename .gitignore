@@ -56,3 +56,6 @@ pids
 *.tsbuildinfo
 optilacteo_frontend.code-workspace
 .vscode/
+
+# Backups de base de datos
+*.sql

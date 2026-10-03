@@ -19,32 +19,22 @@ import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
 import { ProveedorResponseDto } from './dto/proveedor-response.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ROLES } from '../rol/constants/roles.constants';
 import type { PaginatedResponse } from '../../common/dto/paginated-response.dto';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { Permissions } from '../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 @ApiTags('proveedores')
 @ApiBearerAuth()
 @Controller('proveedores')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class ProveedoresController {
   constructor(private readonly proveedoresService: ProveedoresService) {}
 
   @Get()
-  @Roles(
-    ROLES.OPERARIO_LINEA,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-    ROLES.RESPONSABLE_CALIDAD,
-  )
-  @Permissions(ModuloSistema.RECEPCION, 'canRead')
+  @Permissions(ModuloSistema.RECEPCION, PermissionAction.READ)
   findAll(
     @CurrentEmpresa() tenant: TenantContext,
     @Query() query: ProveedorFilterQueryDto,
@@ -53,8 +43,7 @@ export class ProveedoresController {
   }
 
   @Get(':id')
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.RESPONSABLE_CALIDAD)
-  @Permissions(ModuloSistema.RECEPCION, 'canRead')
+  @Permissions(ModuloSistema.RECEPCION, PermissionAction.READ)
   findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentEmpresa() tenant: TenantContext,
@@ -63,8 +52,7 @@ export class ProveedoresController {
   }
 
   @Post()
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions(ModuloSistema.RECEPCION, 'canWrite')
+  @Permissions(ModuloSistema.RECEPCION, PermissionAction.CREATE)
   @HttpCode(HttpStatus.CREATED)
   @AuditLog('PROVEEDOR_CREAR', 'Proveedor', TipoAccion.ALTA)
   create(
@@ -75,8 +63,7 @@ export class ProveedoresController {
   }
 
   @Patch(':id')
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions(ModuloSistema.RECEPCION, 'canWrite')
+  @Permissions(ModuloSistema.RECEPCION, PermissionAction.UPDATE)
   @AuditLog('PROVEEDOR_ACTUALIZAR', 'Proveedor', TipoAccion.EDICION)
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -87,8 +74,7 @@ export class ProveedoresController {
   }
 
   @Patch(':id/activar')
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions(ModuloSistema.RECEPCION, 'canWrite')
+  @Permissions(ModuloSistema.RECEPCION, PermissionAction.UPDATE)
   @AuditLog('PROVEEDOR_ACTIVAR', 'Proveedor', TipoAccion.ALTA)
   activate(
     @Param('id', ParseIntPipe) id: number,
@@ -98,8 +84,7 @@ export class ProveedoresController {
   }
 
   @Delete(':id')
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions(ModuloSistema.RECEPCION, 'canWrite')
+  @Permissions(ModuloSistema.RECEPCION, PermissionAction.DELETE)
   @AuditLog('PROVEEDOR_ELIMINAR', 'Proveedor', TipoAccion.BAJA)
   async remove(
     @Param('id', ParseIntPipe) id: number,

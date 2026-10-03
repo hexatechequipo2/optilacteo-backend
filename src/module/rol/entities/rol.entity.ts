@@ -23,6 +23,11 @@ export class Rol {
   @Column({ default: true })
   isActive!: boolean;
 
+  // Rol de sistema (Administrador): acceso total por flag, no se puede
+  // modificar ni eliminar. Se evalúa por este campo, nunca por el nombre.
+  @Column({ default: false })
+  esSistema!: boolean;
+
   // ATENCIÓN: PermisoModulo ahora tiene empresaId (multi-tenant). Esta
   // relación NO filtra por empresa -- si se carga (eager o con
   // `relations: { permisos: true }`), trae las filas de TODAS las

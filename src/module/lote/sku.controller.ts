@@ -15,25 +15,21 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
-import { ROLES } from '../rol/constants/roles.constants';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { SkuService } from './sku.service';
 import { CreateSkuDto } from './dto/create-sku.dto';
 import { UpdateSkuDto } from './dto/update-sku.dto';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 // HU-67: catálogo de SKU de producto terminado, configurable por empresa.
 @ApiTags('sku')
 @ApiBearerAuth()
 @Controller('skus')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class SkuController {
   constructor(private readonly skuService: SkuService) {}
 
   @Post()
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.CREATE)
   @AuditLog('SKU_REGISTRAR', 'Sku', TipoAccion.ALTA)
   create(@Body() dto: CreateSkuDto, @CurrentEmpresa() tenant: TenantContext) {
     return this.skuService.create(dto, tenant);
@@ -41,20 +37,13 @@ export class SkuController {
 
   // Alimenta el selector "Buscar SKU..." del form de ingreso a cámara.
   @Get()
-  @Roles(
-    ROLES.ADMINISTRADOR,
-    ROLES.GERENTE,
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.OPERARIO_LINEA,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   findAll(@CurrentEmpresa() tenant: TenantContext) {
     return this.skuService.findAll(tenant);
   }
 
   @Patch(':id')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.UPDATE)
   @AuditLog('SKU_ACTUALIZAR', 'Sku', TipoAccion.EDICION)
   update(
     @Param('id') id: string,
@@ -65,16 +54,14 @@ export class SkuController {
   }
 
   @Delete(':id')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.DELETE)
   @AuditLog('SKU_DESACTIVAR', 'Sku', TipoAccion.BAJA)
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.skuService.deactivate(+id, tenant);
   }
 
   @Patch(':id/activar')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.UPDATE)
   @AuditLog('SKU_ACTIVAR', 'Sku', TipoAccion.ALTA)
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.skuService.activate(+id, tenant);

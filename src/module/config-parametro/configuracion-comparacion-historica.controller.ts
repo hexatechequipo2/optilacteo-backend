@@ -19,19 +19,18 @@ import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { ConfiguracionComparacionHistoricaService } from './configuracion-comparacion-historica.service';
 import { UpdateConfiguracionComparacionHistoricaDto } from './dto/update-configuracion-comparacion-historica.dto';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 @ApiTags('configuracion-comparacion-historica')
 @ApiBearerAuth()
 @Controller('config-parametros/comparacion-historica')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class ConfiguracionComparacionHistoricaController {
   constructor(
     private readonly service: ConfiguracionComparacionHistoricaService,
   ) {}
 
   @Get()
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE)
-  @Permissions(ModuloSistema.TRAZABILIDAD, 'canRead')
+  @Permissions(ModuloSistema.TRAZABILIDAD, PermissionAction.READ)
   get(@CurrentEmpresa() tenant: TenantContext) {
     if (tenant.empresaId === null) {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
@@ -40,8 +39,7 @@ export class ConfiguracionComparacionHistoricaController {
   }
 
   @Patch()
-  @Roles(ROLES.GERENTE)
-  @Permissions(ModuloSistema.TRAZABILIDAD, 'canWrite')
+  @Permissions(ModuloSistema.TRAZABILIDAD, PermissionAction.UPDATE)
   @AuditLog(
     'CONFIG_COMPARACION_HISTORICA_ACTUALIZAR',
     'ConfiguracionComparacionHistorica',

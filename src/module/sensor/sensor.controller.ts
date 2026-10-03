@@ -12,29 +12,28 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
-import { ROLES } from '../rol/constants/roles.constants';
 import { SensorService } from './sensor.service';
 import { CreateSensorDto } from './dto/create-sensor.dto';
 import { UpdateSensorDto } from './dto/update-sensor.dto';
 import { SensorFilterQueryDto } from './dto/sensor-filter-query.dto';
 import { AsociarLoteDto } from './dto/asociar-lote.dto';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
+import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+
 
 @ApiTags('sensor')
 @ApiBearerAuth()
 @Controller('sensores')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class SensorController {
   constructor(private readonly sensorService: SensorService) {}
 
   // HU-17: registro de sensores — solo Jefe de Producción.
   @Post()
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.CREATE)
   @AuditLog('SENSOR_REGISTRAR', 'Sensor', TipoAccion.ALTA)
   create(
     @Body() createSensorDto: CreateSensorDto,
@@ -45,13 +44,7 @@ export class SensorController {
 
   //HU-65 El Gerente quiere mantener un listado de todos los sensores con su ubicación, marca y tipo, es por eso que el @Roles está en el GET.
   @Get()
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.OPERARIO_LINEA,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.READ)
   findAll(
     @Query() query: SensorFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -60,25 +53,13 @@ export class SensorController {
   }
 
   @Get(':id')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.OPERARIO_LINEA,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.READ)
   findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.sensorService.findOne(+id, tenant);
   }
 
   @Get(':id/historial')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.OPERARIO_LINEA,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.READ)
   historialPorSensor(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -87,7 +68,7 @@ export class SensorController {
   }
 
   @Patch(':id')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.UPDATE)
   @AuditLog('SENSOR_ACTUALIZAR', 'Sensor', TipoAccion.EDICION)
   update(
     @Param('id') id: string,
@@ -99,7 +80,7 @@ export class SensorController {
 
   // HU-33: asociar uno o más sensores a un lote — Operario de línea.
   @Patch('lote/:loteId/asociar')
-  @Roles(ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_CALIDAD)
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.UPDATE)
   @AuditLog('SENSOR_ASOCIAR_LOTE', 'Sensor', TipoAccion.EDICION)
   asociarALote(
     @Param('loteId') loteId: string,
@@ -120,7 +101,7 @@ export class SensorController {
 
   // Soft-delete: pasa el sensor a estado INACTIVO en vez de borrarlo físicamente.
   @Delete(':id')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.DELETE)
   @AuditLog('SENSOR_ELIMINAR', 'Sensor', TipoAccion.BAJA)
   remove(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.sensorService.remove(+id, tenant);
@@ -128,7 +109,7 @@ export class SensorController {
 
   // Reactiva un sensor previamente desactivado (estado INACTIVO -> ACTIVO).
   @Patch(':id/activar')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.RESPONSABLE_CALIDAD)
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.UPDATE)
   @AuditLog('SENSOR_ACTIVAR', 'Sensor', TipoAccion.ALTA)
   activar(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.sensorService.activar(+id, tenant);

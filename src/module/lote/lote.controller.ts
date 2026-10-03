@@ -21,8 +21,6 @@ import { LoteTrazabilidadService } from './lote-trazabilidad.service'; // <-- NU
 import { CreateLoteDto } from './dto/create-lote.dto';
 import { UpdateLoteDto } from './dto/update-lote.dto';
 import { LoteFilterQueryDto } from './dto/lote-filter-query.dto';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { RevisarLoteDto } from './dto/revisar-lote.dto';
@@ -32,12 +30,12 @@ import { AsignarDestinoProductivoDto } from './dto/asignar-destino-productivo.dt
 import { LoteConsumoService } from './lote-consumo.service';
 import { Res } from '@nestjs/common';
 import type { Response } from 'express';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 
 @ApiTags('lote')
 @ApiBearerAuth()
 @Controller('lotes')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class LoteController {
   constructor(
     private readonly loteService: LoteService,
@@ -47,10 +45,9 @@ export class LoteController {
 
   // HU-60: registro de lotes — solo Responsable de calidad.
   @Post()
-  @Roles(ROLES.RESPONSABLE_CALIDAD)
   @Permissions(
     [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
-    'canWrite',
+    PermissionAction.CREATE,
   )
   @AuditLog('LOTE_REGISTRAR', 'Lote', TipoAccion.ALTA)
   create(
@@ -61,14 +58,7 @@ export class LoteController {
   }
 
   @Get()
-  @Roles(
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-    ROLES.OPERARIO_LINEA,
-    ROLES.RESPONSABLE_PRODUCCION,
-  )
-  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   findAll(
     @Query() query: LoteFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -80,21 +70,14 @@ export class LoteController {
   // Tiene que ir ANTES de @Get(':id'): si no, Nest interpreta "no-aptos"
   // como el parámetro :id y nunca llega acá.
   @Get('no-aptos')
-  @Roles(ROLES.RESPONSABLE_CALIDAD)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   findNoAptos(@CurrentEmpresa() tenant: TenantContext) {
     return this.loteService.findNoAptos(tenant);
   }
 
   // HU-68: selector de lotes de producción existentes para el frontend.
   @Get('producciones')
-  @Roles(
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   findLotesProduccion(@CurrentEmpresa() tenant: TenantContext) {
     return this.loteConsumoService.findLotesProduccion(tenant);
   }
@@ -104,13 +87,7 @@ export class LoteController {
   // motivo que 'no-aptos' y 'producciones' — si no, Nest interpreta
   // 'proveedor' como el :id.
   @Get('proveedor/:proveedorId/desvios')
-  @Roles(
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   getDesviosPorProveedor(
     @Param('proveedorId') proveedorId: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -119,13 +96,7 @@ export class LoteController {
   }
 
   @Get(':id')
-  @Roles(
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.loteService.findOne(+id, tenant);
   }
@@ -136,13 +107,7 @@ export class LoteController {
   // en roles.constants. Mientras tanto se habilita para los roles que ya
   // pueden leer lotes; ajustar cuando se confirme.
   @Get(':id/metricas-calidad')
-  @Roles(
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-    ROLES.OPERARIO_LINEA,
-  )
-  @Permissions([ModuloSistema.MONITOREO_ALERTAS], 'canRead')
+  @Permissions([ModuloSistema.MONITOREO_ALERTAS], PermissionAction.READ)
   getMetricasCalidad(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -154,8 +119,7 @@ export class LoteController {
   // inmutable, desde la recepción hasta el producto terminado. Solo
   // lectura agregada de tablas append-only, no se toca ningún dato.
   @Get(':id/trazabilidad')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   getTrazabilidad(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -168,10 +132,9 @@ export class LoteController {
   // explícitamente al Responsable de producción — se habilita el rol acá
   // junto con Responsable de calidad, que ya podía editar el lote.
   @Patch(':id')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
   @Permissions(
     [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
-    'canWrite',
+    PermissionAction.UPDATE,
   )
   @AuditLog('LOTE_ACTUALIZAR', 'Lote', TipoAccion.EDICION)
   update(
@@ -185,13 +148,7 @@ export class LoteController {
   // HU-34 AC1/AC3: asignación o cambio manual del destino productivo del
   // lote, independiente de aceptar/rechazar una recomendación ML (HU-49).
   @Patch(':id/destino-productivo')
-  @Roles(
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.UPDATE)
   @AuditLog('LOTE_DESTINO_ASIGNAR', 'Lote', TipoAccion.EDICION)
   asignarDestinoProductivo(
     @Param('id') id: string,
@@ -208,13 +165,7 @@ export class LoteController {
   // HU-34 AC2: historial unificado de cambios de destino productivo del
   // lote (asignaciones manuales + aceptaciones/rechazos de recomendaciones ML).
   @Get(':id/destino-productivo/historial')
-  @Roles(
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   getHistorialDestinoProductivo(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -223,10 +174,9 @@ export class LoteController {
   }
 
   @Patch(':id/finalizar')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
   @Permissions(
     [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
-    'canWrite',
+    PermissionAction.UPDATE,
   )
   @AuditLog('LOTE_FINALIZAR', 'Lote', TipoAccion.EDICION)
   finalizar(
@@ -239,10 +189,9 @@ export class LoteController {
 
   // HU-21 (AC7): historial de clasificaciones automáticas del lote.
   @Get(':id/clasificaciones')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Permissions(
     [ModuloSistema.MONITOREO_ALERTAS, ModuloSistema.TRAZABILIDAD],
-    'canRead',
+    PermissionAction.READ,
   )
   getHistorialClasificaciones(
     @Param('id') id: string,
@@ -253,8 +202,7 @@ export class LoteController {
 
   // HU-22: aprobación o rechazo manual de un lote No Apto.
   @Post(':id/revision')
-  @Roles(ROLES.RESPONSABLE_CALIDAD)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.CREATE)
   @AuditLog('LOTE_REVISAR', 'Lote', TipoAccion.EDICION)
   revisar(
     @Param('id') id: string,
@@ -269,8 +217,7 @@ export class LoteController {
   }
 
   @Get(':id/revisiones')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   getHistorialRevisiones(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -280,8 +227,7 @@ export class LoteController {
 
   // HU-24: comparación del lote contra el promedio histórico de la empresa.
   @Get(':id/comparacion-historica')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   compararConHistorico(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -291,8 +237,7 @@ export class LoteController {
 
   // HU-68: registrar consumo parcial de un lote de ingreso.
   @Post(':id/consumos')
-  @Roles(ROLES.RESPONSABLE_CALIDAD, ROLES.RESPONSABLE_PRODUCCION)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canWrite')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.CREATE)
   @AuditLog('LOTE_CONSUMO_REGISTRAR', 'LoteConsumo', TipoAccion.ALTA)
   registrarConsumo(
     @Param('id') id: string,
@@ -314,13 +259,7 @@ export class LoteController {
 
   // HU-68 (criterios 2 y 4): historial de consumos parciales de un lote de ingreso.
   @Get(':id/consumos')
-  @Roles(
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.GERENTE,
-    ROLES.ADMINISTRADOR,
-  )
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   getHistorialConsumos(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -331,8 +270,7 @@ export class LoteController {
   // HU-45: descarga del reporte de trazabilidad en PDF, para presentar
   // ante inspecciones del CAA/SENASA. Reutiliza los mismos datos de HU-32.
   @Get(':id/reporte-trazabilidad')
-  @Roles(ROLES.RESPONSABLE_CALIDAD)
-  @Permissions([ModuloSistema.TRAZABILIDAD], 'canRead')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   @AuditLog('LOTE_REPORTE_TRAZABILIDAD_GENERAR', 'Lote', TipoAccion.EXPORTACION)
   async getReporteTrazabilidad(
     @Param('id') id: string,
