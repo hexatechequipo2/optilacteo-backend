@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  BadRequestException,
   ForbiddenException,
   ConflictException,
   NotFoundException,
@@ -14,6 +15,9 @@ import { ConfigParametroResponseDto } from './dto/config-parametro-response.dto'
 import { AuditLogService } from '../audit/audit-log.service';
 import { TenantContext } from '../../common/types/tenant-context.type';
 import { ROLES } from '../rol/constants/roles.constants';
+import { ConfiguracionParametro } from './entities/config-parametro.entity';
+import { Parametro } from './enums/parametro.enum';
+import { RANGOS_FISICOS } from './validators/rangos-fisicos.constant';
 
 @Injectable()
 export class ConfigParametroService {
@@ -63,16 +67,26 @@ export class ConfigParametroService {
       );
     }
 
-    const umbralMin = dto.umbralMin ?? Number(config.umbralMin);
+    // HU-40: el PUT es parcial, así que la cadena completa se valida sobre
+    // lo que llega mezclado con lo guardado. Los validadores del DTO no
+    // alcanzan acá: RangoFisicoValidator necesita `parametro` (omitido en el
+    // Update DTO) y UmbralAlertaCoherenteValidator solo corre con los 4 valores.
+    const umbrales = {
+      umbralAlertaMin: dto.umbralAlertaMin ?? Number(config.umbralAlertaMin),
+      umbralMin: dto.umbralMin ?? Number(config.umbralMin),
+      umbralMax: dto.umbralMax ?? Number(config.umbralMax),
+      umbralAlertaMax: dto.umbralAlertaMax ?? Number(config.umbralAlertaMax),
+    };
 
-    const umbralMax = dto.umbralMax ?? Number(config.umbralMax);
-
-    if (umbralMin >= umbralMax) {
-      throw new ConflictException('umbralMin debe ser menor a umbralMax');
+    const errores = this.validarUmbrales(config.parametro, umbrales);
+    if (errores.length > 0) {
+      throw new BadRequestException(errores);
     }
 
-    config.umbralMin = umbralMin;
-    config.umbralMax = umbralMax;
+    config.umbralAlertaMin = umbrales.umbralAlertaMin;
+    config.umbralMin = umbrales.umbralMin;
+    config.umbralMax = umbrales.umbralMax;
+    config.umbralAlertaMax = umbrales.umbralAlertaMax;
 
     const updated = await this.repository.save(config);
 
@@ -99,6 +113,40 @@ export class ConfigParametroService {
     }
 
     return dtos;
+  }
+
+  // Mismos mensajes que RangoFisicoValidator, UmbralCoherenteValidator y
+  // UmbralAlertaCoherenteValidator, para que POST y PUT respondan igual.
+  private validarUmbrales(
+    parametro: Parametro,
+    umbrales: Pick<
+      ConfiguracionParametro,
+      'umbralAlertaMin' | 'umbralMin' | 'umbralMax' | 'umbralAlertaMax'
+    >,
+  ): string[] {
+    const errores: string[] = [];
+    const rango = RANGOS_FISICOS[parametro];
+
+    if (Object.values(umbrales).some((v) => v < rango.min || v > rango.max)) {
+      errores.push(
+        `El valor para ${parametro} debe estar entre ${rango.min} y ${rango.max}`,
+      );
+    }
+
+    if (umbrales.umbralMax <= umbrales.umbralMin) {
+      errores.push('umbralMax debe ser mayor a umbralMin');
+    }
+
+    if (
+      umbrales.umbralAlertaMin > umbrales.umbralMin ||
+      umbrales.umbralMax > umbrales.umbralAlertaMax
+    ) {
+      errores.push(
+        'umbralAlertaMin debe ser <= umbralMin y umbralAlertaMax debe ser >= umbralMax',
+      );
+    }
+
+    return errores;
   }
 
   private puedeVerAuditoria(tenant: TenantContext): boolean {
