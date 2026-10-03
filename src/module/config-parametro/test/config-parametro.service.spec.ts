@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -9,6 +10,8 @@ import { CONFIG_PARAMETRO_REPOSITORY } from '../repository/config-parametro.repo
 import { ConfigParametroMapper } from '../mappers/config-parametro.mapper';
 import { AuditLogService } from '../../audit/audit-log.service';
 import { ROLES } from '../../rol/constants/roles.constants';
+import { Parametro } from '../enums/parametro.enum';
+import { TipoMateriaPrima } from '../enums/tipo-materia-prima-enum';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -34,6 +37,32 @@ const mockRepository = {
 
 const mockAuditLogService = {
   getTrazabilidadBatch: jest.fn(),
+};
+
+// Para los casos que verifican el contrato de punta a punta (lo que se
+// persiste y lo que se devuelve) se usa el mapper real, una sola vez.
+const { ConfigParametroMapper: MapperReal } = jest.requireActual<{
+  ConfigParametroMapper: typeof ConfigParametroMapper;
+}>('../mappers/config-parametro.mapper');
+
+// pH (rango físico 0–14). Los decimales llegan de Postgres como string.
+const configGuardada = () => ({
+  id: 1,
+  empresaId: 1,
+  parametro: Parametro.PH,
+  tipoMateriaPrima: TipoMateriaPrima.LECHE_CRUDA,
+  umbralAlertaMin: '5.00',
+  umbralMin: '6.00',
+  umbralMax: '7.00',
+  umbralAlertaMax: '8.00',
+});
+
+const mensajesDeError = async (promesa: Promise<unknown>) => {
+  const error = await promesa.catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(BadRequestException);
+  return (error as BadRequestException).getResponse() as {
+    message: string[];
+  };
 };
 
 describe('ConfigParametroService', () => {
@@ -89,6 +118,44 @@ describe('ConfigParametroService', () => {
       expect(mockRepository.save).toHaveBeenCalledWith(entity);
       expect(resultado).toEqual(response);
     });
+
+    it('con los 4 umbrales, debe persistir las bandas de alerta y devolverlas en la respuesta', async () => {
+      mockRepository.findByParametroAndTipoMateriaPrima.mockResolvedValue(null);
+      (ConfigParametroMapper.toEntity as jest.Mock).mockImplementationOnce(
+        MapperReal.toEntity,
+      );
+      (ConfigParametroMapper.toResponse as jest.Mock).mockImplementationOnce(
+        MapperReal.toResponse,
+      );
+      mockRepository.save.mockImplementation((entity) =>
+        Promise.resolve({ ...entity, id: 10 }),
+      );
+
+      const resultado = await service.crear(1, {
+        parametro: Parametro.PH,
+        tipoMateriaPrima: TipoMateriaPrima.LECHE_CRUDA,
+        umbralAlertaMin: 6.2,
+        umbralMin: 6.5,
+        umbralMax: 6.8,
+        umbralAlertaMax: 7,
+      });
+
+      expect(mockRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          umbralAlertaMin: 6.2,
+          umbralMin: 6.5,
+          umbralMax: 6.8,
+          umbralAlertaMax: 7,
+        }),
+      );
+      expect(resultado).toMatchObject({
+        id: 10,
+        umbralAlertaMin: 6.2,
+        umbralMin: 6.5,
+        umbralMax: 6.8,
+        umbralAlertaMax: 7,
+      });
+    });
   });
 
   describe('editar', () => {
@@ -113,37 +180,114 @@ describe('ConfigParametroService', () => {
       );
     });
 
-    it('cuando umbralMin es mayor o igual a umbralMax, debe lanzar ConflictException', async () => {
-      mockRepository.findById.mockResolvedValue({
-        id: 1,
-        empresaId: 1,
-        umbralMin: 5,
-        umbralMax: 10,
-      });
+    it('cuando umbralMin es mayor o igual a umbralMax, debe lanzar BadRequestException sin guardar', async () => {
+      mockRepository.findById.mockResolvedValue(configGuardada());
 
-      await expect(
-        service.editar(1, 1, { umbralMin: 12 } as any),
-      ).rejects.toThrow(ConflictException);
+      const { message } = await mensajesDeError(
+        service.editar(1, 1, { umbralMin: 7 }),
+      );
+
+      expect(message).toEqual(['umbralMax debe ser mayor a umbralMin']);
+      expect(mockRepository.save).not.toHaveBeenCalled();
     });
 
-    it('cuando los datos son válidos, debe actualizar los umbrales y devolver la respuesta mapeada', async () => {
-      const config = { id: 1, empresaId: 1, umbralMin: 5, umbralMax: 10 };
-      mockRepository.findById.mockResolvedValue(config);
-      mockRepository.save.mockResolvedValue({
-        ...config,
-        umbralMin: 6,
-        umbralMax: 12,
-      });
-      const response = { id: 1, umbralMin: 6, umbralMax: 12 };
+    it('con un PUT parcial de min/max dentro de la banda guardada, debe actualizarlos y conservar las bandas', async () => {
+      mockRepository.findById.mockResolvedValue(configGuardada());
+      mockRepository.save.mockImplementation((c) => Promise.resolve(c));
+      const response = { id: 1 };
       (ConfigParametroMapper.toResponse as jest.Mock).mockReturnValue(response);
 
       const resultado = await service.editar(1, 1, {
-        umbralMin: 6,
-        umbralMax: 12,
+        umbralMin: 5.5,
+        umbralMax: 7.5,
       });
 
       expect(mockRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ umbralMin: 6, umbralMax: 12 }),
+        expect.objectContaining({
+          umbralAlertaMin: 5,
+          umbralMin: 5.5,
+          umbralMax: 7.5,
+          umbralAlertaMax: 8,
+        }),
+      );
+      expect(resultado).toEqual(response);
+    });
+
+    it('con un PUT parcial de min/max que sale de la banda guardada, debe lanzar BadRequestException', async () => {
+      mockRepository.findById.mockResolvedValue(configGuardada());
+
+      const { message } = await mensajesDeError(
+        service.editar(1, 1, { umbralMin: 4 }),
+      );
+
+      expect(message).toEqual([
+        'umbralAlertaMin debe ser <= umbralMin y umbralAlertaMax debe ser >= umbralMax',
+      ]);
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('con un PUT parcial solo de bandas, debe actualizarlas y conservar min/max', async () => {
+      mockRepository.findById.mockResolvedValue(configGuardada());
+      mockRepository.save.mockImplementation((c) => Promise.resolve(c));
+
+      await service.editar(1, 1, { umbralAlertaMin: 4, umbralAlertaMax: 9 });
+
+      expect(mockRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          umbralAlertaMin: 4,
+          umbralMin: 6,
+          umbralMax: 7,
+          umbralAlertaMax: 9,
+        }),
+      );
+    });
+
+    it('con un PUT parcial de bandas que invade el rango normal guardado, debe lanzar BadRequestException', async () => {
+      mockRepository.findById.mockResolvedValue(configGuardada());
+
+      const { message } = await mensajesDeError(
+        service.editar(1, 1, { umbralAlertaMax: 6.5 }),
+      );
+
+      expect(message).toEqual([
+        'umbralAlertaMin debe ser <= umbralMin y umbralAlertaMax debe ser >= umbralMax',
+      ]);
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('cuando un valor sale del rango físico del parámetro guardado, debe lanzar BadRequestException', async () => {
+      mockRepository.findById.mockResolvedValue(configGuardada());
+
+      const { message } = await mensajesDeError(
+        service.editar(1, 1, { umbralAlertaMax: 15 }),
+      );
+
+      expect(message).toEqual([
+        `El valor para ${Parametro.PH} debe estar entre 0 y 14`,
+      ]);
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('cuando la cadena completa es válida, debe guardar los 4 umbrales y devolver la respuesta mapeada', async () => {
+      mockRepository.findById.mockResolvedValue(configGuardada());
+      mockRepository.save.mockImplementation((c) => Promise.resolve(c));
+      const response = { id: 1 };
+      (ConfigParametroMapper.toResponse as jest.Mock).mockReturnValue(response);
+
+      const resultado = await service.editar(1, 1, {
+        umbralAlertaMin: 6,
+        umbralMin: 6,
+        umbralMax: 7,
+        umbralAlertaMax: 7,
+      });
+
+      expect(mockRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          umbralAlertaMin: 6,
+          umbralMin: 6,
+          umbralMax: 7,
+          umbralAlertaMax: 7,
+        }),
       );
       expect(resultado).toEqual(response);
     });
@@ -200,6 +344,27 @@ describe('ConfigParametroService', () => {
         { id: 1, auditoria: trazabilidadMap.get(1) },
         { id: 2, auditoria: undefined },
       ]);
+    });
+  });
+
+  describe('listarPorEmpresa (contrato)', () => {
+    it('debe devolver las bandas de alerta de cada configuración como number', async () => {
+      mockRepository.findByEmpresa.mockResolvedValue([configGuardada()]);
+      (ConfigParametroMapper.toResponse as jest.Mock).mockImplementationOnce(
+        MapperReal.toResponse,
+      );
+
+      const resultado = await service.listarPorEmpresa(1, {
+        empresaId: 1,
+        rolNombre: ROLES.OPERARIO_LINEA,
+      });
+
+      expect(resultado[0]).toMatchObject({
+        umbralAlertaMin: 5,
+        umbralMin: 6,
+        umbralMax: 7,
+        umbralAlertaMax: 8,
+      });
     });
   });
 
