@@ -6,6 +6,7 @@ import { Plan } from '../enums/plan.enum';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { StorageService } from '../../../common/storage/storage.service';
+import { PermisoService } from '../../permiso/permiso.service';
 
 const empresaA = {
   id: 1,
@@ -74,6 +75,10 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
         EmpresaService,
         { provide: EMPRESA_REPOSITORY, useValue: mockEmpresaRepository },
         { provide: StorageService, useValue: mockStorageService },
+        {
+          provide: PermisoService,
+          useValue: { otorgarPermisosAdministrativosPorDefecto: jest.fn() },
+        },
       ],
     }).compile();
 

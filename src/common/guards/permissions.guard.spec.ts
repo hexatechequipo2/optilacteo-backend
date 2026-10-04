@@ -1,137 +1,181 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PermissionsGuard } from './permissions.guard';
-import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
+import {
+  AuthenticatedOnly,
+  Permissions,
+} from '../decorators/permissions.decorator';
+import { Public } from '../../module/auth/decorators/public.decorator';
+import { PermissionAction } from '../enums/permission-action.enum';
+import { ModuloSistema } from '../../module/empresa/enums/modulo-sistema.enum';
+import { ModuloAdministrativo } from '../../module/permiso/enums/modulo-administrativo.enum';
+import type {
+  AccesoUsuario,
+  PermisoService,
+} from '../../module/permiso/permiso.service';
 
-function buildContext(user?: { rolNombre?: string; permisos?: any }) {
+class Rutas {
+  sinDecorar() {}
+
+  @Public()
+  publica() {}
+
+  @AuthenticatedOnly()
+  autenticada() {}
+
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.CREATE)
+  crearSensor() {}
+
+  @Permissions(
+    [ModuloSistema.DASHBOARD, ModuloSistema.MONITOREO_ALERTAS],
+    PermissionAction.READ,
+  )
+  verTablero() {}
+
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.UPDATE)
+  plataforma() {}
+}
+
+function contexto(handler: keyof Rutas, request: Record<string, unknown>) {
   return {
-    getHandler: () => ({}),
-    getClass: () => ({}),
-    switchToHttp: () => ({
-      getRequest: () => ({ user }),
-    }),
+    getHandler: () => Rutas.prototype[handler],
+    getClass: () => Rutas,
+    switchToHttp: () => ({ getRequest: () => request }),
   } as unknown as ExecutionContext;
 }
 
+function acceso(over: Partial<AccesoUsuario> = {}): AccesoUsuario {
+  return {
+    userId: 7,
+    rolId: 3,
+    rolNombre: 'Operario de línea',
+    empresaId: 1,
+    esSistema: false,
+    permisos: [],
+    ...over,
+  };
+}
+
+const permiso = (modulo: string, flags: Record<string, boolean>) =>
+  ({ modulo, ...flags }) as unknown as AccesoUsuario['permisos'][number];
+
 describe('PermissionsGuard', () => {
   let guard: PermissionsGuard;
-  let reflector: { get: jest.Mock };
+  let obtenerAcceso: jest.Mock;
 
   beforeEach(() => {
-    reflector = { get: jest.fn() };
-    guard = new PermissionsGuard(reflector as unknown as Reflector);
+    obtenerAcceso = jest.fn();
+    guard = new PermissionsGuard(new Reflector(), {
+      obtenerAcceso,
+    } as unknown as PermisoService);
   });
 
-  afterEach(() => jest.clearAllMocks());
+  describe('default-deny', () => {
+    it('rechaza un handler sin decorator aunque el usuario sea de sistema, sin consultar la BD', async () => {
+      obtenerAcceso.mockResolvedValue(acceso({ esSistema: true }));
 
-  function mockRequired(
-    required:
-      { modulo: string | string[]; action: 'canRead' | 'canWrite' } | undefined,
-  ) {
-    reflector.get.mockImplementation((key: string) => {
-      if (key === PERMISSIONS_KEY) return required;
-      return undefined;
+      await expect(
+        guard.canActivate(contexto('sinDecorar', { user: { sub: 1 } })),
+      ).rejects.toThrow('Recurso sin permiso configurado.');
+      expect(obtenerAcceso).not.toHaveBeenCalled();
     });
-  }
-
-  it('permite el acceso cuando el endpoint no tiene @Permissions()', () => {
-    // Arrange
-    mockRequired(undefined);
-
-    // Act
-    const resultado = guard.canActivate(
-      buildContext({ rolNombre: 'Operario', permisos: [] }),
-    );
-
-    // Assert
-    expect(resultado).toBe(true);
   });
 
-  it('lanza ForbiddenException cuando el usuario no tiene permisos asignados (undefined)', () => {
-    // Arrange
-    mockRequired({ modulo: 'empresas', action: 'canRead' });
+  describe('@Public y @AuthenticatedOnly', () => {
+    it('@Public pasa sin usuario', async () => {
+      await expect(guard.canActivate(contexto('publica', {}))).resolves.toBe(
+        true,
+      );
+      expect(obtenerAcceso).not.toHaveBeenCalled();
+    });
 
-    // Act & Assert
-    expect(() =>
-      guard.canActivate(
-        buildContext({ rolNombre: 'Operario', permisos: undefined }),
-      ),
-    ).toThrow(ForbiddenException);
+    it('@AuthenticatedOnly pasa con cualquier rol, sin consultar permisos', async () => {
+      await expect(
+        guard.canActivate(contexto('autenticada', { user: { sub: 7 } })),
+      ).resolves.toBe(true);
+      expect(obtenerAcceso).not.toHaveBeenCalled();
+    });
   });
 
-  it('lanza ForbiddenException cuando permisos no es un array', () => {
-    // Arrange
-    mockRequired({ modulo: 'empresas', action: 'canRead' });
+  describe('bypass de esSistema', () => {
+    it('el rol de sistema pasa sin tener filas de permiso, incluso en PLATAFORMA', async () => {
+      obtenerAcceso.mockResolvedValue(
+        acceso({ esSistema: true, permisos: [] }),
+      );
 
-    // Act & Assert
-    expect(() =>
-      guard.canActivate(
-        buildContext({
-          rolNombre: 'Operario',
-          permisos: { modulo: 'empresas', canRead: true } as any,
+      await expect(
+        guard.canActivate(contexto('plataforma', { user: { sub: 1 } })),
+      ).resolves.toBe(true);
+    });
+
+    it('un rol no de sistema no pasa PLATAFORMA', async () => {
+      obtenerAcceso.mockResolvedValue(
+        acceso({
+          permisos: [
+            permiso(ModuloAdministrativo.GESTION_ROLES, { canUpdate: true }),
+          ],
         }),
-      ),
-    ).toThrow(ForbiddenException);
+      );
+
+      await expect(
+        guard.canActivate(contexto('plataforma', { user: { sub: 7 } })),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
-  it('permite el acceso cuando el usuario tiene el permiso requerido sobre un único módulo', () => {
-    // Arrange
-    mockRequired({ modulo: 'empresas', action: 'canRead' });
-    const user = {
-      rolNombre: 'Administrador',
-      permisos: [{ modulo: 'empresas', canRead: true, canWrite: false }],
-    };
+  describe('@Permissions', () => {
+    it('pasa con la acción pedida en el módulo y deja el acceso en request.acceso', async () => {
+      const a = acceso({
+        permisos: [permiso(ModuloSistema.SENSORES_IOT, { canCreate: true })],
+      });
+      obtenerAcceso.mockResolvedValue(a);
+      const request: Record<string, unknown> = { user: { sub: 7 } };
 
-    // Act
-    const resultado = guard.canActivate(buildContext(user));
+      await expect(
+        guard.canActivate(contexto('crearSensor', request)),
+      ).resolves.toBe(true);
+      expect(obtenerAcceso).toHaveBeenCalledWith(7);
+      expect(request.acceso).toBe(a);
+    });
 
-    // Assert
-    expect(resultado).toBe(true);
-  });
+    it('rechaza si tiene el módulo pero no la acción', async () => {
+      obtenerAcceso.mockResolvedValue(
+        acceso({
+          permisos: [permiso(ModuloSistema.SENSORES_IOT, { canRead: true })],
+        }),
+      );
 
-  it('lanza ForbiddenException cuando el usuario tiene el módulo pero no la acción requerida', () => {
-    // Arrange: tiene canRead pero se exige canWrite
-    mockRequired({ modulo: 'empresas', action: 'canWrite' });
-    const user = {
-      rolNombre: 'Operario',
-      permisos: [{ modulo: 'empresas', canRead: true, canWrite: false }],
-    };
+      await expect(
+        guard.canActivate(contexto('crearSensor', { user: { sub: 7 } })),
+      ).rejects.toThrow('No tiene permiso canCreate en: sensores_iot.');
+    });
 
-    // Act & Assert
-    expect(() => guard.canActivate(buildContext(user))).toThrow(
-      ForbiddenException,
-    );
-  });
+    it('con varios módulos alcanza con uno', async () => {
+      obtenerAcceso.mockResolvedValue(
+        acceso({
+          permisos: [
+            permiso(ModuloSistema.MONITOREO_ALERTAS, { canRead: true }),
+          ],
+        }),
+      );
 
-  it('permite el acceso cuando el usuario tiene permiso en al menos uno de varios módulos permitidos', () => {
-    // Arrange
-    mockRequired({ modulo: ['empresas', 'usuarios'], action: 'canWrite' });
-    const user = {
-      rolNombre: 'Administrador',
-      permisos: [
-        { modulo: 'empresas', canRead: true, canWrite: false },
-        { modulo: 'usuarios', canRead: true, canWrite: true },
-      ],
-    };
+      await expect(
+        guard.canActivate(contexto('verTablero', { user: { sub: 7 } })),
+      ).resolves.toBe(true);
+    });
 
-    // Act
-    const resultado = guard.canActivate(buildContext(user));
+    it('rechaza si el usuario no tiene rol activo', async () => {
+      obtenerAcceso.mockResolvedValue(null);
 
-    // Assert
-    expect(resultado).toBe(true);
-  });
+      await expect(
+        guard.canActivate(contexto('crearSensor', { user: { sub: 7 } })),
+      ).rejects.toThrow('El usuario no tiene un rol activo asignado.');
+    });
 
-  it('lanza ForbiddenException con el rol y los módulos involucrados cuando no tiene permiso en ninguno', () => {
-    // Arrange
-    mockRequired({ modulo: ['empresas', 'usuarios'], action: 'canWrite' });
-    const user = {
-      rolNombre: 'Operario',
-      permisos: [{ modulo: 'alertas', canRead: true, canWrite: true }],
-    };
-
-    // Act & Assert
-    expect(() => guard.canActivate(buildContext(user))).toThrow(
-      'El rol Operario no tiene permiso canWrite en ninguno de los módulos: empresas, usuarios.',
-    );
+    it('rechaza si no hay usuario identificado', async () => {
+      await expect(
+        guard.canActivate(contexto('crearSensor', {})),
+      ).rejects.toThrow('Usuario no identificado.');
+    });
   });
 });

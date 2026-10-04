@@ -4,6 +4,8 @@ export enum ModuloAdministrativo {
   GESTION_ROLES = 'gestion_roles',
   GESTION_USUARIOS = 'gestion_usuarios',
   AUDITORIA = 'auditoria',
+  // Identidad y logo de la propia empresa (HU-12).
+  CONFIGURACION_EMPRESA = 'configuracion_empresa',
   // Solo el rol esSistema (Administrador) accede. Ninguna empresa puede otorgarlo.
   PLATAFORMA = 'plataforma',
 }
@@ -23,4 +25,5 @@ export const MODULOS_ADMIN_OTORGABLES: ModuloAdministrativo[] = [
   ModuloAdministrativo.GESTION_ROLES,
   ModuloAdministrativo.GESTION_USUARIOS,
   ModuloAdministrativo.AUDITORIA,
+  ModuloAdministrativo.CONFIGURACION_EMPRESA,
 ];

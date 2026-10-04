@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
+import { PermisoService } from '../../permiso/permiso.service';
 import { LoginDto } from '../dto/login.dto';
 import type { AuthenticatedRequest } from '../guards/jwt-auth.guard';
 import { ROLES } from '../../rol/constants/roles.constants';
@@ -25,6 +26,7 @@ describe('AuthController', () => {
     logout: jest.Mock;
     refresh: jest.Mock;
   };
+  let mockPermisoService: { obtenerMisPermisos: jest.Mock };
 
   beforeEach(async () => {
     mockAuthService = {
@@ -32,10 +34,14 @@ describe('AuthController', () => {
       logout: jest.fn(),
       refresh: jest.fn(),
     };
+    mockPermisoService = { obtenerMisPermisos: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: mockAuthService }],
+      providers: [
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: PermisoService, useValue: mockPermisoService },
+      ],
     })
       .overrideGuard(ThrottlerGuard)
       .useValue({ canActivate: () => true })
@@ -173,6 +179,23 @@ describe('AuthController', () => {
       await expect(
         controller.refresh({ refresh_token: 'invalido' }),
       ).rejects.toThrow('Refresh token inválido');
+    });
+  });
+
+  describe('GET /auth/me/permisos', () => {
+    it('deberia delegar en PermisoService con el id del usuario autenticado', async () => {
+      const respuesta = {
+        esSistema: false,
+        rolNombre: 'Gerente',
+        permisos: [],
+      };
+      mockPermisoService.obtenerMisPermisos.mockResolvedValue(respuesta);
+      const request = { user: { sub: 12 } } as AuthenticatedRequest;
+
+      const result = await controller.misPermisos(request);
+
+      expect(mockPermisoService.obtenerMisPermisos).toHaveBeenCalledWith(12);
+      expect(result).toBe(respuesta);
     });
   });
 });

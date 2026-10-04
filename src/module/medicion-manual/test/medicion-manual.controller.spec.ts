@@ -4,10 +4,9 @@ import { MedicionManualService } from '../medicion-manual.service';
 import { CreateMedicionManualLoteDto } from '../dto/create-medicion-manual-lote.dto';
 import { HistorialMedicionManualFilterQueryDto } from '../dto/historial-medicion-manual-filter-query.dto';
 import { TenantContext } from '../../../common/types/tenant-context.type';
-import { ROLES } from '../../rol/constants/roles.constants';
 import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
-import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { PERMISSIONS_KEY } from '../../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../../common/enums/permission-action.enum';
 import { AUDIT_KEY } from '../../audit/decorators/audit-log.decorator';
 
 /* eslint-disable @typescript-eslint/unbound-method */
@@ -80,19 +79,13 @@ describe('MedicionManualController', () => {
     });
 
     it('debe tener configurados los decoradores de seguridad y auditoría requeridos', () => {
-      const roles = Reflect.getMetadata(
-        ROLES_KEY,
-        MedicionManualController.prototype.registrar,
-      );
-      expect(roles).toEqual([ROLES.OPERARIO_LINEA]);
-
       const permissions = Reflect.getMetadata(
         PERMISSIONS_KEY,
         MedicionManualController.prototype.registrar,
       );
       expect(permissions).toEqual({
         modulo: [ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS],
-        action: 'canWrite',
+        action: PermissionAction.CREATE,
       });
 
       // Auditoría (Corregido: 'entidad' en lugar de 'recurso')
@@ -100,7 +93,7 @@ describe('MedicionManualController', () => {
         AUDIT_KEY,
         MedicionManualController.prototype.registrar,
       );
-      expect(auditLog).toEqual({
+      expect(auditLog).toMatchObject({
         accion: 'MEDICION_MANUAL_LOTE_REGISTRAR',
         entidad: 'MedicionManualLote',
       });
@@ -133,17 +126,6 @@ describe('MedicionManualController', () => {
     });
 
     it('debe tener configurados los decoradores de roles y permisos requeridos', () => {
-      const roles = Reflect.getMetadata(
-        ROLES_KEY,
-        MedicionManualController.prototype.historial,
-      );
-      expect(roles).toEqual([
-        ROLES.OPERARIO_LINEA,
-        ROLES.RESPONSABLE_PRODUCCION,
-        ROLES.GERENTE,
-        ROLES.ADMINISTRADOR,
-      ]);
-
       const permissions = Reflect.getMetadata(
         PERMISSIONS_KEY,
         MedicionManualController.prototype.historial,

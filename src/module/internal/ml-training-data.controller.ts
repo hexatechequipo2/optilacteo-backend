@@ -9,7 +9,7 @@ export class MlTrainingDataController {
     private readonly mlTrainingDataService: MlTrainingDataService,
   ) {}
 
-  // @Public() es obligatorio acá: auth.module.ts registra JwtAuthGuard como
+  // @Public() es obligatorio acá: app.module.ts registra JwtAuthGuard como
   // APP_GUARD global, y el microservicio Python no manda JWT. El guard de
   // API key de abajo es la autenticación real de este endpoint.
   @Get('lotes')

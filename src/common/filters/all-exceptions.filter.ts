@@ -24,7 +24,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // Enmascarar Forbidden (403) a Not Found (404) para evitar Information Disclosure
       // Esto previene que un atacante identifique la existencia de recursos ajenos.
       if (status === HttpStatus.FORBIDDEN) {
-        // Si el mensaje viene del PermissionsGuard o RolesGuard, devolvemos 403 explícito
+        // Si el mensaje viene del PermissionsGuard, devolvemos 403 explícito
         const exceptionMessage =
           typeof exceptionResponse === 'string'
             ? exceptionResponse

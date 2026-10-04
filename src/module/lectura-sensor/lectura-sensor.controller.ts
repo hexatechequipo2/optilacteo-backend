@@ -27,11 +27,11 @@ import { PermissionAction } from '../../common/enums/permission-action.enum';
 export class LecturaSensorController {
   constructor(private readonly lecturaSensorService: LecturaSensorService) {}
 
-  // HU-13: ingesta de lecturas IoT vía API de PLC. Sin @Roles()/@Permissions():
-  // lo llama una cuenta de servicio autenticada (simulador/PLC), no un usuario
-  // con un rol de negocio específico. Los guards de clase no bloquean acá
-  // porque ambos son no-op sin metadata (ver RolesGuard/PermissionsGuard).
+  // HU-13: ingesta de lecturas IoT vía API de PLC. La llama una cuenta de
+  // servicio (simulador/PLC) que se autentica con JWT; su rol necesita
+  // sensores_iot CREATE (o ser de sistema).
   @Post('lecturas')
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.CREATE)
   ingresar(
     @Body() dto: IngresarLecturaDto,
     @CurrentEmpresa() tenant: TenantContext,

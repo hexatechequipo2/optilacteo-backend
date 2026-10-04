@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DestinoProductivoController } from '../destino-productivo.controller';
 import { DestinoProductivoService } from '../destino-productivo.service';
 import { CreateDestinoProductivoDto } from '../dto/create-destino-productivo.dto';
-import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { ROLES } from '../../rol/constants/roles.constants';
@@ -31,8 +30,6 @@ describe('DestinoProductivoController — gestión de destinos productivos (HU-4
         },
       ],
     })
-      .overrideGuard(RolesGuard)
-      .useValue({ canActivate: () => true })
       .overrideGuard(PermissionsGuard)
       .useValue({ canActivate: () => true })
       .compile();

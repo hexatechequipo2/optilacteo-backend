@@ -16,14 +16,18 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
+import {
+  AuthenticatedOnly,
+  Permissions,
+} from '../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { EmpresaService } from './empresa.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { UpdateIdentidadEmpresaDto } from './dto/update-identidad-empresa.dto';
 import { ToggleModuloDto } from './dto/toggle-modulo.dto';
-import { ROLES } from '../rol/constants/roles.constants';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { EmpresaFilterQueryDto } from './dto/empresa-filter-query.dto';
@@ -36,25 +40,29 @@ export class EmpresaController {
   constructor(private readonly empresaService: EmpresaService) {}
 
   @Post()
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.CREATE)
   @AuditLog('EMPRESA_CREAR', 'Empresa', TipoAccion.ALTA)
   create(@Body() createEmpresaDto: CreateEmpresaDto) {
     return this.empresaService.create(createEmpresaDto);
   }
 
   @Get()
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.READ)
   findAll(@Query() query: EmpresaFilterQueryDto) {
     return this.empresaService.findAll(query);
   }
 
   @Get('me')
+  @AuthenticatedOnly()
   findMine(@CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.findMine(tenant);
   }
 
   @Patch('me/identidad')
-  @Roles(ROLES.GERENTE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.UPDATE,
+  )
   @AuditLog('EMPRESA_IDENTIDAD_ACTUALIZAR', 'Empresa', TipoAccion.EDICION)
   updateIdentidad(
     @Body() dto: UpdateIdentidadEmpresaDto,
@@ -64,7 +72,10 @@ export class EmpresaController {
   }
 
   @Post('me/logo')
-  @Roles(ROLES.GERENTE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.UPDATE,
+  )
   @AuditLog('EMPRESA_LOGO_SUBIR', 'Empresa', TipoAccion.EDICION)
   @UseInterceptors(FileInterceptor('logo', multerLogoOptions))
   @ApiConsumes('multipart/form-data')
@@ -91,22 +102,25 @@ export class EmpresaController {
     return this.empresaService.uploadLogo(file, tenant);
   }
 
-  // HU-12: eliminar logo — solo Gerente.
+  // HU-12: eliminar logo.
   @Delete('me/logo')
-  @Roles(ROLES.GERENTE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.UPDATE,
+  )
   @AuditLog('EMPRESA_LOGO_ELIMINAR', 'Empresa', TipoAccion.EDICION)
   deleteLogo(@CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.deleteLogo(tenant);
   }
 
   @Get(':id')
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.READ)
   findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.findOne(+id, tenant);
   }
 
   @Patch(':id')
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.UPDATE)
   @AuditLog('EMPRESA_ACTUALIZAR', 'Empresa', TipoAccion.EDICION)
   update(
     @Param('id') id: string,
@@ -117,21 +131,21 @@ export class EmpresaController {
   }
 
   @Patch(':id/activar')
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.UPDATE)
   @AuditLog('EMPRESA_ACTIVAR', 'Empresa', TipoAccion.ALTA)
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.activate(+id, tenant);
   }
 
   @Patch(':id/desactivar')
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.UPDATE)
   @AuditLog('EMPRESA_DESACTIVAR', 'Empresa', TipoAccion.BAJA)
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.deactivate(+id, tenant);
   }
 
   @Patch(':id/modulos/activar')
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.UPDATE)
   @AuditLog('MODULO_ACTIVAR', 'Empresa', TipoAccion.CONFIGURACION)
   activarModulo(
     @Param('id') id: string,
@@ -142,7 +156,7 @@ export class EmpresaController {
   }
 
   @Patch(':id/modulos/desactivar')
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.UPDATE)
   @AuditLog('MODULO_DESACTIVAR', 'Empresa', TipoAccion.CONFIGURACION)
   desactivarModulo(
     @Param('id') id: string,
@@ -153,7 +167,7 @@ export class EmpresaController {
   }
 
   @Delete(':id')
-  @Roles(ROLES.ADMINISTRADOR)
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.DELETE)
   @AuditLog('EMPRESA_ELIMINAR', 'Empresa', TipoAccion.BAJA)
   remove(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.empresaService.remove(+id, tenant);

@@ -23,6 +23,7 @@ import {
 } from '../../common/dto/paginated-response.dto';
 import { EmpresaFilterQueryDto } from './dto/empresa-filter-query.dto';
 import { StorageService } from '../../common/storage/storage.service';
+import { PermisoService } from '../permiso/permiso.service';
 
 const PLAN_NOMBRES: Record<Plan, string> = {
   [Plan.STARTER]: 'Starter',
@@ -47,6 +48,7 @@ export class EmpresaService {
     @Inject(EMPRESA_REPOSITORY)
     private readonly empresaRepository: IEmpresaRepository,
     private readonly storageService: StorageService,
+    private readonly permisoService: PermisoService,
   ) {}
 
   async create(dto: CreateEmpresaDto) {
@@ -67,6 +69,9 @@ export class EmpresaService {
         isActive: true,
         empresa: created,
       })),
+    );
+    await this.permisoService.otorgarPermisosAdministrativosPorDefecto(
+      created.id,
     );
 
     const empresaConModulos = await this.empresaRepository.findById(created.id);

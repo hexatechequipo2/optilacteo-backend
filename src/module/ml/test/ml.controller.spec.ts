@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MlController } from '../ml.controller';
 import { MlService } from '../ml.service';
 import { ResponderRecomendacionDto } from '../dto/responder-recomendacion.dto';
-import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { ROLES } from '../../rol/constants/roles.constants';
@@ -40,8 +39,6 @@ describe('MlController — gestión de recomendaciones de IA (HU-49 / HU-37)', (
         },
       ],
     })
-      .overrideGuard(RolesGuard)
-      .useValue({ canActivate: () => true })
       .overrideGuard(PermissionsGuard)
       .useValue({ canActivate: () => true })
       .compile();

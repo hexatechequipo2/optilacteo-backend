@@ -25,7 +25,10 @@ import { NotificacionesService } from './notificaciones.service';
 
 import { NotificacionFilterQueryDto } from './dto/notificacion-filter-query.dto';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
-import { Permissions } from '../../common/decorators/permissions.decorator';
+import {
+  AuthenticatedOnly,
+  Permissions,
+} from '../../common/decorators/permissions.decorator';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
@@ -53,6 +56,7 @@ export class NotificacionesController {
   ) {}
 
   @Get()
+  @AuthenticatedOnly()
   findMine(
     @Query() query: NotificacionFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -66,6 +70,7 @@ export class NotificacionesController {
   }
 
   @Patch(':id/leida')
+  @AuthenticatedOnly()
   marcarLeida(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -79,6 +84,7 @@ export class NotificacionesController {
   }
 
   @Get('no-leidas/count')
+  @AuthenticatedOnly()
   contarNoLeidas(@CurrentEmpresa() tenant: TenantContext, @Req() req: any) {
     return this.notificacionesService.contarNoLeidas(
       req.user.sub,
