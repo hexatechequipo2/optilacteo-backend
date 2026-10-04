@@ -13,6 +13,7 @@ import { DETALLE_POR_PLAN } from '../config/plan-detalles.config';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { StorageService } from '../../../common/storage/storage.service';
+import { PermisoService } from '../../permiso/permiso.service';
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
 // HU-10 (aislamiento multi-tenant vía assertOwnEmpresa/404) ya está cubierta
@@ -40,6 +41,9 @@ const empresaBase = {
 
 describe('EmpresaService', () => {
   let service: EmpresaService;
+  let mockPermisoService: {
+    otorgarPermisosAdministrativosPorDefecto: jest.Mock;
+  };
   let mockEmpresaRepository: {
     findById: jest.Mock;
     findByCuit: jest.Mock;
@@ -71,6 +75,9 @@ describe('EmpresaService', () => {
       syncModulos: jest.fn(),
     };
 
+    mockPermisoService = {
+      otorgarPermisosAdministrativosPorDefecto: jest.fn(),
+    };
     const mockStorageService = {
       upload: jest.fn(),
       delete: jest.fn().mockResolvedValue(undefined),
@@ -84,6 +91,7 @@ describe('EmpresaService', () => {
         EmpresaService,
         { provide: EMPRESA_REPOSITORY, useValue: mockEmpresaRepository },
         { provide: StorageService, useValue: mockStorageService },
+        { provide: PermisoService, useValue: mockPermisoService },
       ],
     }).compile();
 
@@ -170,6 +178,23 @@ describe('EmpresaService', () => {
           expect.objectContaining({ modulo, isActive: true }),
         ),
       );
+    });
+
+    it('deberia otorgar los permisos administrativos por defecto a la empresa nueva (HU-72)', async () => {
+      const empresaCreada = { ...empresaBase, id: 9 };
+      mockEmpresaRepository.createEmpresa.mockResolvedValue(empresaCreada);
+      mockEmpresaRepository.createModulos.mockResolvedValue([]);
+      mockEmpresaRepository.findById.mockResolvedValue(empresaCreada);
+
+      await service.create({
+        name: 'Nueva',
+        cuit: '30-11111111-1',
+        plan: Plan.STARTER,
+      });
+
+      expect(
+        mockPermisoService.otorgarPermisosAdministrativosPorDefecto,
+      ).toHaveBeenCalledWith(9);
     });
 
     it('deberia rechazar el alta con ConflictException si el CUIT ya esta registrado por otra empresa', async () => {

@@ -1,4 +1,6 @@
 import { PermisoModulo } from '../entities/permiso-modulo.entity';
+import type { AccesoUsuario } from '../permiso.service';
+import type { MisPermisosResponseDto } from '../dto/mis-permisos-response.dto';
 
 export class PermisoMapper {
   static toResponse(permiso: PermisoModulo) {
@@ -29,5 +31,13 @@ export class PermisoMapper {
       canDelete: p.canDelete,
       canExport: p.canExport,
     }));
+  }
+
+  static toMisPermisosResponse(acceso: AccesoUsuario): MisPermisosResponseDto {
+    return {
+      esSistema: acceso.esSistema,
+      rolNombre: acceso.rolNombre,
+      permisos: this.toUserPermisoResponse(acceso.permisos),
+    };
   }
 }

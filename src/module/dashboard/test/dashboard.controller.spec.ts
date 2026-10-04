@@ -5,8 +5,8 @@ import { Reflector } from '@nestjs/core';
 import { DashboardController } from '../dashboard.controller';
 import { DashboardService } from '../dashboard.service';
 import { GranularidadHistorico } from '../dto/dashboard-historico.dto';
-import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
+import type { PermisoService } from '../../permiso/permiso.service';
 import { ROLES } from '../../rol/constants/roles.constants';
 import { PERMISOS_POR_ROL } from '../../rol/config/roles-permisos.config';
 import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
@@ -213,17 +213,31 @@ describe('DashboardController', () => {
     });
   });
 
-  describe('getSemaforoLote — acceso por rol (HU-40)', () => {
+  describe('getSemaforoLote — acceso por permisos (HU-40)', () => {
     const reflector = new Reflector();
-    const rolesGuard = new RolesGuard(reflector);
-    const permissionsGuard = new PermissionsGuard(reflector);
+    const obtenerAcceso = jest.fn();
+    const permissionsGuard = new PermissionsGuard(reflector, {
+      obtenerAcceso,
+    } as unknown as PermisoService);
 
-    function buildContext(user: { rolNombre: string; permisos: unknown[] }) {
+    function buildContext() {
       return {
+        // eslint-disable-next-line @typescript-eslint/unbound-method
         getHandler: () => DashboardController.prototype.getSemaforoLote,
         getClass: () => DashboardController,
-        switchToHttp: () => ({ getRequest: () => ({ user }) }),
+        switchToHttp: () => ({ getRequest: () => ({ user: { sub: 7 } }) }),
       } as unknown as ExecutionContext;
+    }
+
+    function acceso(permisos: unknown[]) {
+      return {
+        userId: 7,
+        rolId: 3,
+        rolNombre: 'Operario de línea',
+        empresaId: 1,
+        esSistema: false,
+        permisos,
+      };
     }
 
     it('Operario de línea no tiene DASHBOARD en su config de roles', () => {
@@ -233,27 +247,24 @@ describe('DashboardController', () => {
       expect(modulos).not.toContain(ModuloSistema.DASHBOARD);
     });
 
-    it('permite el acceso a Operario de línea vía MONITOREO_ALERTAS', () => {
-      const context = buildContext({
-        rolNombre: ROLES.OPERARIO_LINEA,
-        permisos: PERMISOS_POR_ROL[ROLES.OPERARIO_LINEA],
-      });
+    it('permite el acceso con READ en MONITOREO_ALERTAS', async () => {
+      obtenerAcceso.mockResolvedValue(
+        acceso([{ modulo: ModuloSistema.MONITOREO_ALERTAS, canRead: true }]),
+      );
 
-      expect(rolesGuard.canActivate(context)).toBe(true);
-      expect(permissionsGuard.canActivate(context)).toBe(true);
+      await expect(permissionsGuard.canActivate(buildContext())).resolves.toBe(
+        true,
+      );
     });
 
-    it('rechaza a un rol permitido que no tiene DASHBOARD ni MONITOREO_ALERTAS', () => {
-      const context = buildContext({
-        rolNombre: ROLES.OPERARIO_LINEA,
-        permisos: [
-          { modulo: ModuloSistema.RECEPCION, canRead: true, canWrite: false },
-        ],
-      });
-
-      expect(() => permissionsGuard.canActivate(context)).toThrow(
-        ForbiddenException,
+    it('rechaza a un rol que no tiene DASHBOARD ni MONITOREO_ALERTAS', async () => {
+      obtenerAcceso.mockResolvedValue(
+        acceso([{ modulo: ModuloSistema.RECEPCION, canRead: true }]),
       );
+
+      await expect(
+        permissionsGuard.canActivate(buildContext()),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

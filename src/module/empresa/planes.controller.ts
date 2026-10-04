@@ -1,8 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import { EmpresaService } from './empresa.service';
-import { ROLES } from '../rol/constants/roles.constants';
 
 @ApiTags('planes')
 @ApiBearerAuth()
@@ -10,8 +11,8 @@ import { ROLES } from '../rol/constants/roles.constants';
 export class PlanesController {
   constructor(private readonly empresaService: EmpresaService) {}
 
-  @Roles(ROLES.ADMINISTRADOR)
   @Get()
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.READ)
   findAll() {
     return this.empresaService.getResumenPlanes();
   }

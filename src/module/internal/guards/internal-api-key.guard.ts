@@ -10,7 +10,7 @@ import { Request } from 'express';
 // Autenticación servicio-a-servicio para el microservicio ML: no hay usuario
 // ni JWT de por medio, solo una API key compartida vía header. Se usa junto
 // con @Public() en el controller para saltar el JwtAuthGuard global (ver
-// auth.module.ts), que de otro modo rechazaría estas requests antes de
+// app.module.ts), que de otro modo rechazaría estas requests antes de
 // llegar acá.
 @Injectable()
 export class InternalApiKeyGuard implements CanActivate {

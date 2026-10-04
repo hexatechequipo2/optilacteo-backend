@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -17,17 +18,23 @@ import {
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
+import { AuthenticatedOnly } from '../../common/decorators/permissions.decorator';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import type { AuthenticatedRequest } from './guards/jwt-auth.guard';
+import { PermisoService } from '../permiso/permiso.service';
+import { MisPermisosResponseDto } from '../permiso/dto/mis-permisos-response.dto';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('auth')
 @Controller()
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly permisoService: PermisoService,
+  ) {}
 
   @Post('login')
   @Public()
@@ -56,6 +63,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @AuthenticatedOnly()
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @AuditLog('LOGOUT', 'Sesion', TipoAccion.LOGOUT)
@@ -92,5 +100,23 @@ export class AuthController {
   })
   refresh(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refresh(refreshTokenDto.refresh_token);
+  }
+
+  @Get('auth/me/permisos')
+  @AuthenticatedOnly()
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Rol y permisos vigentes del usuario autenticado (leídos de la BD, no del JWT)',
+  })
+  @ApiResponse({ status: 200, type: MisPermisosResponseDto })
+  @ApiResponse({
+    status: 403,
+    description: 'El usuario no tiene un rol activo asignado.',
+  })
+  misPermisos(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<MisPermisosResponseDto> {
+    return this.permisoService.obtenerMisPermisos(request.user!.sub);
   }
 }
