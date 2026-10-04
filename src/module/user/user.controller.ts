@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Req } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -12,6 +12,11 @@ import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { UserFilterQueryDto } from './dto/user-filter-query.dto';
 import { Query } from '@nestjs/common';
+import {
+  ConEmpresaObjetivo,
+  EmpresaObjetivo,
+} from '../../common/tenant/empresa-objetivo';
+import { registrarCambiosAuditoria } from '../audit/decorators/audit-log.decorator';
 
 @ApiTags('user')
 @ApiBearerAuth()
@@ -19,11 +24,31 @@ import { Query } from '@nestjs/common';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  // HU-72 criterio 5: empresaId (body o query) elige la empresa solo para el Administrador.
   @Post()
   @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.CREATE)
-  @AuditLog('USUARIO_CREAR', 'Usuario', TipoAccion.ALTA)
-  create(@Body() dto: CreateUserDto, @CurrentEmpresa() tenant: TenantContext) {
-    return this.userService.create(dto, tenant);
+  @ConEmpresaObjetivo()
+  @AuditLog('USUARIO_CREAR', 'Usuario', TipoAccion.ALTA, (ctx) => {
+    const b = ctx.responseBody as
+      | { email?: string; rolNombre?: string; empresa?: { id?: number } }
+      | undefined;
+    return `Alta de usuario ${b?.email} con rol ${b?.rolNombre} en empresa #${b?.empresa?.id}`;
+  })
+  async create(
+    @Body() dto: CreateUserDto,
+    @EmpresaObjetivo() empresaId: number,
+    @Req() req: object,
+  ) {
+    const usuario = await this.userService.create(dto, empresaId);
+    registrarCambiosAuditoria(req, {
+      antes: null,
+      despues: {
+        rolId: usuario.rolId,
+        rolNombre: usuario.rolNombre,
+        empresaId: usuario.empresa?.id ?? null,
+      },
+    });
+    return usuario;
   }
 
   @Get()
@@ -43,13 +68,21 @@ export class UserController {
 
   @Patch(':id')
   @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.UPDATE)
+  @ConEmpresaObjetivo()
   @AuditLog('USUARIO_ACTUALIZAR', 'Usuario', TipoAccion.EDICION)
-  update(
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @CurrentEmpresa() tenant: TenantContext,
+    @EmpresaObjetivo() empresaId: number,
+    @Req() req: object,
   ) {
-    return this.userService.update(+id, dto, tenant);
+    const { usuario, cambios } = await this.userService.update(
+      +id,
+      dto,
+      empresaId,
+    );
+    registrarCambiosAuditoria(req, cambios);
+    return usuario;
   }
 
   @Patch(':id/activar')

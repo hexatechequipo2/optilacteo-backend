@@ -10,7 +10,9 @@ import { Reflector } from '@nestjs/core';
 import { Observable, tap, catchError, throwError } from 'rxjs';
 
 import {
+  AUDIT_CAMBIOS_KEY,
   AUDIT_KEY,
+  AuditCambios,
   AuditDescripcionContext,
   AuditMetadata,
 } from '../decorators/audit-log.decorator';
@@ -162,7 +164,14 @@ export class AuditInterceptor implements NestInterceptor {
       responseUser?.rolNombre ??
       null;
 
+    // Empresa afectada: la que resolvió EmpresaObjetivoGuard (el Administrador
+    // no tiene empresa propia); si no hubo, la del usuario.
+    const extra = request as unknown as {
+      empresaObjetivoId?: number;
+      [AUDIT_CAMBIOS_KEY]?: AuditCambios;
+    };
     const empresaId =
+      extra.empresaObjetivoId ??
       requestUser?.empresaId ??
       responseUser?.empresaId ??
       null;
@@ -218,6 +227,9 @@ export class AuditInterceptor implements NestInterceptor {
       detalle: {
         status,
         data: detalleData,
+        ...(status === 'SUCCESS' && extra[AUDIT_CAMBIOS_KEY]
+          ? { cambios: extra[AUDIT_CAMBIOS_KEY] }
+          : {}),
       },
     });
   }

@@ -11,6 +11,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import type { App } from 'supertest/types';
 import { PermissionsGuard } from './permissions.guard';
 import { PermissionAction } from '../enums/permission-action.enum';
@@ -367,6 +368,13 @@ describe('Permisos de los endpoints que el default-deny dejó en 403 (HU-72)', (
           LecturaSensorService,
         ].map((provide) => ({ provide, useValue: servicioMock() })),
         { provide: PermisoService, useValue: permisoService },
+        // EmpresaObjetivoGuard (POST/PATCH /user): todas las empresas existen.
+        {
+          provide: DataSource,
+          useValue: {
+            getRepository: () => ({ existsBy: () => Promise.resolve(true) }),
+          },
+        },
         { provide: APP_GUARD, useClass: FakeJwtGuard },
         { provide: APP_GUARD, useClass: PermissionsGuard },
       ],

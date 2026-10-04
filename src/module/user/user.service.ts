@@ -3,7 +3,6 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
   Inject,
   ConflictException,
 } from '@nestjs/common';
@@ -17,7 +16,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserMapper } from './mappers/user.mapper';
 import { User } from './entities/user.entity';
 import { Empresa } from '../empresa/entities/empresa.entity';
-import { Rol } from '../rol/entities/rol.entity';
+import { RolService } from '../rol/rol.service';
+import type { AuditCambios } from '../audit/decorators/audit-log.decorator';
 import { EmpresaService } from '../empresa/empresa.service';
 import { ROLES } from '../rol/constants/roles.constants';
 import type { TenantContext } from '../../common/types/tenant-context.type';
@@ -37,8 +37,8 @@ export class UserService {
     @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
     @InjectRepository(Empresa)
     private readonly empresaRepository: Repository<Empresa>,
-    @InjectRepository(Rol) private readonly rolRepository: Repository<Rol>,
     private readonly empresaService: EmpresaService,
+    private readonly rolService: RolService,
   ) {}
 
   // Validación de seguridad para aislamiento (CP-08/CP-09)
@@ -51,11 +51,14 @@ export class UserService {
     }
   }
 
-  async create(dto: CreateUserDto, tenant: TenantContext) {
-    const empresaId = this.resolveEmpresaId(dto.empresaId, tenant);
+  /**
+   * Alta en la empresa ya resuelta por EmpresaObjetivoGuard (la propia, o la
+   * elegida por el Administrador). El rol debe ser del catálogo o de esa
+   * empresa, activo y nunca Administrador.
+   */
+  async create(dto: CreateUserDto, empresaId: number) {
     const empresa = await this.findEmpresaOrFail(empresaId);
-    const rol = await this.findRolOrFail(dto.rolId);
-    this.guardAsignacionDeRol(rol, tenant);
+    const rol = await this.rolService.obtenerAsignable(dto.rolId, empresaId);
 
     const usuarioPorEmail = await this.userRepository.findByEmail(dto.email);
     if (usuarioPorEmail) {
@@ -108,10 +111,24 @@ export class UserService {
     return UserMapper.toResponse(user);
   }
 
-  async update(id: number, dto: UpdateUserDto, tenant: TenantContext) {
+  /**
+   * Edición dentro de la empresa ya resuelta. `empresaId` del DTO solo elige
+   * la empresa (Administrador); no mueve al usuario de empresa. El rol no se
+   * cambia acá: va por PUT /roles/usuarios/:usuarioId.
+   */
+  async update(
+    id: number,
+    dto: UpdateUserDto,
+    empresaId: number,
+  ): Promise<{
+    usuario: ReturnType<typeof UserMapper.toResponse>;
+    cambios: AuditCambios;
+  }> {
     const user = await this.userRepository.findById(id);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-    this.assertOwnEmpresa(user, tenant);
+    if (!user || user.empresa?.id !== empresaId) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    const antes = this.snapshot(user);
 
     if (dto.email && dto.email !== user.email) {
       const usuarioPorEmail = await this.userRepository.findByEmail(dto.email);
@@ -129,16 +146,14 @@ export class UserService {
     if (dto.email !== undefined) update.email = dto.email;
     if (dto.password)
       update.password = await bcrypt.hash(dto.password, SALT_ROUNDS);
-    if (dto.rolId) {
-      const rol = await this.findRolOrFail(dto.rolId);
-      this.guardAsignacionDeRol(rol, tenant);
-      update.rol = rol;
-    }
-    if (dto.empresaId)
-      update.empresa = await this.findEmpresaOrFail(dto.empresaId);
-
-    const updated = await this.userRepository.updateUser(id, update);
-    return UserMapper.toResponse(updated);
+    // Sin campos a cambiar (p. ej. solo empresaId): devuelve el usuario tal cual.
+    const updated = Object.keys(update).length
+      ? await this.userRepository.updateUser(id, update)
+      : ((await this.userRepository.findById(id)) as User);
+    return {
+      usuario: UserMapper.toResponse(updated),
+      cambios: { antes, despues: this.snapshot(updated) },
+    };
   }
 
   async deactivate(id: number, tenant: TenantContext) {
@@ -179,28 +194,14 @@ export class UserService {
     return empresa;
   }
 
-  private async findRolOrFail(id: number) {
-    const rol = await this.rolRepository.findOneBy({ id });
-    if (!rol) throw new NotFoundException('Rol no encontrado');
-    return rol;
-  }
-
-  private resolveEmpresaId(
-    bodyEmpresaId: number,
-    tenant: TenantContext,
-  ): number {
-    if (tenant.rolNombre === ROLES.ADMINISTRADOR) return bodyEmpresaId;
-    if (tenant.empresaId === null)
-      throw new ForbiddenException('Sin empresa asociada');
-    return tenant.empresaId;
-  }
-
-  private guardAsignacionDeRol(rol: Rol, tenant: TenantContext) {
-    if (
-      tenant.rolNombre === ROLES.GERENTE &&
-      rol.nombre === ROLES.ADMINISTRADOR
-    ) {
-      throw new ForbiddenException('No puede asignar rol Administrador');
-    }
+  /** Lo auditable de un usuario (sin contraseña). */
+  private snapshot(user: User) {
+    return {
+      name: user.name,
+      email: user.email,
+      rolId: user.rol?.id ?? null,
+      rolNombre: user.rol?.nombre ?? null,
+      empresaId: user.empresa?.id ?? null,
+    };
   }
 }

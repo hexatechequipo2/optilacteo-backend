@@ -1,7 +1,8 @@
 /**
  * HU-72 contra Postgres real: migraciones desde cero, backfill sobre datos
  * existentes, guard + PermisoService leyendo la BD, y el 500 que daba /roles
- * al otorgar módulos administrativos que no estaban en el enum.
+ * al otorgar módulos administrativos que no estaban en el enum. Incluye el
+ * criterio 5 por HTTP (Administrador operando sobre la empresa A y la B).
  *
  * Requiere el Postgres de docker-compose (usa las credenciales del .env y
  * crea/borra su propia base). Correr con: npm run test:e2e -- permisos-hu72
@@ -9,9 +10,26 @@
 import 'reflect-metadata';
 import { readdirSync } from 'fs';
 import { join } from 'path';
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  INestApplication,
+  Injectable,
+  UnauthorizedException,
+  ValidationPipe,
+} from '@nestjs/common';
+import { APP_GUARD, Reflector } from '@nestjs/core';
+import { Test } from '@nestjs/testing';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import request from 'supertest';
+import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
+import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
+import { RolModule } from '../src/module/rol/rol.module';
+import { UserModule } from '../src/module/user/user.module';
+import { PermisoModule } from '../src/module/permiso/permiso.module';
+import { AuditLogModule } from '../src/module/audit/audit-log.module';
 import baseDataSource from '../src/data-source';
 import { PermissionsGuard } from '../src/common/guards/permissions.guard';
 import { PermisoService } from '../src/module/permiso/permiso.service';
@@ -32,6 +50,8 @@ import {
 } from '../src/module/permiso/test/matriz-aprobada.fixture';
 
 /* eslint-disable @typescript-eslint/unbound-method */
+// supertest tipa res.body como any; los asserts lo validan igual.
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 
 const DB = `optilacteo_hu72_test_${process.pid}`;
 const MIGRACIONES_DIR = join(__dirname, '../src/migrations');
@@ -472,6 +492,582 @@ describe('HU-72 sobre Postgres', () => {
       'gestion_usuarios',
       'sensores_iot',
     ]);
+  });
+
+  describe('criterio 5: el Administrador gestiona roles y usuarios de una empresa (HTTP)', () => {
+    let app: INestApplication;
+    let http: App;
+    let rolCustomB: number;
+    let rolCustomA: number;
+    let usuarioNuevoA: number;
+    let usuarioNuevoB: number;
+
+    /** Reemplaza al JwtAuthGuard: x-user-id dice quién llama; el resto sale de la BD. */
+    @Injectable()
+    class FakeJwtGuard implements CanActivate {
+      async canActivate(ctx: ExecutionContext) {
+        const req = ctx.switchToHttp().getRequest<{
+          headers: Record<string, string>;
+          user?: unknown;
+        }>();
+        const id = Number(req.headers['x-user-id']);
+        const [u] = await ds.query<
+          {
+            email: string;
+            rolId: number;
+            rolNombre: string;
+            empresaId: number | null;
+          }[]
+        >(
+          `SELECT u.email, u."rolId", r.nombre AS "rolNombre", u."empresaId"
+             FROM users u JOIN roles r ON r.id = u."rolId" WHERE u.id = $1`,
+          [id],
+        );
+        if (!u) throw new UnauthorizedException();
+        req.user = { sub: id, ...u };
+        return true;
+      }
+    }
+
+    const como = (userId: number) => ({
+      get: (ruta: string) =>
+        request(http).get(ruta).set('x-user-id', String(userId)),
+      post: (ruta: string, body: object) =>
+        request(http).post(ruta).set('x-user-id', String(userId)).send(body),
+      put: (ruta: string, body: object) =>
+        request(http).put(ruta).set('x-user-id', String(userId)).send(body),
+      patch: (ruta: string, body: object) =>
+        request(http).patch(ruta).set('x-user-id', String(userId)).send(body),
+      delete: (ruta: string) =>
+        request(http).delete(ruta).set('x-user-id', String(userId)),
+    });
+    const admin = () => como(ids.uAdmin);
+    const gerenteA = () => como(ids.uGerenteA);
+
+    /** Último registro de auditoría con esa acción (el interceptor escribe en segundo plano). */
+    const auditoria = async (accion: string) => {
+      for (let i = 0; i < 20; i++) {
+        const [fila] = await ds.query<
+          {
+            userId: number;
+            userRol: string;
+            empresaId: number | null;
+            entidadId: number | null;
+            detalle: {
+              status: string;
+              data: Record<string, unknown>;
+              cambios?: { antes: unknown; despues: unknown };
+            };
+          }[]
+        >(
+          `SELECT "userId", "userRol", "empresaId", "entidadId", detalle
+             FROM audit_log WHERE accion = $1 ORDER BY id DESC LIMIT 1`,
+          [accion],
+        );
+        if (fila) return fila;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      throw new Error(`Sin registro de auditoría ${accion}`);
+    };
+    const limpiarAuditoria = () => ds.query(`DELETE FROM audit_log`);
+
+    const sinAcceso = {
+      canRead: false,
+      canCreate: false,
+      canUpdate: false,
+      canDelete: false,
+      canExport: false,
+    };
+    const permisosLab = [
+      { ...sinAcceso, modulo: 'trazabilidad', canRead: true },
+    ];
+
+    beforeAll(async () => {
+      // Plan con cupo de usuarios para las altas del bloque.
+      await ds.query(
+        `UPDATE empresas SET plan = 'enterprise' WHERE id = ANY($1)`,
+        [[ids.empresaA, ids.empresaB]],
+      );
+      // B contrata trazabilidad (el rol propio de B la otorga).
+      await ds.query(
+        `INSERT INTO empresa_modulos (modulo, "isActive", "empresaId") VALUES ('trazabilidad', true, $1)`,
+        [ids.empresaB],
+      );
+      rolCustomA = await insertar(
+        `INSERT INTO roles (nombre, "empresaId") VALUES ('Laboratorio A', $1) RETURNING id`,
+        [ids.empresaA],
+      );
+
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          TypeOrmModule.forRoot({
+            ...baseDataSource.options,
+            database: DB,
+            migrations: [],
+          } as Parameters<typeof TypeOrmModule.forRoot>[0]),
+          PermisoModule,
+          RolModule,
+          UserModule,
+          AuditLogModule,
+        ],
+        providers: [
+          { provide: APP_GUARD, useClass: FakeJwtGuard },
+          { provide: APP_GUARD, useClass: PermissionsGuard },
+        ],
+      }).compile();
+      app = moduleRef.createNestApplication();
+      app.useGlobalPipes(
+        new ValidationPipe({
+          whitelist: true,
+          forbidNonWhitelisted: true,
+          transform: true,
+        }),
+      );
+      app.useGlobalFilters(new AllExceptionsFilter());
+      await app.listen(0);
+      http = app.getHttpServer() as App;
+      await limpiarAuditoria();
+    }, 60_000);
+
+    afterAll(async () => {
+      await app?.close();
+    });
+
+    // El interceptor audita en segundo plano: cada caso empieza sin registros.
+    beforeEach(() => limpiarAuditoria());
+
+    describe('empresaId obligatorio y existente para el Administrador', () => {
+      it.each([
+        ['GET /roles', () => admin().get('/roles')],
+        [
+          'POST /roles',
+          () => admin().post('/roles', { nombre: 'X1', permisos: [] }),
+        ],
+        [
+          'PUT /roles/usuarios/:id',
+          () =>
+            admin().put(`/roles/usuarios/${ids.uOperarioA}`, {
+              rolId: ids.calidad,
+            }),
+        ],
+        [
+          'POST /user',
+          () =>
+            admin().post('/user', {
+              name: 'n',
+              email: 'n@x.com',
+              password: '123456',
+              rolId: ids.operario,
+            }),
+        ],
+        [
+          'PATCH /user/:id',
+          () => admin().patch(`/user/${ids.uOperarioA}`, { name: 'n' }),
+        ],
+      ])('%s sin empresaId → 400', async (_r, llamar) => {
+        const res = await llamar();
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe(
+          'empresaId es obligatorio para el Administrador.',
+        );
+      });
+
+      it('empresa inexistente → 404', async () => {
+        const res = await admin().get('/roles?empresaId=999999');
+        expect(res.status).toBe(404);
+        expect(res.body.message).toBe('Empresa no encontrada.');
+      });
+    });
+
+    describe.each([
+      ['A', () => ids.empresaA],
+      ['B', () => ids.empresaB],
+    ])('Administrador sobre la empresa %s', (letra, empresa) => {
+      it('lista roles de catálogo y propios con la matriz de esa empresa', async () => {
+        const res = await admin().get(`/roles?empresaId=${empresa()}`);
+        expect(res.status).toBe(200);
+        const roles = res.body as {
+          id: number;
+          nombre: string;
+          esCatalogo: boolean;
+          permisos: { modulo: string }[];
+        }[];
+        const gerente = roles.find((r) => r.nombre === 'Gerente')!;
+        expect(gerente.esCatalogo).toBe(true);
+        expect(gerente.permisos.map((p) => p.modulo)).toContain(
+          'gestion_roles',
+        );
+        // Los roles propios de la otra empresa no aparecen.
+        const nombres = roles.map((r) => r.nombre);
+        expect(nombres.includes('Laboratorio A')).toBe(letra === 'A');
+      });
+
+      it('crea un usuario con rol de catálogo y queda auditado con empresa afectada y diff', async () => {
+        const res = await admin().post('/user', {
+          name: `Nuevo ${letra}`,
+          email: `nuevo${letra}@hu72.test`,
+          password: '123456',
+          rolId: ids.operario,
+          empresaId: empresa(),
+        });
+        expect(res.status).toBe(201);
+        expect(res.body).toMatchObject({
+          rolNombre: 'Operario de línea',
+          empresa: { id: empresa() },
+        });
+        if (letra === 'A') usuarioNuevoA = res.body.id;
+        else usuarioNuevoB = res.body.id;
+
+        const log = await auditoria('USUARIO_CREAR_SUCCESS');
+        expect(log).toMatchObject({
+          userId: ids.uAdmin,
+          userRol: 'Administrador',
+          empresaId: empresa(),
+        });
+        expect(log.detalle.cambios).toEqual({
+          antes: null,
+          despues: {
+            rolId: ids.operario,
+            rolNombre: 'Operario de línea',
+            empresaId: empresa(),
+          },
+        });
+      });
+
+      it('cambia el rol con PUT /roles/usuarios y queda auditado', async () => {
+        const usuario = letra === 'A' ? usuarioNuevoA : usuarioNuevoB;
+        const res = await admin().put(
+          `/roles/usuarios/${usuario}?empresaId=${empresa()}`,
+          {
+            rolId: ids.calidad,
+          },
+        );
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({
+          usuarioId: usuario,
+          rolAnterior: 'Operario de línea',
+          rolNuevo: 'Responsable de calidad',
+        });
+
+        const log = await auditoria('ROL_ASIGNAR_SUCCESS');
+        expect(log).toMatchObject({ userId: ids.uAdmin, empresaId: empresa() });
+        expect(log.detalle.data).toMatchObject({
+          rolAnterior: 'Operario de línea',
+          rolNuevo: 'Responsable de calidad',
+        });
+      });
+
+      it('PATCH /user/:id edita datos (no el rol) y queda auditado con el diff', async () => {
+        const usuario = letra === 'A' ? usuarioNuevoA : usuarioNuevoB;
+        const res = await admin().patch(`/user/${usuario}`, {
+          name: `Editado ${letra}`,
+          empresaId: empresa(),
+        });
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({
+          id: usuario,
+          name: `Editado ${letra}`,
+          rolNombre: 'Responsable de calidad',
+        });
+
+        const log = await auditoria('USUARIO_ACTUALIZAR_SUCCESS');
+        expect(log).toMatchObject({
+          userId: ids.uAdmin,
+          empresaId: empresa(),
+          entidadId: usuario,
+        });
+        expect(log.detalle.cambios).toEqual({
+          antes: expect.objectContaining({ name: `Nuevo ${letra}` }),
+          despues: expect.objectContaining({ name: `Editado ${letra}` }),
+        });
+      });
+
+      it('PATCH /user/:id con rolId → 400: el rol va por PUT /roles/usuarios', async () => {
+        const usuario = letra === 'A' ? usuarioNuevoA : usuarioNuevoB;
+        const res = await admin().patch(`/user/${usuario}`, {
+          rolId: ids.produccion,
+          empresaId: empresa(),
+        });
+        expect(res.status).toBe(400);
+        const [{ rol }] = await ds.query<{ rol: number }[]>(
+          `SELECT "rolId" AS rol FROM users WHERE id = $1`,
+          [usuario],
+        );
+        expect(rol).toBe(ids.calidad);
+      });
+    });
+
+    describe('Administrador: CRUD de roles de una empresa, auditado', () => {
+      it('crea, edita la matriz y elimina un rol de la empresa B', async () => {
+        const creado = await admin().post(`/roles?empresaId=${ids.empresaB}`, {
+          nombre: 'Laboratorio B',
+          permisos: permisosLab,
+        });
+        expect(creado.status).toBe(201);
+        rolCustomB = creado.body.id;
+        let log = await auditoria('ROL_CREAR_SUCCESS');
+        expect(log).toMatchObject({
+          userId: ids.uAdmin,
+          empresaId: ids.empresaB,
+        });
+        expect(log.detalle.data.despues).toEqual([
+          expect.objectContaining({ modulo: 'trazabilidad', canRead: true }),
+        ]);
+
+        const editado = await admin().put(
+          `/roles/${rolCustomB}?empresaId=${ids.empresaB}`,
+          {
+            nombre: 'Laboratorio B',
+            permisos: [{ ...permisosLab[0], canUpdate: true }],
+          },
+        );
+        expect(editado.status).toBe(200);
+        log = await auditoria('ROL_ACTUALIZAR_SUCCESS');
+        expect(log).toMatchObject({
+          empresaId: ids.empresaB,
+          entidadId: rolCustomB,
+        });
+        expect(log.detalle.data.antes).toEqual([
+          expect.objectContaining({ canUpdate: false }),
+        ]);
+        expect(log.detalle.data.despues).toEqual([
+          expect.objectContaining({ canUpdate: true }),
+        ]);
+      });
+
+      it('no puede asignar el rol Administrador a un usuario de empresa', async () => {
+        const put = await admin().put(
+          `/roles/usuarios/${ids.uOperarioA}?empresaId=${ids.empresaA}`,
+          {
+            rolId: ids.administrador,
+          },
+        );
+        expect(put.status).toBe(403);
+        const post = await admin().post('/user', {
+          name: 'x',
+          email: 'adm@hu72.test',
+          password: '123456',
+          rolId: ids.administrador,
+          empresaId: ids.empresaA,
+        });
+        expect(post.status).toBe(403);
+      });
+    });
+
+    describe('usuario y rol de empresas distintas', () => {
+      it('PUT /roles/usuarios: usuario de A operando en B → 404', async () => {
+        const res = await admin().put(
+          `/roles/usuarios/${ids.uOperarioA}?empresaId=${ids.empresaB}`,
+          { rolId: ids.calidad },
+        );
+        expect(res.status).toBe(404);
+      });
+
+      it('PUT /roles/usuarios: rol propio de B para un usuario de A → 404', async () => {
+        const res = await admin().put(
+          `/roles/usuarios/${ids.uOperarioA}?empresaId=${ids.empresaA}`,
+          { rolId: rolCustomB },
+        );
+        expect(res.status).toBe(404);
+        expect(res.body.message).toBe('Rol no encontrado.');
+      });
+
+      it('POST /user: rol propio de B en la empresa A → 404', async () => {
+        const res = await admin().post('/user', {
+          name: 'x',
+          email: 'cruzado@hu72.test',
+          password: '123456',
+          rolId: rolCustomB,
+          empresaId: ids.empresaA,
+        });
+        expect(res.status).toBe(404);
+      });
+
+      it('PATCH /user: usuario de A con empresaId B → 404', async () => {
+        const res = await admin().patch(`/user/${ids.uOperarioA}`, {
+          name: 'x',
+          empresaId: ids.empresaB,
+        });
+        expect(res.status).toBe(404);
+      });
+    });
+
+    describe('Gerente de A no puede leer ni modificar nada de B', () => {
+      it('sin empresaId opera sobre la suya', async () => {
+        const res = await gerenteA().get('/roles');
+        expect(res.status).toBe(200);
+        expect(
+          (res.body as { nombre: string }[]).map((r) => r.nombre),
+        ).toContain('Laboratorio A');
+      });
+
+      it.each([
+        [
+          'GET /roles',
+          () => gerenteA().get(`/roles?empresaId=${ids.empresaB}`),
+        ],
+        [
+          'POST /roles',
+          () =>
+            gerenteA().post(`/roles?empresaId=${ids.empresaB}`, {
+              nombre: 'Intruso',
+              permisos: [],
+            }),
+        ],
+        [
+          'PUT /roles/:id',
+          () =>
+            gerenteA().put(`/roles/${rolCustomB}?empresaId=${ids.empresaB}`, {
+              nombre: 'Laboratorio B',
+              permisos: [],
+            }),
+        ],
+        [
+          'DELETE /roles/:id',
+          () =>
+            gerenteA().delete(`/roles/${rolCustomB}?empresaId=${ids.empresaB}`),
+        ],
+        [
+          'PUT /roles/usuarios/:id',
+          () =>
+            gerenteA().put(
+              `/roles/usuarios/${ids.uGerenteB}?empresaId=${ids.empresaB}`,
+              { rolId: ids.operario },
+            ),
+        ],
+        [
+          'POST /user',
+          () =>
+            gerenteA().post('/user', {
+              name: 'x',
+              email: 'intruso@hu72.test',
+              password: '123456',
+              rolId: ids.operario,
+              empresaId: ids.empresaB,
+            }),
+        ],
+        [
+          'PATCH /user/:id',
+          () =>
+            gerenteA().patch(`/user/${ids.uGerenteB}`, {
+              name: 'x',
+              empresaId: ids.empresaB,
+            }),
+        ],
+      ])('%s con empresaId de B → 403', async (_r, llamar) => {
+        const res = await llamar();
+        expect(res.status).toBe(403);
+        expect(res.body.message).toBe('No podés operar sobre otra empresa.');
+      });
+
+      it.each([
+        [
+          'PUT /roles/:id',
+          () =>
+            gerenteA().put(`/roles/${rolCustomB}`, {
+              nombre: 'Laboratorio B',
+              permisos: [],
+            }),
+        ],
+        ['DELETE /roles/:id', () => gerenteA().delete(`/roles/${rolCustomB}`)],
+        [
+          'PUT /roles/usuarios/:id',
+          () =>
+            gerenteA().put(`/roles/usuarios/${ids.uGerenteB}`, {
+              rolId: ids.operario,
+            }),
+        ],
+        [
+          'PATCH /user/:id',
+          () => gerenteA().patch(`/user/${ids.uGerenteB}`, { name: 'x' }),
+        ],
+      ])('%s sobre recursos de B sin empresaId → 404', async (_r, llamar) => {
+        const res = await llamar();
+        expect(res.status).toBe(404);
+      });
+
+      it('nada de B cambió', async () => {
+        const [b] = await ds.query<{ nombre: string; rol: string }[]>(
+          `SELECT u.name AS nombre, r.nombre AS rol FROM users u JOIN roles r ON r.id = u."rolId" WHERE u.id = $1`,
+          [ids.uGerenteB],
+        );
+        expect(b).toEqual({ nombre: 'gerenteB', rol: 'Gerente' });
+        const [{ n }] = await ds.query<{ n: number }[]>(
+          `SELECT count(*)::int AS n FROM roles WHERE nombre = 'Intruso'`,
+        );
+        expect(n).toBe(0);
+      });
+    });
+
+    describe('protecciones del criterio 4, también para el Administrador', () => {
+      it('no se modifica ni elimina el rol Administrador', async () => {
+        const put = await admin().put(
+          `/roles/${ids.administrador}?empresaId=${ids.empresaA}`,
+          {
+            nombre: 'Administrador',
+            permisos: [],
+          },
+        );
+        expect(put.status).toBe(409);
+        const del = await admin().delete(
+          `/roles/${ids.administrador}?empresaId=${ids.empresaA}`,
+        );
+        expect(del.status).toBe(409);
+      });
+
+      it('no se elimina un rol con usuarios asignados', async () => {
+        await ds.query(`UPDATE users SET "rolId" = $1 WHERE id = $2`, [
+          rolCustomA,
+          usuarioNuevoA,
+        ]);
+        const res = await admin().delete(
+          `/roles/${rolCustomA}?empresaId=${ids.empresaA}`,
+        );
+        expect(res.status).toBe(409);
+        await ds.query(`UPDATE users SET "rolId" = $1 WHERE id = $2`, [
+          ids.produccion,
+          usuarioNuevoA,
+        ]);
+      });
+
+      it('la empresa conserva al menos un gestor de roles activo', async () => {
+        // gerenteB es el único gestor de B.
+        const put = await admin().put(
+          `/roles/usuarios/${ids.uGerenteB}?empresaId=${ids.empresaB}`,
+          { rolId: ids.operario },
+        );
+        expect(put.status).toBe(409);
+      });
+
+      it('un gestor no puede quitarse gestion_roles ni asignarse un rol sin gestión', async () => {
+        const matriz = await gerenteA().put(`/roles/${ids.gerente}`, {
+          nombre: 'Gerente',
+          permisos: [],
+        });
+        expect(matriz.status).toBe(409);
+        const asignar = await gerenteA().put(
+          `/roles/usuarios/${ids.uGerenteA}`,
+          { rolId: ids.operario },
+        );
+        expect(asignar.status).toBe(409);
+      });
+
+      it('el Administrador elimina un rol sin usuarios y queda auditado con lo que tenía', async () => {
+        const res = await admin().delete(
+          `/roles/${rolCustomB}?empresaId=${ids.empresaB}`,
+        );
+        expect(res.status).toBe(200);
+        const log = await auditoria('ROL_ELIMINAR_SUCCESS');
+        expect(log).toMatchObject({
+          userId: ids.uAdmin,
+          empresaId: ids.empresaB,
+          entidadId: rolCustomB,
+        });
+        expect(log.detalle.data.antes).toEqual([
+          expect.objectContaining({ modulo: 'trazabilidad', canUpdate: true }),
+        ]);
+      });
+    });
   });
 
   it('la migración no deja tablas auxiliares', async () => {

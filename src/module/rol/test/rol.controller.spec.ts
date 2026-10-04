@@ -1,138 +1,84 @@
-import { Test, TestingModule } from '@nestjs/testing';
+/* eslint-disable @typescript-eslint/unbound-method */
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { RolController } from '../rol.controller';
-import { RolService } from '../rol.service';
-import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
-import type { TenantContext } from '../../../common/types/tenant-context.type';
-import { ROLES } from '../constants/roles.constants';
+import type { RolService } from '../rol.service';
+import { EmpresaObjetivoGuard } from '../../../common/tenant/empresa-objetivo';
+import { AUDIT_KEY } from '../../audit/decorators/audit-log.decorator';
+import type { GuardarRolDto } from '../dto/guardar-rol.dto';
 
-const tenantGerente: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-
+/**
+ * RolController delega en RolService con la empresa que resolvió
+ * EmpresaObjetivoGuard (HU-72, criterio 5): todos sus handlers lo usan.
+ */
 describe('RolController', () => {
-  let controller: RolController;
-  let mockRolService: {
-    create: jest.Mock;
-    findAll: jest.Mock;
-    findByEmpresa: jest.Mock;
-    findOne: jest.Mock;
-    update: jest.Mock;
-    updatePermiso: jest.Mock;
-    remove: jest.Mock;
+  const service = {
+    listar: jest.fn(),
+    crear: jest.fn(),
+    asignarRol: jest.fn(),
+    actualizar: jest.fn(),
+    eliminar: jest.fn(),
   };
+  const controller = new RolController(service as unknown as RolService);
+  const actor = { id: 1, rolId: 1, empresaId: null, esSistema: true };
+  const dto = { nombre: 'Laboratorio', permisos: [] } as GuardarRolDto;
 
-  beforeEach(async () => {
-    mockRolService = {
-      create: jest.fn(),
-      findAll: jest.fn(),
-      findByEmpresa: jest.fn(),
-      findOne: jest.fn(),
-      update: jest.fn(),
-      updatePermiso: jest.fn(),
-      remove: jest.fn(),
-    };
+  beforeEach(() => jest.clearAllMocks());
 
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [RolController],
-      providers: [{ provide: RolService, useValue: mockRolService }],
-    }).compile();
+  it.each(['listar', 'crear', 'asignar', 'actualizar', 'eliminar'] as const)(
+    '%s usa EmpresaObjetivoGuard',
+    (handler) => {
+      expect(
+        Reflect.getMetadata(GUARDS_METADATA, RolController.prototype[handler]),
+      ).toEqual([EmpresaObjetivoGuard]);
+    },
+  );
 
-    controller = module.get<RolController>(RolController);
+  it.each(['crear', 'asignar', 'actualizar', 'eliminar'] as const)(
+    '%s queda auditado',
+    (handler) => {
+      expect(
+        Reflect.getMetadata(AUDIT_KEY, RolController.prototype[handler]),
+      ).toBeDefined();
+    },
+  );
+
+  it('listar delega con la empresa resuelta', () => {
+    controller.listar(2);
+    expect(service.listar).toHaveBeenCalledWith(2);
   });
 
-  describe('create', () => {
-    it('deberia delegar en rolService.create con el DTO recibido en el body', async () => {
-      const dto = { nombre: 'Supervisor de calidad', empresaId: 1 };
-      mockRolService.create.mockResolvedValue({ id: 1, ...dto });
-
-      await controller.create(dto);
-
-      expect(mockRolService.create).toHaveBeenCalledWith(dto);
-    });
+  it('crear delega con la empresa resuelta y el body', () => {
+    controller.crear(2, dto);
+    expect(service.crear).toHaveBeenCalledWith(2, dto);
   });
 
-  describe('findAll', () => {
-    it('sin query empresaId ni tenant, deberia delegar en rolService.findAll pasando undefined', async () => {
-      mockRolService.findAll.mockResolvedValue([]);
-
-      await controller.findAll();
-
-      expect(mockRolService.findAll).toHaveBeenCalledWith(undefined);
-      expect(mockRolService.findByEmpresa).not.toHaveBeenCalled();
-    });
-
-    it('sin query empresaId pero con tenant, deberia pasar el empresaId del tenant a rolService.findAll', async () => {
-      mockRolService.findAll.mockResolvedValue([]);
-
-      await controller.findAll(undefined, tenantGerente);
-
-      expect(mockRolService.findAll).toHaveBeenCalledWith(1);
-      expect(mockRolService.findByEmpresa).not.toHaveBeenCalled();
-    });
-
-    it('con query empresaId, deberia convertirlo a number y delegar en rolService.findByEmpresa', async () => {
-      mockRolService.findByEmpresa.mockResolvedValue([]);
-
-      await controller.findAll('1');
-
-      expect(mockRolService.findByEmpresa).toHaveBeenCalledWith(1);
-      expect(mockRolService.findAll).not.toHaveBeenCalled();
-    });
+  it('asignar delega usuario, rol, empresa y actor', () => {
+    controller.asignar(2, 9, { rolId: 4 }, actor);
+    expect(service.asignarRol).toHaveBeenCalledWith(9, 4, 2, actor);
   });
 
-  describe('findOne', () => {
-    it('deberia convertir el id de string a number antes de delegar en rolService.findOne', async () => {
-      mockRolService.findOne.mockResolvedValue({ id: 5 });
-
-      await controller.findOne('5');
-
-      expect(mockRolService.findOne).toHaveBeenCalledWith(5);
-    });
+  it('actualizar delega rol, empresa, body y actor', () => {
+    controller.actualizar(2, 7, dto, actor);
+    expect(service.actualizar).toHaveBeenCalledWith(7, 2, dto, actor);
   });
 
-  describe('update', () => {
-    it('deberia convertir el id a number y delegar en rolService.update con el body', async () => {
-      const dto = { nombre: 'Nuevo nombre' };
-      mockRolService.update.mockResolvedValue({ id: 5, ...dto });
-
-      await controller.update('5', dto);
-
-      expect(mockRolService.update).toHaveBeenCalledWith(5, dto);
-    });
+  it('eliminar delega rol y empresa', () => {
+    controller.eliminar(2, 7);
+    expect(service.eliminar).toHaveBeenCalledWith(7, 2);
   });
 
-  describe('updatePermiso', () => {
-    it('deberia convertir el id a number y delegar en rolService.updatePermiso con el body y el tenant', async () => {
-      const dto = {
-        modulo: ModuloSistema.DASHBOARD,
-        canRead: true,
-        canWrite: false,
-      };
-      mockRolService.updatePermiso.mockResolvedValue({
-        id: 5,
-        permisos: [dto],
-      });
-
-      await controller.updatePermiso('5', dto, tenantGerente);
-
-      expect(mockRolService.updatePermiso).toHaveBeenCalledWith(
-        5,
-        dto,
-        tenantGerente,
-      );
+  it('la descripción de auditoría de eliminar incluye los permisos que tenía', () => {
+    const meta = Reflect.getMetadata(
+      AUDIT_KEY,
+      RolController.prototype.eliminar,
+    ) as { descripcion: (ctx: unknown) => string };
+    const texto = meta.descripcion({
+      responseBody: {
+        nombre: 'Laboratorio',
+        antes: [{ modulo: 'trazabilidad', canRead: true }],
+      },
     });
-  });
-
-  describe('remove', () => {
-    it('deberia convertir el id a number y delegar en rolService.remove', async () => {
-      mockRolService.remove.mockResolvedValue({
-        message: 'Rol con id 5 eliminado correctamente',
-      });
-
-      const result = await controller.remove('5');
-
-      expect(mockRolService.remove).toHaveBeenCalledWith(5);
-      expect(result).toEqual({
-        message: 'Rol con id 5 eliminado correctamente',
-      });
-    });
+    expect(texto).toContain('Laboratorio');
+    expect(texto).toContain('trazabilidad');
   });
 });

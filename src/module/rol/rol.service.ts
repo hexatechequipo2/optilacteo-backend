@@ -187,11 +187,14 @@ export class RolService {
       );
     }
 
+    const antes = await this.permisoRepo.find({
+      where: { empresaId, rol: { id: rolId } },
+    });
     await this.dataSource.transaction(async (m) => {
       await this.borrarPermisos(m, rolId, empresaId);
       await m.delete(Rol, rolId);
     });
-    return { id: rolId, nombre: rol.nombre };
+    return { id: rolId, nombre: rol.nombre, antes: antes.map(this.resumen) };
   }
 
   async asignarRol(
@@ -206,11 +209,10 @@ export class RolService {
     });
     if (!usuario) throw new NotFoundException('Usuario no encontrado.');
 
-    const nuevoRol = await this.obtenerVisible(nuevoRolId, empresaId);
-    if (!nuevoRol.isActive) throw new ConflictException('El rol está inactivo.');
+    const nuevoRol = await this.obtenerAsignable(nuevoRolId, empresaId);
 
-    // Un gestor de empresa no puede tocar roles de sistema (escalada / degradación del Administrador)
-    if ((nuevoRol.esSistema || usuario.rol?.esSistema) && !actor.esSistema) {
+    // Un gestor de empresa no puede tocar a un usuario con rol de sistema (degradación del Administrador)
+    if (usuario.rol?.esSistema && !actor.esSistema) {
       throw new ForbiddenException(
         'No podés asignar ni cambiar un rol de sistema.',
       );
@@ -242,6 +244,21 @@ export class RolService {
       rolAnterior: usuario.rol?.nombre ?? null,
       rolNuevo: nuevoRol.nombre,
     };
+  }
+
+  /**
+   * Rol que se le puede dar a un usuario de esta empresa: del catálogo o de la
+   * propia empresa, activo, y nunca el de sistema (ni siquiera lo asigna el Administrador).
+   */
+  async obtenerAsignable(rolId: number, empresaId: number): Promise<Rol> {
+    const rol = await this.obtenerVisible(rolId, empresaId);
+    if (rol.esSistema) {
+      throw new ForbiddenException(
+        'El rol Administrador no se puede asignar a usuarios de empresa.',
+      );
+    }
+    if (!rol.isActive) throw new ConflictException('El rol está inactivo.');
+    return rol;
   }
 
   // ───────────────────────── helpers ─────────────────────────
