@@ -12,8 +12,7 @@ import { PermisoMapper } from './mappers/permiso.mapper';
 import { PermisoModulo } from './entities/permiso-modulo.entity';
 import { User } from '../user/entities/user.entity';
 import type { MisPermisosResponseDto } from './dto/mis-permisos-response.dto';
-import { ModuloAdministrativo } from './enums/modulo-administrativo.enum';
-import { ROLES } from '../rol/constants/roles.constants';
+import { filasPermisosPorDefecto } from './constants/permisos-por-defecto.constant';
 
 export interface AccesoUsuario {
   userId: number;
@@ -98,7 +97,6 @@ export class PermisoService {
   /** Rol y permisos vigentes del usuario, leídos de la BD con la misma función que usa el guard. */
   async obtenerMisPermisos(userId: number): Promise<MisPermisosResponseDto> {
     const acceso = await this.obtenerAcceso(userId);
-    // "permiso" en el mensaje: AllExceptionsFilter enmascara los demás 403 como 404
     if (!acceso)
       throw new ForbiddenException(
         'Sin permisos: el usuario no tiene un rol activo asignado.',
@@ -107,20 +105,23 @@ export class PermisoService {
   }
 
   /**
-   * Permisos administrativos con los que arranca cada empresa nueva (mismo
-   * set que el backfill de la migración 1791091175766). Llamar al crear la
-   * empresa, dentro de su transacción si existe.
+   * Matriz por defecto de los roles de catálogo para una empresa nueva
+   * (MATRIZ_PERMISOS_POR_DEFECTO). Llamar al crear la empresa, dentro de su
+   * transacción si existe.
    */
-  async otorgarPermisosAdministrativosPorDefecto(
+  async otorgarPermisosPorDefecto(
     empresaId: number,
     m?: EntityManager,
   ): Promise<void> {
     const runner = m ?? this.permisoRepo.manager;
-    const valores = PERMISOS_ADMIN_POR_DEFECTO.map((_, i) => {
-      const b = i * 8;
-      return `($${b + 1}, $${b + 2}, $${b + 3}::boolean, $${b + 4}::boolean, $${b + 5}::boolean, $${b + 6}::boolean, $${b + 7}::boolean, $${b + 8}::boolean)`;
-    }).join(', ');
-    const params = PERMISOS_ADMIN_POR_DEFECTO.flatMap((p) => [
+    const filas = filasPermisosPorDefecto();
+    const valores = filas
+      .map((_, i) => {
+        const b = i * 8;
+        return `($${b + 1}, $${b + 2}, $${b + 3}::boolean, $${b + 4}::boolean, $${b + 5}::boolean, $${b + 6}::boolean, $${b + 7}::boolean, $${b + 8}::boolean)`;
+      })
+      .join(', ');
+    const params = filas.flatMap((p) => [
       p.rol,
       p.modulo,
       p.canRead,
@@ -142,55 +143,3 @@ export class PermisoService {
     );
   }
 }
-
-interface PermisoPorDefecto {
-  rol: string;
-  modulo: ModuloAdministrativo;
-  canRead: boolean;
-  canCreate: boolean;
-  canUpdate: boolean;
-  canDelete: boolean;
-  canExport: boolean;
-}
-
-const sinFlags = {
-  canRead: false,
-  canCreate: false,
-  canUpdate: false,
-  canDelete: false,
-  canExport: false,
-};
-
-/** Solo siembra datos al crear la empresa; los guards nunca miran nombres de rol. */
-export const PERMISOS_ADMIN_POR_DEFECTO: PermisoPorDefecto[] = [
-  {
-    ...sinFlags,
-    rol: ROLES.GERENTE,
-    modulo: ModuloAdministrativo.GESTION_ROLES,
-    canRead: true,
-    canCreate: true,
-    canUpdate: true,
-    canDelete: true,
-  },
-  {
-    ...sinFlags,
-    rol: ROLES.GERENTE,
-    modulo: ModuloAdministrativo.GESTION_USUARIOS,
-    canRead: true,
-    canCreate: true,
-    canUpdate: true,
-  },
-  {
-    ...sinFlags,
-    rol: ROLES.GERENTE,
-    modulo: ModuloAdministrativo.CONFIGURACION_EMPRESA,
-    canRead: true,
-    canUpdate: true,
-  },
-  {
-    ...sinFlags,
-    rol: ROLES.RESPONSABLE_CALIDAD,
-    modulo: ModuloAdministrativo.GESTION_USUARIOS,
-    canRead: true,
-  },
-];

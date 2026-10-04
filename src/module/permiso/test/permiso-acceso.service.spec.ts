@@ -1,8 +1,15 @@
 import { ForbiddenException } from '@nestjs/common';
-import { PERMISOS_ADMIN_POR_DEFECTO, PermisoService } from '../permiso.service';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { PermisoService } from '../permiso.service';
+import { filasPermisosPorDefecto } from '../constants/permisos-por-defecto.constant';
+import {
+  aFlags,
+  MAPA_APROBADO,
+  matrizComoMapa,
+} from './matriz-aprobada.fixture';
 import { ModuloAdministrativo } from '../enums/modulo-administrativo.enum';
 import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
-import { ROLES } from '../../rol/constants/roles.constants';
 
 describe('PermisoService — acceso del usuario (HU-72)', () => {
   let service: PermisoService;
@@ -131,56 +138,50 @@ describe('PermisoService — acceso del usuario (HU-72)', () => {
     });
   });
 
-  describe('otorgarPermisosAdministrativosPorDefecto', () => {
-    it('el set por defecto coincide con el backfill de la migración', () => {
-      const resumen = PERMISOS_ADMIN_POR_DEFECTO.map((p) => [
-        p.rol,
-        p.modulo,
-        p.canRead,
-        p.canCreate,
-        p.canUpdate,
-        p.canDelete,
-      ]);
-      expect(resumen).toEqual([
-        [
-          ROLES.GERENTE,
-          ModuloAdministrativo.GESTION_ROLES,
-          true,
-          true,
-          true,
-          true,
-        ],
-        [
-          ROLES.GERENTE,
-          ModuloAdministrativo.GESTION_USUARIOS,
-          true,
-          true,
-          true,
-          false,
-        ],
-        [
-          ROLES.GERENTE,
-          ModuloAdministrativo.CONFIGURACION_EMPRESA,
-          true,
-          false,
-          true,
-          false,
-        ],
-        [
-          ROLES.RESPONSABLE_CALIDAD,
-          ModuloAdministrativo.GESTION_USUARIOS,
-          true,
-          false,
-          false,
-          false,
-        ],
-      ]);
+  describe('matriz por defecto de los roles de catálogo', () => {
+    it('la constante es exactamente la matriz aprobada, rol por rol', () => {
+      expect(matrizComoMapa(filasPermisosPorDefecto())).toEqual(MAPA_APROBADO);
     });
 
-    it('inserta para la empresa indicada, con el EntityManager de la transacción si viene', async () => {
+    it('la copia literal de la migración 1791094778511 es la matriz aprobada', () => {
+      const fuente = readFileSync(
+        join(
+          __dirname,
+          '../../../migrations/1791094778511-MatrizPermisosPorDefecto.ts',
+        ),
+        'utf8',
+      );
+      const filas = [
+        ...fuente.matchAll(
+          /\('([^']+)', '([a-z_]+)',\s*(true|false),\s*(true|false),\s*(true|false),\s*(true|false),\s*(true|false)\)/g,
+        ),
+      ].map(([, rol, modulo, r, c, u, d, e]) => ({
+        rol,
+        modulo,
+        canRead: r === 'true',
+        canCreate: c === 'true',
+        canUpdate: u === 'true',
+        canDelete: d === 'true',
+        canExport: e === 'true',
+      }));
+
+      expect(matrizComoMapa(filas)).toEqual(MAPA_APROBADO);
+    });
+
+    it('nunca otorga plataforma ni filas vacías', () => {
+      const filas = filasPermisosPorDefecto();
+      expect(filas.map((f) => f.modulo)).not.toContain(
+        ModuloAdministrativo.PLATAFORMA,
+      );
+      expect(filas.every((f) => aFlags(f) !== '')).toBe(true);
+    });
+  });
+
+  describe('otorgarPermisosPorDefecto', () => {
+    it('inserta la matriz completa para la empresa indicada, con el EntityManager de la transacción si viene', async () => {
       const m = { query: jest.fn() };
 
-      await service.otorgarPermisosAdministrativosPorDefecto(42, m as never);
+      await service.otorgarPermisosPorDefecto(42, m as never);
 
       expect(query).not.toHaveBeenCalled();
       const [sql, params] = m.query.mock.calls[0] as [string, unknown[]];
@@ -188,7 +189,32 @@ describe('PermisoService — acceso del usuario (HU-72)', () => {
         'ON CONFLICT ("empresaId","rolId","modulo") DO NOTHING',
       );
       expect(params.at(-1)).toBe(42);
-      expect(params).toHaveLength(PERMISOS_ADMIN_POR_DEFECTO.length * 8 + 1);
+
+      // Reconstruye las filas desde los parámetros (8 por fila).
+      const filas = [];
+      for (let i = 0; i < params.length - 1; i += 8) {
+        const [rol, modulo, r, w, c, u, d, e] = params.slice(i, i + 8) as [
+          string,
+          string,
+          ...boolean[],
+        ];
+        expect(w).toBe(c || u || d);
+        filas.push({
+          rol,
+          modulo,
+          canRead: r,
+          canCreate: c,
+          canUpdate: u,
+          canDelete: d,
+          canExport: e,
+        });
+      }
+      expect(matrizComoMapa(filas)).toEqual(MAPA_APROBADO);
+    });
+
+    it('sin EntityManager usa el del repositorio', async () => {
+      await service.otorgarPermisosPorDefecto(7);
+      expect(query).toHaveBeenCalledTimes(1);
     });
   });
 });

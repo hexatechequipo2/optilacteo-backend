@@ -1,7 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Mismo set que PERMISOS_ADMIN_POR_DEFECTO (permiso.service.ts) para empresas
-// nuevas. Se copia acá a propósito: una migración no debe cambiar si cambia el código.
+// Set administrativo vigente al momento de esta migración (luego reemplazado por
+// la matriz completa de 1791094778511). Copia literal a propósito: una migración
+// no debe cambiar si cambia el código.
 // (rol, modulo, canRead, canWrite, canCreate, canUpdate, canDelete, canExport)
 const DEFAULTS = `
   ('Gerente',                'gestion_usuarios',      true, true,  true,  true,  false, false),

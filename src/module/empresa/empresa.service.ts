@@ -70,7 +70,7 @@ export class EmpresaService {
         empresa: created,
       })),
     );
-    await this.permisoService.otorgarPermisosAdministrativosPorDefecto(
+    await this.permisoService.otorgarPermisosPorDefecto(
       created.id,
     );
 

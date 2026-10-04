@@ -25,6 +25,7 @@ import { NotificacionesService } from './notificaciones.service';
 
 import { NotificacionFilterQueryDto } from './dto/notificacion-filter-query.dto';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import {
   AuthenticatedOnly,
   Permissions,
@@ -93,13 +94,19 @@ export class NotificacionesController {
   }
 
   @Get('configuracion')
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.READ)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.READ,
+  )
   listarConfiguracion(@CurrentEmpresa() tenant: TenantContext) {
     return this.notificacionesService.listarConfiguracion(tenant.empresaId!);
   }
 
   @Post('configuracion')
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.CREATE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.CREATE,
+  )
   @AuditLog(
     'CONFIGURACION_NOTIFICACION_CREAR',
     'ConfiguracionNotificacionNivel',
@@ -116,7 +123,10 @@ export class NotificacionesController {
   }
 
   @Delete('configuracion/:id')
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.CREATE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.DELETE,
+  )
   @AuditLog(
     'CONFIGURACION_NOTIFICACION_ELIMINAR',
     'ConfiguracionNotificacionNivel',
@@ -260,7 +270,10 @@ export class NotificacionesController {
    * ============================================================
    */
   @Get('configuracion-alerta-desconexion')
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.READ)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.READ,
+  )
   obtenerConfiguracionAlertaDesconexion(
     @CurrentEmpresa() tenant: TenantContext,
   ) {
@@ -284,7 +297,11 @@ export class NotificacionesController {
   }
 
   @Post('horarios-silencio')
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.CREATE)
+  // HU-30: crear, editar o borrar un horario de silencio es ajustar cómo se
+  // comportan las alertas, no crear datos del módulo. Se exige monitoreo:U para
+  // que lo haga quien atiende alertas (Producción) y no el Operario, cuyo
+  // monitoreo:C es solo para registrar mediciones manuales.
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
   @AuditLog('HORARIO_SILENCIO_CREAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   crearHorarioSilencio(
     @Body() dto: CrearConfiguracionSilencioDto,
@@ -297,6 +314,10 @@ export class NotificacionesController {
   }
 
   @Patch('horarios-silencio/:id')
+  // HU-30: crear, editar o borrar un horario de silencio es ajustar cómo se
+  // comportan las alertas, no crear datos del módulo. Se exige monitoreo:U para
+  // que lo haga quien atiende alertas (Producción) y no el Operario, cuyo
+  // monitoreo:C es solo para registrar mediciones manuales.
   @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
   @AuditLog('HORARIO_SILENCIO_ACTUALIZAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   actualizarHorarioSilencio(
@@ -312,7 +333,11 @@ export class NotificacionesController {
   }
 
   @Delete('horarios-silencio/:id')
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.DELETE)
+  // HU-30: crear, editar o borrar un horario de silencio es ajustar cómo se
+  // comportan las alertas, no crear datos del módulo. Se exige monitoreo:U para
+  // que lo haga quien atiende alertas (Producción) y no el Operario, cuyo
+  // monitoreo:C es solo para registrar mediciones manuales.
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
   @AuditLog('HORARIO_SILENCIO_ELIMINAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   eliminarHorarioSilencio(
     @Param('id') id: string,
@@ -325,7 +350,10 @@ export class NotificacionesController {
   }
 
   @Patch('configuracion-alerta-desconexion')
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.UPDATE,
+  )
   @AuditLog(
     'CONFIGURACION_ALERTA_DESCONEXION_ACTUALIZAR',
     'ConfiguracionAlertaDesconexion',

@@ -84,7 +84,7 @@ describe('MedicionManualController', () => {
         MedicionManualController.prototype.registrar,
       );
       expect(permissions).toEqual({
-        modulo: [ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS],
+        modulo: ModuloSistema.MONITOREO_ALERTAS,
         action: PermissionAction.CREATE,
       });
 

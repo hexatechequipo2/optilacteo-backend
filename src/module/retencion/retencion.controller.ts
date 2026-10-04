@@ -12,7 +12,7 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
-import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import { PoliticaRetencionService } from './politica-retencion.service';
 import { RetencionArchivadoService } from './retencion-archivado.service';
 import { UpdatePoliticaRetencionDto } from './dto/update-politica-retencion.dto';
@@ -28,7 +28,10 @@ export class RetencionController {
   ) {}
 
   @Get('politica')
-  @Permissions(ModuloSistema.TRAZABILIDAD, PermissionAction.READ)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.READ,
+  )
   getPolitica(@CurrentEmpresa() tenant: TenantContext) {
     if (tenant.empresaId === null) {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
@@ -39,7 +42,10 @@ export class RetencionController {
   // AC4: solo GERENTE puede tocar la política, y el service igual valida
   // el mínimo de 24 meses aunque quien llame tenga ese rol.
   @Patch('politica')
-  @Permissions(ModuloSistema.TRAZABILIDAD, PermissionAction.UPDATE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.UPDATE,
+  )
   @AuditLog(
     'RETENCION_POLITICA_ACTUALIZAR',
     'PoliticaRetencion',
@@ -58,7 +64,10 @@ export class RetencionController {
   // AC3 (variante elegida en vez de push automático): consulta manual del
   // admin/gerente. Junta las 4 entidades en alcance.
   @Get('proximos-a-vencer')
-  @Permissions(ModuloSistema.TRAZABILIDAD, PermissionAction.READ)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.READ,
+  )
   getProximosAVencer(@CurrentEmpresa() tenant: TenantContext) {
     if (tenant.empresaId === null) {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');

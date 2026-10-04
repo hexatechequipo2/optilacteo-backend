@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigParametroService } from '../config-parametro.service';
@@ -167,7 +166,7 @@ describe('ConfigParametroService', () => {
       );
     });
 
-    it('cuando la configuración pertenece a otra empresa, debe lanzar ForbiddenException', async () => {
+    it('cuando la configuración pertenece a otra empresa, debe lanzar NotFoundException', async () => {
       mockRepository.findById.mockResolvedValue({
         id: 1,
         empresaId: 2,
@@ -176,7 +175,7 @@ describe('ConfigParametroService', () => {
       });
 
       await expect(service.editar(1, 1, {} as any)).rejects.toThrow(
-        ForbiddenException,
+        NotFoundException,
       );
     });
 
@@ -375,10 +374,10 @@ describe('ConfigParametroService', () => {
       await expect(service.eliminar(1, 99)).rejects.toThrow(NotFoundException);
     });
 
-    it('cuando la configuración pertenece a otra empresa, debe lanzar ForbiddenException', async () => {
+    it('cuando la configuración pertenece a otra empresa, debe lanzar NotFoundException', async () => {
       mockRepository.findById.mockResolvedValue({ id: 1, empresaId: 2 });
 
-      await expect(service.eliminar(1, 1)).rejects.toThrow(ForbiddenException);
+      await expect(service.eliminar(1, 1)).rejects.toThrow(NotFoundException);
     });
 
     it('cuando la configuración es válida, debe eliminarla y devolver un mensaje de éxito', async () => {

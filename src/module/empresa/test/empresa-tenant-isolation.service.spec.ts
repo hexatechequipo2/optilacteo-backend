@@ -77,7 +77,7 @@ describe('EmpresaService - aislamiento multi-tenant', () => {
         { provide: StorageService, useValue: mockStorageService },
         {
           provide: PermisoService,
-          useValue: { otorgarPermisosAdministrativosPorDefecto: jest.fn() },
+          useValue: { otorgarPermisosPorDefecto: jest.fn() },
         },
       ],
     }).compile();

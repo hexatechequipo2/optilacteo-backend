@@ -3,38 +3,35 @@ import {
   Controller,
   Get,
   Post,
-  Headers,
   Param,
   ParseIntPipe,
   Query,
-  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/decorators/public.decorator';
+import { InternalApiKeyGuard } from '../internal/guards/internal-api-key.guard';
 
 import { EstabilidadProveedorService } from './estabilidad-proveedor.service';
 
+// Servicio a servicio (microservicio de IA): sin JWT, solo API key por header.
+// @Public() saltea JwtAuthGuard y PermissionsGuard globales; el guard de API key
+// corre antes que los pipes, así que sin key válida responde 401 siempre.
 @ApiTags('estabilidad-proveedor')
+@Public()
+@UseGuards(InternalApiKeyGuard)
 @Controller('estabilidad-proveedor')
 export class EstabilidadProveedorController {
   constructor(
     private readonly estabilidadProveedorService: EstabilidadProveedorService,
   ) {}
 
-  private validarApiKey(apiKey: string) {
-    if (!apiKey || apiKey !== process.env.NEST_INTERNAL_API_KEY) {
-      throw new UnauthorizedException('API key inválida o ausente');
-    }
-  }
-
   // Consultar la clasificación previamente guardada
   @Get(':proveedorId')
   obtenerEstabilidadProveedor(
     @Param('proveedorId', ParseIntPipe) proveedorId: number,
     @Query('empresaId', ParseIntPipe) empresaId: number,
-    @Headers('x-internal-api-key') apiKey: string,
   ) {
-    this.validarApiKey(apiKey);
-
     return this.estabilidadProveedorService.obtener(
       proveedorId,
       empresaId,
@@ -46,10 +43,7 @@ export class EstabilidadProveedorController {
   async recalcularEstabilidadProveedor(
     @Param('proveedorId', ParseIntPipe) proveedorId: number,
     @Query('empresaId', ParseIntPipe) empresaId: number,
-    @Headers('x-internal-api-key') apiKey: string,
   ) {
-    this.validarApiKey(apiKey);
-
     await this.estabilidadProveedorService.recalcular(
       proveedorId,
       empresaId,

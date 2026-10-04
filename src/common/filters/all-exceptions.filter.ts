@@ -17,39 +17,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
+    // Los 403 (incluido el default-deny del PermissionsGuard) llegan tal cual,
+    // con su mensaje. Los recursos de otra empresa ya responden 404 desde los services.
     if (exception instanceof HttpException) {
-      const status = exception.getStatus();
-      const exceptionResponse = exception.getResponse();
-
-      // Enmascarar Forbidden (403) a Not Found (404) para evitar Information Disclosure
-      // Esto previene que un atacante identifique la existencia de recursos ajenos.
-      if (status === HttpStatus.FORBIDDEN) {
-        // Si el mensaje viene del PermissionsGuard, devolvemos 403 explícito
-        const exceptionMessage =
-          typeof exceptionResponse === 'string'
-            ? exceptionResponse
-            : (exceptionResponse as any).message;
-
-        if (
-          exceptionMessage?.includes('permiso') ||
-          exceptionMessage?.includes('Rol')
-        ) {
-          response.status(HttpStatus.FORBIDDEN).json({
-            statusCode: HttpStatus.FORBIDDEN,
-            message: exceptionMessage || 'Acceso denegado',
-          });
-          return;
-        }
-
-        // Caso genérico: enmascarar como 404
-        response.status(HttpStatus.NOT_FOUND).json({
-          statusCode: HttpStatus.NOT_FOUND,
-          message: 'Recurso no encontrado',
-        });
-        return;
-      }
-
-      response.status(status).json(exceptionResponse);
+      response.status(exception.getStatus()).json(exception.getResponse());
       return;
     }
 

@@ -43,10 +43,7 @@ export class LecturaSensorController {
   // endpoint de arriba, acá sí hay un usuario humano de la empresa detrás,
   // por eso exige permiso explícito de escritura.
   @Post('lecturas/manual')
-  @Permissions(
-    [ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS],
-    PermissionAction.CREATE,
-  )
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.CREATE)
   @AuditLog('LECTURA_MANUAL_INGRESAR', 'SensorLectura', TipoAccion.ALTA)
   ingresarManual(
     @Body() dto: IngresarLecturaManualDto,

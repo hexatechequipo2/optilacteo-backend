@@ -21,6 +21,7 @@ import { CreateConfigParametroDto } from './dto/create-config-parametro.dto';
 import { UpdateConfigParametroDto } from './dto/update-config-parametro.dto';
 import type { ConfigParametroResponseDto } from './dto/config-parametro-response.dto';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 @ApiTags('config-parametros')
@@ -32,7 +33,10 @@ export class ConfigParametroController {
   ) {}
 
   @Post()
-  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.CREATE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.CREATE,
+  )
   @AuditLog('CONFIG_PARAMETRO_CREAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION, (ctx) => {
     const body = ctx.responseBody as Partial<ConfigParametroResponseDto> | undefined;
     return `Umbral de ${body?.parametro ?? '?'} creado para ${body?.tipoMateriaPrima ?? '?'}: ${body?.umbralMin ?? '?'} - ${body?.umbralMax ?? '?'}`;
@@ -48,7 +52,10 @@ export class ConfigParametroController {
   }
 
   @Put(':id')
-  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.UPDATE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.UPDATE,
+  )
   @AuditLog('CONFIG_PARAMETRO_ACTUALIZAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION, (ctx) => {
     const body = ctx.responseBody as Partial<ConfigParametroResponseDto> | undefined;
     return `Umbral de ${body?.parametro ?? '?'} modificado para ${body?.tipoMateriaPrima ?? '?'}: ${body?.umbralMin ?? '?'} - ${body?.umbralMax ?? '?'}`;
@@ -65,7 +72,17 @@ export class ConfigParametroController {
   }
 
   @Get()
-  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.READ)
+  // Además de Configuración, lo leen Lotes, Sensores (semáforo) y Alertas.
+  @Permissions(
+    [
+      ModuloAdministrativo.CONFIGURACION_EMPRESA,
+      ModuloSistema.SENSORES_IOT,
+      ModuloSistema.MONITOREO_ALERTAS,
+      ModuloSistema.RECEPCION,
+      ModuloSistema.TRAZABILIDAD,
+    ],
+    PermissionAction.READ,
+  )
   listar(@CurrentEmpresa() tenant: TenantContext) {
     if (tenant.empresaId === null) {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
@@ -77,7 +94,10 @@ export class ConfigParametroController {
   }
 
   @Delete(':id')
-  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.DELETE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.DELETE,
+  )
   @AuditLog('CONFIG_PARAMETRO_ELIMINAR', 'ConfiguracionParametro', TipoAccion.CONFIGURACION)
   eliminar(
     @CurrentEmpresa() tenant: TenantContext,

@@ -1,17 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 
 import { DatasetMlController } from '../dataset-ml.controller';
 import { DatasetMlService } from '../dataset-ml.service';
 import { SeriesHistoricasQueryDto } from '../dto/series-historicas-query.dto';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
+import { EstabilidadProveedorService } from '../../estabilidad-proveedor/estabilidad-proveedor.service';
+import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
+import { InternalApiKeyGuard } from '../../internal/guards/internal-api-key.guard';
 
 describe('DatasetMlController — datos de entrenamiento para microservicio ML (HU-50)', () => {
   let controller: DatasetMlController;
   let service: DatasetMlService;
-
-  const originalEnv = process.env;
-  const mockApiKey = 'secret-internal-key-2026';
 
   const mockDatasetMlService = {
     obtenerSerie: jest.fn(),
@@ -25,8 +26,6 @@ describe('DatasetMlController — datos de entrenamiento para microservicio ML (
   } as any;
 
   beforeEach(async () => {
-    process.env = { ...originalEnv, NEST_INTERNAL_API_KEY: mockApiKey };
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DatasetMlController],
       providers: [
@@ -34,6 +33,8 @@ describe('DatasetMlController — datos de entrenamiento para microservicio ML (
           provide: DatasetMlService,
           useValue: mockDatasetMlService,
         },
+        { provide: EstabilidadProveedorService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
     }).compile();
 
@@ -42,29 +43,17 @@ describe('DatasetMlController — datos de entrenamiento para microservicio ML (
   });
 
   afterEach(() => {
-    process.env = originalEnv;
     jest.clearAllMocks();
   });
 
-  it('cuando la API key interna no se provee en los headers, debe lanzar UnauthorizedException', () => {
-    const invalidApiKey = '';
-
-    expect(() => controller.obtenerSerie(mockQueryDto, invalidApiKey)).toThrow(
-      UnauthorizedException,
-    );
-    expect(service.obtenerSerie).not.toHaveBeenCalled();
+  it('es @Public() y exige InternalApiKeyGuard en toda la clase (el microservicio no manda JWT)', () => {
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, DatasetMlController)).toBe(true);
+    expect(Reflect.getMetadata(GUARDS_METADATA, DatasetMlController)).toEqual([
+      InternalApiKeyGuard,
+    ]);
   });
 
-  it('cuando la API key interna proporcionada es incorrecta, debe lanzar UnauthorizedException', () => {
-    const invalidApiKey = 'key-incorrecta';
-
-    expect(() => controller.obtenerSerie(mockQueryDto, invalidApiKey)).toThrow(
-      UnauthorizedException,
-    );
-    expect(service.obtenerSerie).not.toHaveBeenCalled();
-  });
-
-  it('cuando la API key es válida, debe delegar al servicio parseando las fechas a objetos Date', async () => {
+  it('debe delegar al servicio parseando las fechas a objetos Date', async () => {
     const mockSerieResult = [
       { fecha: new Date('2026-01-10'), valor: 6.5 },
       { fecha: new Date('2026-01-11'), valor: 6.6 },
@@ -72,7 +61,7 @@ describe('DatasetMlController — datos de entrenamiento para microservicio ML (
 
     mockDatasetMlService.obtenerSerie.mockResolvedValue(mockSerieResult);
 
-    const resultado = await controller.obtenerSerie(mockQueryDto, mockApiKey);
+    const resultado = await controller.obtenerSerie(mockQueryDto);
 
     expect(service.obtenerSerie).toHaveBeenCalledWith(
       mockQueryDto.empresaId,
