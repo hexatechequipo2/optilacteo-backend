@@ -34,3 +34,18 @@ export const AuditLog = (
   tipo: TipoAccion,
   descripcion?: (ctx: AuditDescripcionContext) => string,
 ) => SetMetadata(AUDIT_KEY, { accion, entidad, tipo, descripcion });
+
+/** Diff que un handler puede adjuntar al request para que quede en el log. */
+export interface AuditCambios {
+  antes: unknown;
+  despues: unknown;
+}
+
+export const AUDIT_CAMBIOS_KEY = 'auditCambios';
+
+export function registrarCambiosAuditoria(
+  request: object,
+  cambios: AuditCambios,
+): void {
+  (request as Record<string, unknown>)[AUDIT_CAMBIOS_KEY] = cambios;
+}
