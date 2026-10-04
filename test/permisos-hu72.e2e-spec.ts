@@ -22,24 +22,34 @@ import { RolService } from '../src/module/rol/rol.service';
 import { UserController } from '../src/module/user/user.controller';
 import { EmpresaController } from '../src/module/empresa/empresa.controller';
 import { LecturaSensorController } from '../src/module/lectura-sensor/lectura-sensor.controller';
+import { LoteController } from '../src/module/lote/lote.controller';
+import { SensorController } from '../src/module/sensor/sensor.controller';
+import { NotificacionesController } from '../src/module/notificaciones/notificaciones.controller';
+import {
+  MAPA_APROBADO,
+  matrizComoMapa,
+  type FilaFlags,
+} from '../src/module/permiso/test/matriz-aprobada.fixture';
 
 /* eslint-disable @typescript-eslint/unbound-method */
 
 const DB = `optilacteo_hu72_test_${process.pid}`;
 const MIGRACIONES_DIR = join(__dirname, '../src/migrations');
 const HU72 = ['1791091175765', '1791091175766'];
+const MATRIZ = '1791094778511';
 
-const migraciones = (incluirHu72: boolean) =>
+/** excluir: prefijos de timestamp que todavía no se corren. */
+const migraciones = (excluir: string[]) =>
   readdirSync(MIGRACIONES_DIR)
     .filter((f) => f.endsWith('.ts'))
-    .filter((f) => incluirHu72 || !HU72.some((ts) => f.startsWith(ts)))
+    .filter((f) => !excluir.some((ts) => f.startsWith(ts)))
     .map((f) => join(MIGRACIONES_DIR, f));
 
-const conectar = (database: string, incluirHu72 = true) =>
+const conectar = (database: string, excluir: string[] = []) =>
   new DataSource({
     ...baseDataSource.options,
     database,
-    migrations: migraciones(incluirHu72),
+    migrations: migraciones(excluir),
   } as typeof baseDataSource.options).initialize();
 
 describe('HU-72 sobre Postgres', () => {
@@ -48,6 +58,7 @@ describe('HU-72 sobre Postgres', () => {
   let permisoService: PermisoService;
   let guard: PermissionsGuard;
   const ids: Record<string, number> = {};
+  const backfill: Record<string, unknown> = {};
 
   const insertar = async (sql: string, params: unknown[]) =>
     (await ds.query<{ id: number }[]>(sql, params))[0].id;
@@ -73,6 +84,17 @@ describe('HU-72 sobre Postgres', () => {
       switchToHttp: () => ({ getRequest: () => ({ user: { sub: userId } }) }),
     } as unknown as ExecutionContext);
 
+  /** Filas de los roles de catálogo (sin Administrador) de una empresa. */
+  const matrizCatalogo = async (empresaId: number) =>
+    matrizComoMapa(
+      await ds.query<FilaFlags[]>(
+        `SELECT r.nombre AS rol, p.modulo::text AS modulo, p."canRead", p."canCreate", p."canUpdate", p."canDelete", p."canExport"
+           FROM permiso_modulos p JOIN roles r ON r.id = p."rolId"
+          WHERE p."empresaId" = $1 AND r."empresaId" IS NULL AND NOT r."esSistema"`,
+        [empresaId],
+      ),
+    );
+
   const filas = (empresaId: number) =>
     ds.query(
       `SELECT r.nombre AS rol, p.modulo::text AS modulo, p."canRead" r, p."canCreate" c, p."canUpdate" u, p."canDelete" d
@@ -88,7 +110,7 @@ describe('HU-72 sobre Postgres', () => {
     await admin.query(`CREATE DATABASE "${DB}"`);
 
     // 1) Base limpia con todas las migraciones previas a HU-72.
-    ds = await conectar(DB, false);
+    ds = await conectar(DB, [...HU72, MATRIZ]);
     await ds.runMigrations();
 
     // 2) Datos que ya existían antes de HU-72.
@@ -103,6 +125,7 @@ describe('HU-72 sobre Postgres', () => {
     ids.gerente = await rolCatalogo('Gerente');
     ids.calidad = await rolCatalogo('Responsable de calidad');
     ids.operario = await rolCatalogo('Operario de línea');
+    ids.produccion = await rolCatalogo('Responsable de producción');
     ids.administrador = await rolCatalogo('Administrador');
     for (const e of [ids.empresaA, ids.empresaB]) {
       await ds.query(
@@ -128,16 +151,31 @@ describe('HU-72 sobre Postgres', () => {
     ids.uGerenteB = await usuario('gerenteB', ids.gerente, ids.empresaB);
     ids.uCalidadA = await usuario('calidadA', ids.calidad, ids.empresaA);
     ids.uOperarioA = await usuario('operarioA', ids.operario, ids.empresaA);
+    ids.uProduccionA = await usuario(
+      'produccionA',
+      ids.produccion,
+      ids.empresaA,
+    );
     ids.uIot = await usuario('iot', ids.rolIot, ids.empresaA);
     ids.uAdmin = await usuario('admin', ids.administrador, null);
     await ds.destroy();
 
-    // 3) Migraciones de HU-72 sobre esos datos.
-    ds = await conectar(DB);
+    // 3) Migraciones de HU-72 sobre esos datos: primero enum + backfill...
+    ds = await conectar(DB, [MATRIZ]);
     const ejecutadas = await ds.runMigrations();
     expect(ejecutadas.map((m) => m.name)).toEqual([
       'AmpliarModulosPermiso1791091175765',
       'BackfillPermisosAdministrativos1791091175766',
+    ]);
+    backfill.empresaA = await filas(ids.empresaA);
+    backfill.empresaB = await filas(ids.empresaB);
+    await ds.destroy();
+
+    // ...y después la matriz por defecto.
+    ds = await conectar(DB);
+    const matriz = await ds.runMigrations();
+    expect(matriz.map((m) => m.name)).toEqual([
+      'MatrizPermisosPorDefecto1791094778511',
     ]);
 
     permisoService = new PermisoService(
@@ -168,7 +206,7 @@ describe('HU-72 sobre Postgres', () => {
     );
   });
 
-  it('backfill: Gerente y Responsable de calidad reciben sus permisos en cada empresa', async () => {
+  it('backfill: Gerente y Responsable de calidad reciben sus permisos en cada empresa', () => {
     const esperado = [
       {
         rol: 'Gerente',
@@ -195,8 +233,71 @@ describe('HU-72 sobre Postgres', () => {
         d: false,
       },
     ];
-    expect(await filas(ids.empresaA)).toEqual(esperado);
-    expect(await filas(ids.empresaB)).toEqual(esperado);
+    expect(backfill.empresaA).toEqual(esperado);
+    expect(backfill.empresaB).toEqual(esperado);
+  });
+
+  it('matriz por defecto: cada rol de catálogo queda con exactamente la matriz aprobada, en cada empresa', async () => {
+    expect(await matrizCatalogo(ids.empresaA)).toEqual(MAPA_APROBADO);
+    expect(await matrizCatalogo(ids.empresaB)).toEqual(MAPA_APROBADO);
+  });
+
+  it('matriz por defecto: no toca roles personalizados', async () => {
+    const filasIot = await ds.query<FilaFlags[]>(
+      `SELECT modulo::text AS modulo, "canRead", "canCreate", "canUpdate", "canDelete", "canExport"
+         FROM permiso_modulos WHERE "rolId" = $1`,
+      [ids.rolIot],
+    );
+    expect(filasIot).toEqual([
+      {
+        modulo: 'sensores_iot',
+        canRead: false,
+        canCreate: true,
+        canUpdate: false,
+        canDelete: false,
+        canExport: false,
+      },
+    ]);
+  });
+
+  describe('con la matriz por defecto, por rol de catálogo', () => {
+    const l = LoteController.prototype;
+    const s = SensorController.prototype;
+
+    it('POST /lotes: Calidad sí; Operario y Producción no', async () => {
+      await expect(pasa(l.create, ids.uCalidadA)).resolves.toBe(true);
+      await expect(pasa(l.create, ids.uOperarioA)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(pasa(l.create, ids.uProduccionA)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('asociar sensores (HU-33): Operario y Producción sí; Calidad no', async () => {
+      await expect(pasa(s.asociarALote, ids.uOperarioA)).resolves.toBe(true);
+      await expect(pasa(s.asociarALote, ids.uProduccionA)).resolves.toBe(true);
+      await expect(pasa(s.asociarALote, ids.uCalidadA)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('horarios de silencio (HU-30): Gerente y Producción sí; Operario no', async () => {
+      const crear = NotificacionesController.prototype.crearHorarioSilencio;
+      await expect(pasa(crear, ids.uGerenteA)).resolves.toBe(true);
+      await expect(pasa(crear, ids.uProduccionA)).resolves.toBe(true);
+      await expect(pasa(crear, ids.uOperarioA)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('mediciones manuales: solo el Operario', async () => {
+      const ingresarManual = LecturaSensorController.prototype.ingresarManual;
+      await expect(pasa(ingresarManual, ids.uOperarioA)).resolves.toBe(true);
+      await expect(pasa(ingresarManual, ids.uGerenteA)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
   });
 
   describe('después del backfill', () => {
@@ -251,11 +352,12 @@ describe('HU-72 sobre Postgres', () => {
       const r = await permisoService.obtenerMisPermisos(ids.uGerenteA);
       expect(r.esSistema).toBe(false);
       expect(r.rolNombre).toBe('Gerente');
-      expect(r.permisos.map((x) => x.modulo).sort()).toEqual([
-        'configuracion_empresa',
-        'gestion_roles',
-        'gestion_usuarios',
-      ]);
+      expect(r.permisos.map((x) => x.modulo).sort()).toEqual(
+        Object.keys(MAPA_APROBADO)
+          .filter((k) => k.startsWith('Gerente|'))
+          .map((k) => k.split('|')[1])
+          .sort(),
+      );
     });
 
     it('rol personalizado', async () => {
@@ -311,16 +413,16 @@ describe('HU-72 sobre Postgres', () => {
     });
   });
 
-  it('empresa nueva: recibe el mismo set por defecto', async () => {
+  it('empresa nueva: recibe la matriz por defecto completa', async () => {
     const empresaC = await insertar(
       `INSERT INTO empresas (name, cuit) VALUES ('C', '30-3') RETURNING id`,
       [],
     );
 
-    await permisoService.otorgarPermisosAdministrativosPorDefecto(empresaC);
-    await permisoService.otorgarPermisosAdministrativosPorDefecto(empresaC); // idempotente
+    await permisoService.otorgarPermisosPorDefecto(empresaC);
+    await permisoService.otorgarPermisosPorDefecto(empresaC); // idempotente
 
-    expect(await filas(empresaC)).toEqual(await filas(ids.empresaB));
+    expect(await matrizCatalogo(empresaC)).toEqual(MAPA_APROBADO);
     const [{ n }] = await ds.query<{ n: number }[]>(
       `SELECT count(*)::int AS n FROM permiso_modulos WHERE "empresaId" = $1 AND modulo = 'gestion_roles'`,
       [empresaC],
@@ -370,5 +472,33 @@ describe('HU-72 sobre Postgres', () => {
       'gestion_usuarios',
       'sensores_iot',
     ]);
+  });
+
+  it('la migración no deja tablas auxiliares', async () => {
+    const tablas = await ds.query<{ t: string }[]>(
+      `SELECT table_name AS t FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name LIKE 'permiso_modulos%'`,
+    );
+    expect(tablas.map((x) => x.t)).toEqual(['permiso_modulos']);
+  });
+
+  it('down() de la matriz deja sin filas a los roles de catálogo y no toca el resto', async () => {
+    const otras = () =>
+      ds.query<{ n: number }[]>(
+        `SELECT count(*)::int AS n FROM permiso_modulos p JOIN roles r ON r.id = p."rolId"
+          WHERE r."empresaId" IS NOT NULL OR r."esSistema"`,
+      );
+    const [{ n: antes }] = await otras();
+
+    await ds.undoLastMigration();
+
+    const [{ n: catalogo }] = await ds.query<{ n: number }[]>(
+      `SELECT count(*)::int AS n FROM permiso_modulos p JOIN roles r ON r.id = p."rolId"
+        WHERE r."empresaId" IS NULL AND NOT r."esSistema"`,
+    );
+    expect(catalogo).toBe(0);
+    const [{ n: despues }] = await otras();
+    expect(despues).toBe(antes);
+    expect(antes).toBeGreaterThan(0); // el rol personalizado de la empresa A
   });
 });

@@ -42,7 +42,7 @@ const empresaBase = {
 describe('EmpresaService', () => {
   let service: EmpresaService;
   let mockPermisoService: {
-    otorgarPermisosAdministrativosPorDefecto: jest.Mock;
+    otorgarPermisosPorDefecto: jest.Mock;
   };
   let mockEmpresaRepository: {
     findById: jest.Mock;
@@ -76,7 +76,7 @@ describe('EmpresaService', () => {
     };
 
     mockPermisoService = {
-      otorgarPermisosAdministrativosPorDefecto: jest.fn(),
+      otorgarPermisosPorDefecto: jest.fn(),
     };
     const mockStorageService = {
       upload: jest.fn(),
@@ -180,7 +180,7 @@ describe('EmpresaService', () => {
       );
     });
 
-    it('deberia otorgar los permisos administrativos por defecto a la empresa nueva (HU-72)', async () => {
+    it('deberia otorgar la matriz de permisos por defecto completa a la empresa nueva (HU-72)', async () => {
       const empresaCreada = { ...empresaBase, id: 9 };
       mockEmpresaRepository.createEmpresa.mockResolvedValue(empresaCreada);
       mockEmpresaRepository.createModulos.mockResolvedValue([]);
@@ -193,7 +193,7 @@ describe('EmpresaService', () => {
       });
 
       expect(
-        mockPermisoService.otorgarPermisosAdministrativosPorDefecto,
+        mockPermisoService.otorgarPermisosPorDefecto,
       ).toHaveBeenCalledWith(9);
     });
 

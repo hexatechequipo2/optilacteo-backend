@@ -2,20 +2,24 @@
 import {
   Controller,
   Get,
-  Post,
-  Headers,
-  Param,
   ParseIntPipe,
   Query,
-  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/decorators/public.decorator';
+import { InternalApiKeyGuard } from '../internal/guards/internal-api-key.guard';
 
 import { DatasetMlService } from './dataset-ml.service';
 import { SeriesHistoricasQueryDto } from './dto/series-historicas-query.dto';
 import { EstabilidadProveedorService } from '../estabilidad-proveedor/estabilidad-proveedor.service';
 
+// Servicio a servicio (microservicio de IA): sin JWT, solo API key por header.
+// @Public() saltea JwtAuthGuard y PermissionsGuard globales; el guard de API key
+// corre antes que los pipes, así que sin key válida responde 401 siempre.
 @ApiTags('internal')
+@Public()
+@UseGuards(InternalApiKeyGuard)
 @Controller('internal/series-historicas')
 export class DatasetMlController {
   constructor(
@@ -23,20 +27,10 @@ export class DatasetMlController {
     private readonly estabilidadProveedorService: EstabilidadProveedorService,
   ) {}
 
-  // Validación compartida para los endpoints internos
-  private validarApiKey(apiKey: string) {
-    if (!apiKey || apiKey !== process.env.NEST_INTERNAL_API_KEY) {
-      throw new UnauthorizedException('API key inválida o ausente');
-    }
-  }
-
   @Get()
   obtenerSerie(
     @Query() query: SeriesHistoricasQueryDto,
-    @Headers('x-internal-api-key') apiKey: string,
   ) {
-    this.validarApiKey(apiKey);
-
     return this.datasetMlService.obtenerSerie(
       query.empresaId,
       query.parametro,
@@ -48,10 +42,7 @@ export class DatasetMlController {
   @Get('proveedores-lotes')
   obtenerLotesPorProveedor(
     @Query('empresaId', ParseIntPipe) empresaId: number,
-    @Headers('x-internal-api-key') apiKey: string,
   ) {
-    this.validarApiKey(apiKey);
-
     return this.datasetMlService.obtenerLotesPorProveedor(empresaId);
   }
 

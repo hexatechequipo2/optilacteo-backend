@@ -44,10 +44,7 @@ export class LoteController {
 
   // HU-60: registro de lotes — solo Responsable de calidad.
   @Post()
-  @Permissions(
-    [ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD],
-    PermissionAction.CREATE,
-  )
+  @Permissions(ModuloSistema.RECEPCION, PermissionAction.CREATE)
   @AuditLog('LOTE_REGISTRAR', 'Lote', TipoAccion.ALTA)
   create(
     @Body() createLoteDto: CreateLoteDto,

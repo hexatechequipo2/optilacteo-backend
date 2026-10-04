@@ -2,7 +2,6 @@ import {
   Inject,
   Injectable,
   BadRequestException,
-  ForbiddenException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
@@ -61,10 +60,9 @@ export class ConfigParametroService {
       throw new NotFoundException('Configuración no encontrada');
     }
 
+    // Otra empresa: 404 como si no existiera, para no revelar ids ajenos.
     if (config.empresaId !== empresaId) {
-      throw new ForbiddenException(
-        'No puede modificar configuraciones de otra empresa',
-      );
+      throw new NotFoundException('Configuración no encontrada');
     }
 
     // HU-40: el PUT es parcial, así que la cadena completa se valida sobre
@@ -160,10 +158,9 @@ export class ConfigParametroService {
       throw new NotFoundException('Configuración no encontrada');
     }
 
+    // Otra empresa: 404 como si no existiera, para no revelar ids ajenos.
     if (config.empresaId !== empresaId) {
-      throw new ForbiddenException(
-        'No puede eliminar configuraciones de otra empresa',
-      );
+      throw new NotFoundException('Configuración no encontrada');
     }
 
     await this.repository.delete(id);

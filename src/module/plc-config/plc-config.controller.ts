@@ -45,7 +45,9 @@ export class PlcConfigController {
   }
 
   @Put()
-  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.UPDATE)
+  // C y no U: guardarUrl es un upsert (crea la config si la empresa no tiene).
+  // Además deja afuera al Operario, que tiene sensores_iot:U para asociar sensores (HU-33).
+  @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.CREATE)
   @AuditLog('PLC_CONFIG_ACTUALIZAR', 'PlcConfig', TipoAccion.EDICION)
   @ApiOperation({ summary: 'Guardar/actualizar la URL del PLC de la empresa' })
   @ApiResponse({
@@ -66,6 +68,7 @@ export class PlcConfigController {
 
   @Post('test-connection')
   @HttpCode(HttpStatus.OK)
+  // Mismo permiso que el PUT al que precede (upsert → C).
   @Permissions(ModuloSistema.SENSORES_IOT, PermissionAction.CREATE)
   @ApiOperation({
     summary: 'Probar conexión con una URL de PLC antes de guardarla',

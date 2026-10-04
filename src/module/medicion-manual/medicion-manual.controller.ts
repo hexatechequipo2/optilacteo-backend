@@ -29,10 +29,7 @@ export class MedicionManualController {
 
   // AC13: solo Operario de línea puede registrar (matriz de permisos).
   @Post()
-  @Permissions(
-    [ModuloSistema.RECEPCION, ModuloSistema.MONITOREO_ALERTAS],
-    PermissionAction.CREATE,
-  )
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.CREATE)
   @AuditLog('MEDICION_MANUAL_LOTE_REGISTRAR', 'MedicionManualLote', TipoAccion.ALTA)
   registrar(
     @Param('id') id: string,

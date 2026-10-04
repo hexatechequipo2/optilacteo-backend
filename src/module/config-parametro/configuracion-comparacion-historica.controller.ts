@@ -13,7 +13,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { ROLES } from '../rol/constants/roles.constants';
-import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import { ConfiguracionComparacionHistoricaService } from './configuracion-comparacion-historica.service';
 import { UpdateConfiguracionComparacionHistoricaDto } from './dto/update-configuracion-comparacion-historica.dto';
 import { TipoAccion } from '../audit/enums/tipo-accion.enum';
@@ -28,7 +28,10 @@ export class ConfiguracionComparacionHistoricaController {
   ) {}
 
   @Get()
-  @Permissions(ModuloSistema.TRAZABILIDAD, PermissionAction.READ)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.READ,
+  )
   get(@CurrentEmpresa() tenant: TenantContext) {
     if (tenant.empresaId === null) {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
@@ -37,7 +40,10 @@ export class ConfiguracionComparacionHistoricaController {
   }
 
   @Patch()
-  @Permissions(ModuloSistema.TRAZABILIDAD, PermissionAction.UPDATE)
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.UPDATE,
+  )
   @AuditLog(
     'CONFIG_COMPARACION_HISTORICA_ACTUALIZAR',
     'ConfiguracionComparacionHistorica',
