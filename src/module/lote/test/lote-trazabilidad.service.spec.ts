@@ -7,8 +7,10 @@ import { LoteRevisionCalidad } from '../entities/lote-revision-calidad.entity';
 import { LoteUbicacionHistorial } from '../entities/lote-ubicacion-historial.entity';
 import { IngresoCamara } from '../entities/ingreso-camara.entity';
 import { RecomendacionDestino } from '../../ml/entities/recomendacion-destino.entity'; 
+import { Empresa } from '../../empresa/entities/empresa.entity';
 import { ClasificacionLoteService } from '../clasificacion-lote.service';
 import { LoteConsumoService } from '../lote-consumo.service';
+import { TrazabilidadPdfBuilder } from '../pdf/trazabilidad-pdf.builder';
 import { EstadoLote } from '../enums/estado-lote.enum';
 import { TipoEventoTrazabilidad } from '../enums/tipo-evento-trazabilidad.enum';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
@@ -33,12 +35,20 @@ const mockRecomendacionRepository = {
   find: jest.fn(),
 };
 
+const mockEmpresaRepository = {
+  findOneBy: jest.fn(),
+};
+
 const mockClasificacionLoteService = {
   historialDeLote: jest.fn(),
 };
 
 const mockLoteConsumoService = {
   historial: jest.fn(),
+};
+
+const mockPdfBuilder = {
+  build: jest.fn(),
 };
 
 describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
@@ -71,12 +81,20 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
           useValue: mockRecomendacionRepository,
         },
         {
+          provide: getRepositoryToken(Empresa),
+          useValue: mockEmpresaRepository,
+        },
+        {
           provide: ClasificacionLoteService,
           useValue: mockClasificacionLoteService,
         },
         {
           provide: LoteConsumoService,
           useValue: mockLoteConsumoService,
+        },
+        {
+          provide: TrazabilidadPdfBuilder,
+          useValue: mockPdfBuilder,
         },
       ],
     }).compile();

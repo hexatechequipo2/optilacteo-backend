@@ -3,11 +3,12 @@ import { AuditLogService } from '../audit-log.service';
 import { AUDIT_LOG_REPOSITORY } from '../repository/audit-log-interface.repository';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
+import { TipoAccion } from '../enums/tipo-accion.enum';
 import type { AuditLog } from '../entity/audit-log.entity';
 
 const mockAuditLogRepository = {
   create: jest.fn(),
-  findAllScoped: jest.fn(),
+  findFiltered: jest.fn(),
   findPrimerosYUltimos: jest.fn(),
 };
 
@@ -34,19 +35,27 @@ describe('AuditLogService', () => {
       await service.record({
         userId: 1,
         userEmail: 'user@lacteo.com',
+        userNombre: 'Usuario de prueba',
+        userRol: ROLES.GERENTE,
         empresaId: 1,
+        tipo: 'CREAR' as TipoAccion,
         accion: 'USUARIO_CREAR_SUCCESS',
         entidad: 'Usuario',
         entidadId: 10,
+        descripcion: 'Usuario creado correctamente',
       });
 
       expect(mockAuditLogRepository.create).toHaveBeenCalledWith({
         userId: 1,
         userEmail: 'user@lacteo.com',
+        userNombre: 'Usuario de prueba',
+        userRol: ROLES.GERENTE,
         empresaId: 1,
+        tipo: 'CREAR' as TipoAccion,
         accion: 'USUARIO_CREAR_SUCCESS',
         entidad: 'Usuario',
         entidadId: 10,
+        descripcion: 'Usuario creado correctamente',
       });
     });
 
@@ -57,10 +66,14 @@ describe('AuditLogService', () => {
         service.record({
           userId: null,
           userEmail: 'anonymous',
+          userNombre: 'anonymous',
+          userRol: 'ANONYMOUS',
           empresaId: null,
+          tipo: 'LOGIN' as TipoAccion,
           accion: 'LOGIN_FAILURE',
           entidad: 'Usuario',
           entidadId: null,
+          descripcion: 'Inicio de sesion fallido',
         }),
       ).resolves.toBeUndefined();
     });
@@ -68,65 +81,70 @@ describe('AuditLogService', () => {
 
   describe('findAll', () => {
     it('deberia usar los valores por defecto de pagina y limite cuando no se especifican', async () => {
-      mockAuditLogRepository.findAllScoped.mockResolvedValue([[], 0]);
+      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
       const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
-      await service.findAll(tenant);
+      await service.findAll(tenant, {});
 
-      expect(mockAuditLogRepository.findAllScoped).toHaveBeenCalledWith(
+      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
         tenant,
+        expect.anything(),
         0,
         50,
       );
     });
 
     it('deberia calcular el skip en base a la pagina y el limite recibidos', async () => {
-      mockAuditLogRepository.findAllScoped.mockResolvedValue([[], 0]);
+      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
       const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
-      await service.findAll(tenant, 3, 10);
+      await service.findAll(tenant, { page: 3, limit: 10 });
 
-      expect(mockAuditLogRepository.findAllScoped).toHaveBeenCalledWith(
+      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
         tenant,
+        expect.anything(),
         20,
         10,
       );
     });
 
     it('deberia forzar la pagina minima a 1 cuando se recibe un valor menor o igual a 0', async () => {
-      mockAuditLogRepository.findAllScoped.mockResolvedValue([[], 0]);
+      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
       const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
-      await service.findAll(tenant, -5, 10);
+      await service.findAll(tenant, { page: -5, limit: 10 });
 
-      expect(mockAuditLogRepository.findAllScoped).toHaveBeenCalledWith(
+      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
         tenant,
+        expect.anything(),
         0,
         10,
       );
     });
 
     it('deberia limitar el tamano de pagina a 200 como maximo', async () => {
-      mockAuditLogRepository.findAllScoped.mockResolvedValue([[], 0]);
+      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
       const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
-      await service.findAll(tenant, 1, 500);
+      await service.findAll(tenant, { page: 1, limit: 500 });
 
-      expect(mockAuditLogRepository.findAllScoped).toHaveBeenCalledWith(
+      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
         tenant,
+        expect.anything(),
         0,
         200,
       );
     });
 
     it('deberia forzar el limite minimo a 1 cuando se recibe un valor menor o igual a 0', async () => {
-      mockAuditLogRepository.findAllScoped.mockResolvedValue([[], 0]);
+      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
       const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
-      await service.findAll(tenant, 1, -10);
+      await service.findAll(tenant, { page: 1, limit: -10 });
 
-      expect(mockAuditLogRepository.findAllScoped).toHaveBeenCalledWith(
+      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
         tenant,
+        expect.anything(),
         0,
         1,
       );
@@ -134,13 +152,13 @@ describe('AuditLogService', () => {
 
     it('deberia devolver el resultado tal cual lo entrega el repositorio', async () => {
       const logs = [{ id: 1 }] as never;
-      mockAuditLogRepository.findAllScoped.mockResolvedValue([logs, 1]);
+      mockAuditLogRepository.findFiltered.mockResolvedValue([logs, 1]);
       const tenant: TenantContext = {
         empresaId: null,
         rolNombre: ROLES.ADMINISTRADOR,
       };
 
-      const result = await service.findAll(tenant, 1, 50);
+      const result = await service.findAll(tenant, { page: 1, limit: 50 });
 
       expect(result).toEqual([logs, 1]);
     });

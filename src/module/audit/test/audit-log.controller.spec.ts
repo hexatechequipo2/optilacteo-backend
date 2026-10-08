@@ -1,124 +1,152 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
+import type { Response } from 'express';
+
 import { AuditLogController } from '../audit-log.controller';
 import { AuditLogService } from '../audit-log.service';
-import { ROLES } from '../../rol/constants/roles.constants';
+import { QueryAuditLogDto } from '../dto/query-audit-log.dto';
+import { ModuloAdministrativo } from '../../permiso/enums/modulo-administrativo.enum';
+import { PermissionAction } from '../../../common/enums/permission-action.enum';
+import { TIPO_ACCION_LABELS } from '../enums/tipo-accion.enum';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
-
-const mockAuditLogService = {
-  findAll: jest.fn(),
-};
+import { ROLES } from '../../rol/constants/roles.constants';
 
 describe('AuditLogController', () => {
   let controller: AuditLogController;
   let reflector: Reflector;
 
+  let mockAuditLogService: {
+    findAll: jest.Mock;
+    exportarCsv: jest.Mock;
+  };
+
+  const mockTenant: TenantContext = {
+    empresaId: 1,
+    rolNombre: ROLES.GERENTE,
+  };
+
   beforeEach(async () => {
+    mockAuditLogService = {
+      findAll: jest.fn(),
+      exportarCsv: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuditLogController],
-      providers: [{ provide: AuditLogService, useValue: mockAuditLogService }],
+      providers: [
+        {
+          provide: AuditLogService,
+          useValue: mockAuditLogService,
+        },
+      ],
     }).compile();
 
     controller = module.get<AuditLogController>(AuditLogController);
     reflector = new Reflector();
   });
 
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
-  it('deberia estar definido', () => {
+  it('debería estar definido', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('GET /audit-log', () => {
-    it('deberia delegar en el servicio sin convertir page/limit cuando no vienen en la query', async () => {
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-      mockAuditLogService.findAll.mockResolvedValue([[], 0]);
+  describe('GET /audit-log (findAll)', () => {
+    it('debería delegar en el servicio pasando el tenant y el query DTO', async () => {
+      const queryDto: QueryAuditLogDto = { page: 1, limit: 10 };
+      const expectedResult = { data: [], meta: { page: 1, limit: 10, total: 0 } };
 
-      await controller.findAll(tenant);
+      mockAuditLogService.findAll.mockResolvedValue(expectedResult);
 
-      expect(mockAuditLogService.findAll).toHaveBeenCalledWith(
-        tenant,
-        undefined,
-        undefined,
-      );
-    });
-
-    it('deberia convertir page y limit de string a number antes de delegar en el servicio', async () => {
-      const tenant: TenantContext = {
-        empresaId: null,
-        rolNombre: ROLES.ADMINISTRADOR,
-      };
-      mockAuditLogService.findAll.mockResolvedValue([[], 0]);
-
-      await controller.findAll(tenant, '2', '25');
-
-      expect(mockAuditLogService.findAll).toHaveBeenCalledWith(tenant, 2, 25);
-    });
-
-    it('deberia convertir solo page cuando limit no viene en la query', async () => {
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-      mockAuditLogService.findAll.mockResolvedValue([[], 0]);
-
-      await controller.findAll(tenant, '3');
+      const result = await controller.findAll(mockTenant, queryDto);
 
       expect(mockAuditLogService.findAll).toHaveBeenCalledWith(
-        tenant,
-        3,
-        undefined,
+        mockTenant,
+        queryDto,
       );
+      expect(result).toEqual(expectedResult);
     });
 
-    it('deberia convertir solo limit cuando page no viene en la query', async () => {
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-      mockAuditLogService.findAll.mockResolvedValue([[], 0]);
-
-      await controller.findAll(tenant, undefined, '10');
-
-      expect(mockAuditLogService.findAll).toHaveBeenCalledWith(
-        tenant,
-        undefined,
-        10,
+    it('debería exponer los permisos AUDITORIA READ en la metadata', () => {
+      const permissions = reflector.get(
+        'permissions',
+        controller.findAll,
       );
-    });
 
-    it('deberia pasar NaN al servicio si page/limit no son numericos (no valida en el controller)', async () => {
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-      mockAuditLogService.findAll.mockResolvedValue([[], 0]);
-
-      await controller.findAll(tenant, 'abc', 'xyz');
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const [, pageArg, limitArg] = mockAuditLogService.findAll.mock.calls[0];
-      expect(Number.isNaN(pageArg)).toBe(true);
-      expect(Number.isNaN(limitArg)).toBe(true);
-    });
-
-    it('deberia devolver el resultado tal cual lo entrega el servicio', async () => {
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-      const logs = [{ id: 1 }] as never;
-      mockAuditLogService.findAll.mockResolvedValue([logs, 1]);
-
-      const result = await controller.findAll(tenant, '1', '50');
-
-      expect(result).toEqual([logs, 1]);
-    });
-
-    it('deberia propagar el error si el servicio rechaza la promesa', async () => {
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-      mockAuditLogService.findAll.mockRejectedValue(new Error('DB error'));
-
-      await expect(controller.findAll(tenant)).rejects.toThrow('DB error');
+      expect(permissions).toEqual({
+        modulo: ModuloAdministrativo.AUDITORIA,
+        action: PermissionAction.READ,
+      });
     });
   });
 
-  describe('Roles metadata', () => {
-    it('deberia exponer los roles ADMINISTRADOR y GERENTE en findAll', () => {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      const roles = reflector.get<string[]>('roles', controller.findAll);
-      expect(roles).toEqual(
-        expect.arrayContaining([ROLES.ADMINISTRADOR, ROLES.GERENTE]),
+  describe('GET /audit-log/tipos (getTipos)', () => {
+    it('debería retornar la lista mapeada de tipos de acción con value y label', () => {
+      const result = controller.getTipos();
+
+      const expectedTipos = Object.entries(TIPO_ACCION_LABELS).map(
+        ([value, label]) => ({
+          value,
+          label,
+        }),
       );
-      expect(roles).toHaveLength(2);
+
+      expect(result).toEqual(expectedTipos);
+    });
+
+    it('debería exponer los permisos AUDITORIA READ en la metadata', () => {
+      const permissions = reflector.get(
+        'permissions',
+        controller.getTipos,
+      );
+
+      expect(permissions).toEqual({
+        modulo: ModuloAdministrativo.AUDITORIA,
+        action: PermissionAction.READ,
+      });
+    });
+  });
+
+  describe('GET /audit-log/export (export)', () => {
+    it('debería exportar el CSV, configurar el header Content-Disposition y retornarlo', async () => {
+      const queryDto: QueryAuditLogDto = { page: 1, limit: 20 };
+      const csvContent = 'id,usuario,accion\n1,admin,LOGIN';
+
+      mockAuditLogService.exportarCsv.mockResolvedValue(csvContent);
+
+      const mockResponse = {
+        setHeader: jest.fn(),
+      } as unknown as Response;
+
+      const result = await controller.export(
+        mockTenant,
+        queryDto,
+        mockResponse,
+      );
+
+      expect(mockAuditLogService.exportarCsv).toHaveBeenCalledWith(
+        mockTenant,
+        queryDto,
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        expect.stringMatching(/^attachment; filename="audit-log-\d{4}-\d{2}-\d{2}\.csv"$/),
+      );
+      expect(result).toBe(csvContent);
+    });
+
+    it('debería exponer los permisos AUDITORIA EXPORT en la metadata', () => {
+      const permissions = reflector.get(
+        'permissions',
+        controller.export,
+      );
+
+      expect(permissions).toEqual({
+        modulo: ModuloAdministrativo.AUDITORIA,
+        action: PermissionAction.EXPORT,
+      });
     });
   });
 });

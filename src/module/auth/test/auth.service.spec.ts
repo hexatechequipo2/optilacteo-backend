@@ -141,7 +141,6 @@ describe('AuthService', () => {
         email: activeUser.email,
         rolId: activeUser.rol.id,
         rolNombre: activeUser.rol.nombre,
-        permisos: [],
         empresaId: activeUser.empresa.id,
         jti: '',
       });
@@ -164,7 +163,7 @@ describe('AuthService', () => {
       expect(result.user.rolId).toBeNull();
       expect(result.user.rolNombre).toBeNull();
       expect(mockJwtService.signAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ rolId: null, rolNombre: null, permisos: [] }),
+        expect.objectContaining({ rolId: null, rolNombre: null}),
       );
     });
   });

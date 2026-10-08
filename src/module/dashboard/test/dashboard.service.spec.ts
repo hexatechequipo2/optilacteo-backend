@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
 import { DashboardService } from '../dashboard.service';
+import { SemaforoService } from '../../config-parametro/semaforo.service';
 import { GranularidadHistorico } from '../dto/dashboard-historico.dto';
 
 import { Lote } from '../../lote/entities/lote.entity';
@@ -45,6 +46,10 @@ describe('DashboardService', () => {
     createQueryBuilder: jest.fn(),
   };
 
+  const semaforoServiceMock = {
+    evaluarEstado: jest.fn(),
+  };
+
   const buildSensorLecturaQBVacio = () => ({
     innerJoin: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
@@ -86,6 +91,10 @@ describe('DashboardService', () => {
         {
           provide: getRepositoryToken(MedicionManualLote),
           useValue: medicionManualRepo,
+        },
+        {
+          provide: SemaforoService,
+          useValue: semaforoServiceMock,
         },
       ],
     }).compile();
@@ -590,7 +599,7 @@ describe('DashboardService', () => {
 
       expect(result.granularidadAplicada).toBe(GranularidadAgregacion.DIA);
       expect(result.series).toHaveLength(1);
-      
+
       const puntoHoy = result.series[0].puntos.find((p) => p.fecha === '2026-08-03');
       expect(puntoHoy?.valor).toBe(15);
     });

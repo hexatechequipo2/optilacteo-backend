@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PermisoController } from '../permiso.controller';
 import { PermisoService } from '../permiso.service';
-import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
 import { TenantContext } from '../../../common/types/tenant-context.type';
 
 describe('PermisoController', () => {
@@ -10,7 +9,6 @@ describe('PermisoController', () => {
     findByRol: jest.Mock;
     findByUsuario: jest.Mock;
     findOne: jest.Mock;
-    update: jest.Mock;
   };
 
   const mockTenant: TenantContext = { empresaId: 1, rolNombre: null };
@@ -20,7 +18,6 @@ describe('PermisoController', () => {
       findByRol: jest.fn(),
       findByUsuario: jest.fn(),
       findOne: jest.fn(),
-      update: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -37,7 +34,10 @@ describe('PermisoController', () => {
 
       await controller.findByRol('5', mockTenant);
 
-      expect(mockPermisoService.findByRol).toHaveBeenCalledWith(5, mockTenant.empresaId);
+      expect(mockPermisoService.findByRol).toHaveBeenCalledWith(
+        5,
+        mockTenant.empresaId,
+      );
     });
   });
 
@@ -47,7 +47,10 @@ describe('PermisoController', () => {
 
       await controller.findByUsuario('10', mockTenant);
 
-      expect(mockPermisoService.findByUsuario).toHaveBeenCalledWith(10, mockTenant.empresaId);
+      expect(mockPermisoService.findByUsuario).toHaveBeenCalledWith(
+        10,
+        mockTenant.empresaId,
+      );
     });
   });
 
@@ -57,22 +60,10 @@ describe('PermisoController', () => {
 
       await controller.findOne('1', mockTenant);
 
-      expect(mockPermisoService.findOne).toHaveBeenCalledWith(1, mockTenant.empresaId);
-    });
-  });
-
-  describe('update', () => {
-    it('deberia convertir el id a number y delegar en permisoService.update con el body', async () => {
-      const dto = {
-        modulo: ModuloSistema.DASHBOARD,
-        canRead: true,
-        canWrite: true,
-      };
-      mockPermisoService.update.mockResolvedValue({ id: 1, ...dto });
-
-      await controller.update('1', dto, mockTenant);
-
-      expect(mockPermisoService.update).toHaveBeenCalledWith(1, mockTenant.empresaId, dto);
+      expect(mockPermisoService.findOne).toHaveBeenCalledWith(
+        1,
+        mockTenant.empresaId,
+      );
     });
   });
 });

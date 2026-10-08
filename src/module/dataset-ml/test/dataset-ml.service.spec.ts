@@ -4,6 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DatasetMlService } from '../dataset-ml.service';
 import { SensorLectura } from '../../lectura-sensor/entities/sensor-lectura.entity';
 import { MedicionManualLote } from '../../medicion-manual/entities/medicion-manual-lote.entity';
+import { Lote } from '../../lote/entities/lote.entity';
+import { ConfiguracionParametro } from '../../config-parametro/entities/config-parametro.entity';
 import { Parametro } from '../../config-parametro/enums/parametro.enum';
 import { OrigenLectura } from '../../lectura-sensor/enums/origen-lectura.enum';
 import { OrigenPuntoSerie } from '../dto/punto-serie-response.dto';
@@ -34,6 +36,14 @@ describe('DatasetMlService — obtención de series históricas para ML (HU-50)'
     createQueryBuilder: jest.fn(),
   };
 
+  const mockLoteRepo = {
+    find: jest.fn(),
+  };
+
+  const mockConfigRepo = {
+    find: jest.fn(),
+  };
+
   const empresaId = 1;
   const parametro = Parametro.PH;
   const desde = new Date('2026-01-01T00:00:00Z');
@@ -56,6 +66,14 @@ describe('DatasetMlService — obtención de series históricas para ML (HU-50)'
         {
           provide: getRepositoryToken(MedicionManualLote),
           useValue: mockMedicionManualRepo,
+        },
+        {
+          provide: getRepositoryToken(Lote),
+          useValue: mockLoteRepo,
+        },
+        {
+          provide: getRepositoryToken(ConfiguracionParametro),
+          useValue: mockConfigRepo,
         },
       ],
     }).compile();

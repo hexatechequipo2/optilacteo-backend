@@ -18,7 +18,10 @@ describe('AuditLogRepository', () => {
     andWhere: jest.Mock;
     orderBy: jest.Mock;
     addOrderBy: jest.Mock;
+    skip: jest.Mock;
+    take: jest.Mock;
     getMany: jest.Mock;
+    getManyAndCount: jest.Mock;
   };
 
   beforeEach(() => {
@@ -27,7 +30,10 @@ describe('AuditLogRepository', () => {
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       addOrderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
       getMany: jest.fn(),
+      getManyAndCount: jest.fn(),
     };
 
     mockTypeormRepo = {
@@ -47,10 +53,14 @@ describe('AuditLogRepository', () => {
       const data: CreateAuditLogData = {
         userId: null,
         userEmail: 'anonymous',
+        userNombre: 'anonymous',
+        userRol: 'ANONIMO',
         empresaId: null,
+        tipo: 'AUTH' as CreateAuditLogData['tipo'],
         accion: 'LOGIN_FAILURE',
         entidad: 'Usuario',
         entidadId: null,
+        descripcion: 'Inicio de sesión fallido',
         detalle: null,
       };
       const created = { id: 1, ...data } as unknown as AuditLog;
@@ -74,10 +84,14 @@ describe('AuditLogRepository', () => {
       const data: CreateAuditLogData = {
         userId: 5,
         userEmail: 'user@lacteo.com',
+        userNombre: 'Usuario',
+        userRol: 'GERENTE',
         empresaId: 2,
+        tipo: 'PROVEEDOR' as CreateAuditLogData['tipo'],
         accion: 'PROVEEDOR_ELIMINAR_SUCCESS',
         entidad: 'Proveedor',
         entidadId: 10,
+        descripcion: 'Proveedor eliminado correctamente',
         detalle: { antes: 'ACTIVA', despues: 'SUSPENDIDA' },
       };
       const created = { id: 2, ...data } as unknown as AuditLog;
@@ -90,44 +104,45 @@ describe('AuditLogRepository', () => {
     });
   });
 
-  describe('findAllScoped', () => {
+  describe('findFiltered', () => {
     it('para Administrador no aplica filtro de empresa', async () => {
-      mockTypeormRepo.findAndCount.mockResolvedValue([[], 0]);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
       const tenant: TenantContext = {
         empresaId: null,
         rolNombre: ROLES.ADMINISTRADOR,
       };
 
-      await repository.findAllScoped(tenant, 0, 50);
+      await repository.findFiltered(tenant, {}, 0, 50);
 
-      expect(mockTypeormRepo.findAndCount).toHaveBeenCalledWith({
-        where: {},
-        order: { createdAt: 'DESC' },
-        skip: 0,
-        take: 50,
-      });
+      expect(mockTypeormRepo.createQueryBuilder).toHaveBeenCalledWith('log');
+      const empresaCalls = mockQueryBuilder.andWhere.mock.calls.filter(
+        ([clause]) => clause.includes('log.empresaId ='),
+      );
+      expect(empresaCalls).toHaveLength(0);
+      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(50);
     });
 
     it('para un rol distinto de Administrador filtra por la empresa del tenant', async () => {
-      mockTypeormRepo.findAndCount.mockResolvedValue([[], 0]);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
       const tenant: TenantContext = { empresaId: 3, rolNombre: ROLES.GERENTE };
 
-      await repository.findAllScoped(tenant, 10, 25);
+      await repository.findFiltered(tenant, {}, 10, 25);
 
-      expect(mockTypeormRepo.findAndCount).toHaveBeenCalledWith({
-        where: { empresaId: 3 },
-        order: { createdAt: 'DESC' },
-        skip: 10,
-        take: 25,
-      });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'log.empresaId = :empresaId',
+        { empresaId: 3 },
+      );
+      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(10);
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(25);
     });
 
-    it('devuelve el resultado tal cual lo entrega TypeORM', async () => {
+    it('devuelve el resultado tal cual lo entrega getManyAndCount', async () => {
       const logs = [{ id: 1 }] as unknown as AuditLog[];
-      mockTypeormRepo.findAndCount.mockResolvedValue([logs, 1]);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([logs, 1]);
       const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
 
-      const result = await repository.findAllScoped(tenant, 0, 50);
+      const result = await repository.findFiltered(tenant, {}, 0, 50);
 
       expect(result).toEqual([logs, 1]);
     });
@@ -149,9 +164,7 @@ describe('AuditLogRepository', () => {
       expect(mockTypeormRepo.createQueryBuilder).toHaveBeenCalledWith('log');
       expect(mockQueryBuilder.where).toHaveBeenCalledWith(
         'log.entidad = :entidad',
-        {
-          entidad: 'Lote',
-        },
+        { entidad: 'Lote' },
       );
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'log.entidadId IN (:...entidadIds)',

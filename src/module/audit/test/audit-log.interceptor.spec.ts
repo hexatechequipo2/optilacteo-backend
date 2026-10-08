@@ -3,9 +3,10 @@ import { Reflector } from '@nestjs/core';
 import { of, throwError, lastValueFrom } from 'rxjs';
 import { AuditInterceptor } from '../interceptor/audit-log.interceptor';
 import { AuditLogService } from '../audit-log.service';
+import { TipoAccion } from '../enums/tipo-accion.enum';
 
 const mockAuditLogService = {
-  record: jest.fn(),
+  record: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockReflector = {
@@ -24,21 +25,20 @@ function buildExecutionContext(
   } as unknown as ExecutionContext;
 }
 
-// Helper para esperar a que se resuelvan las promesas "fire and forget"
-// disparadas dentro del tap/catchError del interceptor.
+// Helper asíncrono para esperar la resolución de las promesas fire-and-forget
 const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('AuditInterceptor', () => {
   let interceptor: AuditInterceptor;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuditLogService.record.mockResolvedValue(undefined);
     interceptor = new AuditInterceptor(
       mockReflector as unknown as Reflector,
       mockAuditLogService as unknown as AuditLogService,
     );
   });
-
-  afterEach(() => jest.clearAllMocks());
 
   it('cuando no hay metadata de auditoria, deberia pasar directo al siguiente handler sin registrar nada', async () => {
     mockReflector.getAllAndOverride.mockReturnValue(undefined);
@@ -55,6 +55,7 @@ describe('AuditInterceptor', () => {
     mockReflector.getAllAndOverride.mockReturnValue({
       accion: 'PROVEEDOR_ELIMINAR',
       entidad: 'Proveedor',
+      tipo: TipoAccion.BAJA,
     });
     const request = {
       user: { sub: 7, email: 'gerente@lacteo.com', empresaId: 2 },
@@ -70,10 +71,14 @@ describe('AuditInterceptor', () => {
     expect(mockAuditLogService.record).toHaveBeenCalledWith({
       userId: 7,
       userEmail: 'gerente@lacteo.com',
+      userNombre: null,
+      userRol: null,
       empresaId: 2,
       accion: 'PROVEEDOR_ELIMINAR_SUCCESS',
       entidad: 'Proveedor',
       entidadId: 10,
+      tipo: TipoAccion.BAJA,
+      descripcion: 'Baja de Proveedor #10',
       detalle: { status: 'SUCCESS', data: { id: 10, ok: true } },
     });
   });
@@ -82,6 +87,7 @@ describe('AuditInterceptor', () => {
     mockReflector.getAllAndOverride.mockReturnValue({
       accion: 'LOGIN',
       entidad: 'Usuario',
+      tipo: TipoAccion.LOGIN,
     });
     const request = {
       params: {},
@@ -98,6 +104,8 @@ describe('AuditInterceptor', () => {
         userId: null,
         userEmail: 'anonimo@lacteo.com',
         empresaId: null,
+        tipo: TipoAccion.LOGIN,
+        descripcion: 'Inicio de sesión',
       }),
     );
   });
@@ -106,6 +114,7 @@ describe('AuditInterceptor', () => {
     mockReflector.getAllAndOverride.mockReturnValue({
       accion: 'ACCION',
       entidad: 'Entidad',
+      tipo: TipoAccion.OTRO,
     });
     const request = { params: {}, body: {} };
     const context = buildExecutionContext(request);
@@ -124,6 +133,7 @@ describe('AuditInterceptor', () => {
       mockReflector.getAllAndOverride.mockReturnValue({
         accion: 'ACCION',
         entidad: 'Entidad',
+        tipo: TipoAccion.OTRO,
       });
       const request = { params: { id: '42' }, body: {} };
       const context = buildExecutionContext(request);
@@ -141,6 +151,7 @@ describe('AuditInterceptor', () => {
       mockReflector.getAllAndOverride.mockReturnValue({
         accion: 'ACCION',
         entidad: 'Entidad',
+        tipo: TipoAccion.OTRO,
       });
       const request = { params: {}, body: {} };
       const context = buildExecutionContext(request);
@@ -158,6 +169,7 @@ describe('AuditInterceptor', () => {
       mockReflector.getAllAndOverride.mockReturnValue({
         accion: 'SENSOR_ASOCIAR_LOTE',
         entidad: 'Sensor',
+        tipo: TipoAccion.OTRO,
       });
       const request = { params: {}, body: {} };
       const context = buildExecutionContext(request);
@@ -177,6 +189,7 @@ describe('AuditInterceptor', () => {
       mockReflector.getAllAndOverride.mockReturnValue({
         accion: 'ACCION',
         entidad: 'Entidad',
+        tipo: TipoAccion.OTRO,
       });
       const request = { params: { id: '7' }, body: {} };
       const context = buildExecutionContext(request);
@@ -194,6 +207,7 @@ describe('AuditInterceptor', () => {
       mockReflector.getAllAndOverride.mockReturnValue({
         accion: 'ACCION',
         entidad: 'Entidad',
+        tipo: TipoAccion.OTRO,
       });
       const request = { params: {}, body: {} };
       const context = buildExecutionContext(request);
@@ -213,6 +227,7 @@ describe('AuditInterceptor', () => {
       mockReflector.getAllAndOverride.mockReturnValue({
         accion: 'ACCION',
         entidad: 'Entidad',
+        tipo: TipoAccion.OTRO,
       });
       const request = { params: { id: 'abc' }, body: {} };
       const context = buildExecutionContext(request);
@@ -230,6 +245,7 @@ describe('AuditInterceptor', () => {
       mockReflector.getAllAndOverride.mockReturnValue({
         accion: 'ACCION',
         entidad: 'Entidad',
+        tipo: TipoAccion.OTRO,
       });
       const request = { params: {}, body: {} };
       const context = buildExecutionContext(request);
@@ -248,6 +264,7 @@ describe('AuditInterceptor', () => {
     mockReflector.getAllAndOverride.mockReturnValue({
       accion: 'PROVEEDOR_ELIMINAR',
       entidad: 'Proveedor',
+      tipo: TipoAccion.BAJA,
     });
     const request = {
       user: { sub: 7, email: 'gerente@lacteo.com', empresaId: 2 },
@@ -261,15 +278,20 @@ describe('AuditInterceptor', () => {
     await expect(
       lastValueFrom(interceptor.intercept(context, next)),
     ).rejects.toThrow('No se pudo eliminar');
+
     await flushPromises();
 
     expect(mockAuditLogService.record).toHaveBeenCalledWith({
       userId: 7,
       userEmail: 'gerente@lacteo.com',
+      userNombre: null,
+      userRol: null,
       empresaId: 2,
       accion: 'PROVEEDOR_ELIMINAR_FAILURE',
       entidad: 'Proveedor',
       entidadId: 5,
+      tipo: TipoAccion.BAJA,
+      descripcion: 'Baja de Proveedor #5',
       detalle: { status: 'FAILURE', data: { message: 'No se pudo eliminar' } },
     });
   });
@@ -278,8 +300,9 @@ describe('AuditInterceptor', () => {
     mockReflector.getAllAndOverride.mockReturnValue({
       accion: 'ACCION',
       entidad: 'Entidad',
+      tipo: TipoAccion.OTRO,
     });
-    mockAuditLogService.record.mockRejectedValue(new Error('fallo interno'));
+    mockAuditLogService.record.mockRejectedValueOnce(new Error('fallo interno'));
     const request = { params: {}, body: {} };
     const context = buildExecutionContext(request);
     const next: CallHandler = { handle: () => of({ ok: true }) };

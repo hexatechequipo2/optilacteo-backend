@@ -1,8 +1,10 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PermisoService } from '../permiso.service';
 import { IPermisoRepository } from '../repository/permiso-interface.repository';
 import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
 import { PermisoModulo } from '../entities/permiso-modulo.entity';
+import { Repository, EntityManager } from 'typeorm';
+import { User } from '../../user/entities/user.entity';
 
 function buildPermiso(overrides: Partial<PermisoModulo> = {}): PermisoModulo {
   return {
@@ -12,7 +14,11 @@ function buildPermiso(overrides: Partial<PermisoModulo> = {}): PermisoModulo {
     modulo: ModuloSistema.DASHBOARD,
     canRead: true,
     canWrite: false,
-    rol: { id: 5 } as any,
+    canCreate: false,
+    canUpdate: false,
+    canDelete: false,
+    canExport: false,
+    rol: { id: 5, nombre: 'Gerente' } as any,
     ...overrides,
   };
 }
@@ -20,6 +26,8 @@ function buildPermiso(overrides: Partial<PermisoModulo> = {}): PermisoModulo {
 describe('PermisoService', () => {
   let service: PermisoService;
   let mockPermisoRepository: jest.Mocked<IPermisoRepository>;
+  let mockUserRepo: jest.Mocked<Partial<Repository<User>>>;
+  let mockPermisoRepo: jest.Mocked<Partial<Repository<PermisoModulo>>>;
 
   beforeEach(() => {
     mockPermisoRepository = {
@@ -30,7 +38,22 @@ describe('PermisoService', () => {
       updatePermiso: jest.fn(),
     };
 
-    service = new PermisoService(mockPermisoRepository);
+    mockUserRepo = {
+      createQueryBuilder: jest.fn(),
+    };
+
+    mockPermisoRepo = {
+      find: jest.fn(),
+      manager: {
+        query: jest.fn(),
+      } as unknown as EntityManager,
+    };
+
+    service = new PermisoService(
+      mockPermisoRepository,
+      mockUserRepo as Repository<User>,
+      mockPermisoRepo as Repository<PermisoModulo>,
+    );
   });
 
   describe('findByRol', () => {
@@ -43,6 +66,7 @@ describe('PermisoService', () => {
       expect(mockPermisoRepository.findByRol).toHaveBeenCalledWith(5, 1);
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveProperty('modulo', ModuloSistema.DASHBOARD);
+      expect(result[0]).toHaveProperty('canRead', true);
     });
   });
 
@@ -55,6 +79,7 @@ describe('PermisoService', () => {
 
       expect(mockPermisoRepository.findByUsuario).toHaveBeenCalledWith(10, 1);
       expect(result).toBeDefined();
+      expect(result[0]).toHaveProperty('modulo', ModuloSistema.DASHBOARD);
     });
   });
 
@@ -78,52 +103,120 @@ describe('PermisoService', () => {
     });
   });
 
-  describe('update - actualizar permisos de un rol existente (persistencia de canRead/canWrite)', () => {
-    it('deberia persistir el nuevo canRead/canWrite para el permiso existente', async () => {
-      const permisoExistente = buildPermiso({ canRead: true, canWrite: false });
-      const permisoActualizado = buildPermiso({ canRead: true, canWrite: true });
+  describe('obtenerAcceso', () => {
+    it('deberia retornar null si el usuario no existe o esta inactivo', async () => {
+      const mockQueryBuilder: any = {
+        leftJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      (mockUserRepo.createQueryBuilder as jest.Mock).mockReturnValue(mockQueryBuilder);
 
-      mockPermisoRepository.findById.mockResolvedValue(permisoExistente);
-      mockPermisoRepository.updatePermiso.mockResolvedValue(permisoActualizado);
+      const result = await service.obtenerAcceso(10);
 
-      const result = await service.update(1, 1, {
-        modulo: ModuloSistema.DASHBOARD,
-        canRead: true,
-        canWrite: true,
-      });
-
-      expect(mockPermisoRepository.findById).toHaveBeenCalledWith(1, 1);
-      expect(mockPermisoRepository.updatePermiso).toHaveBeenCalledWith(
-        1,
-        1,
-        true,
-        true,
-      );
-      expect(result.canWrite).toBe(true);
+      expect(result).toBeNull();
     });
 
-    it('desasignar (canRead:false, canWrite:false) tambien se persiste correctamente', async () => {
-      const permisoExistente = buildPermiso({ canRead: true, canWrite: true });
-      const permisoDesasignado = buildPermiso({ canRead: false, canWrite: false });
+    it('deberia retornar acceso de sistema si el rol es de sistema', async () => {
+      const mockUser = {
+        id: 10,
+        isActive: true,
+        rol: { id: 1, nombre: 'SuperAdmin', isActive: true, esSistema: true },
+        empresa: { id: 1 },
+      };
+      const mockQueryBuilder: any = {
+        leftJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockUser),
+      };
+      (mockUserRepo.createQueryBuilder as jest.Mock).mockReturnValue(mockQueryBuilder);
 
-      mockPermisoRepository.findById.mockResolvedValue(permisoExistente);
-      mockPermisoRepository.updatePermiso.mockResolvedValue(permisoDesasignado);
+      const result = await service.obtenerAcceso(10);
 
-      const result = await service.update(1, 1, {
-        modulo: ModuloSistema.DASHBOARD,
-        canRead: false,
-        canWrite: false,
+      expect(result).toEqual({
+        userId: 10,
+        rolId: 1,
+        rolNombre: 'SuperAdmin',
+        empresaId: 1,
+        esSistema: true,
+        permisos: [],
       });
+    });
 
-      expect(mockPermisoRepository.findById).toHaveBeenCalledWith(1, 1);
-      expect(mockPermisoRepository.updatePermiso).toHaveBeenCalledWith(
-        1,
-        1,
-        false,
-        false,
+    it('deberia cargar y retornar los permisos de BD para usuarios regulares', async () => {
+      const mockUser = {
+        id: 10,
+        isActive: true,
+        rol: { id: 5, nombre: 'Gerente', isActive: true, esSistema: false },
+        empresa: { id: 1 },
+      };
+      const mockPermisos = [buildPermiso()];
+
+      const mockQueryBuilder: any = {
+        leftJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockUser),
+      };
+      (mockUserRepo.createQueryBuilder as jest.Mock).mockReturnValue(mockQueryBuilder);
+      (mockPermisoRepo.find as jest.Mock).mockResolvedValue(mockPermisos);
+
+      const result = await service.obtenerAcceso(10);
+
+      expect(result).toEqual({
+        userId: 10,
+        rolId: 5,
+        rolNombre: 'Gerente',
+        empresaId: 1,
+        esSistema: false,
+        permisos: mockPermisos,
+      });
+      expect(mockPermisoRepo.find).toHaveBeenCalledWith({
+        where: { empresaId: 1, rol: { id: 5 } },
+      });
+    });
+  });
+
+  describe('obtenerMisPermisos', () => {
+    it('deberia lanzar ForbiddenException si obtenerAcceso retorna null', async () => {
+      jest.spyOn(service, 'obtenerAcceso').mockResolvedValue(null);
+
+      await expect(service.obtenerMisPermisos(10)).rejects.toThrow(
+        ForbiddenException,
       );
-      expect(result.canRead).toBe(false);
-      expect(result.canWrite).toBe(false);
+    });
+
+    it('deberia mapear y retornar la respuesta si obtenerAcceso retorna datos', async () => {
+      const acceso = {
+        userId: 10,
+        rolId: 5,
+        rolNombre: 'Gerente',
+        empresaId: 1,
+        esSistema: false,
+        permisos: [buildPermiso()],
+      };
+      jest.spyOn(service, 'obtenerAcceso').mockResolvedValue(acceso);
+
+      const result = await service.obtenerMisPermisos(10);
+
+      expect(result).toHaveProperty('rolNombre', 'Gerente');
+      expect(result).toHaveProperty('esSistema', false);
+      expect(result.permisos).toBeDefined();
+    });
+  });
+
+  describe('otorgarPermisosPorDefecto', () => {
+    it('deberia ejecutar la query SQL en el entityManager provisto o en el default', async () => {
+      const mockManager: any = { query: jest.fn().mockResolvedValue([]) };
+
+      await service.otorgarPermisosPorDefecto(1, mockManager);
+
+      expect(mockManager.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO "permiso_modulos"'),
+        expect.any(Array),
+      );
     });
   });
 });
