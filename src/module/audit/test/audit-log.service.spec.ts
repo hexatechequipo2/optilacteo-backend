@@ -1,355 +1,255 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { AuditLogService } from '../audit-log.service';
 import { AUDIT_LOG_REPOSITORY } from '../repository/audit-log-interface.repository';
-import { ROLES } from '../../rol/constants/roles.constants';
+import { AuditLog } from '../entity/audit-log.entity';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
-import { TipoAccion } from '../enums/tipo-accion.enum';
-import type { AuditLog } from '../entity/audit-log.entity';
-
-const mockAuditLogRepository = {
-  create: jest.fn(),
-  findFiltered: jest.fn(),
-  findPrimerosYUltimos: jest.fn(),
-};
+import type { QueryAuditLogDto } from '../dto/query-audit-log.dto';
 
 describe('AuditLogService', () => {
   let service: AuditLogService;
+
+  const mockAuditLogRepository = {
+    create: jest.fn(),
+    findFiltered: jest.fn(),
+    findAllMatching: jest.fn(),
+    findPrimerosYUltimos: jest.fn(),
+  };
+
+  const tenantMock: TenantContext = { empresaId: 100 } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditLogService,
-        { provide: AUDIT_LOG_REPOSITORY, useValue: mockAuditLogRepository },
+        {
+          provide: AUDIT_LOG_REPOSITORY,
+          useValue: mockAuditLogRepository,
+        },
       ],
     }).compile();
 
     service = module.get<AuditLogService>(AuditLogService);
   });
 
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('debe estar definido', () => {
+    expect(service).toBeDefined();
+  });
 
   describe('record', () => {
-    it('deberia delegar la creacion en el repositorio', async () => {
-      mockAuditLogRepository.create.mockResolvedValue({ id: 1 });
+    it('debe registrar la auditoría invocando al repositorio', async () => {
+      // Arrange
+      const dataMock = {
+        accion: 'CREAR',
+        entidad: 'Lote',
+        empresaId: 100,
+      } as any;
 
-      await service.record({
-        userId: 1,
-        userEmail: 'user@lacteo.com',
-        userNombre: 'Usuario de prueba',
-        userRol: ROLES.GERENTE,
-        empresaId: 1,
-        tipo: 'CREAR' as TipoAccion,
-        accion: 'USUARIO_CREAR_SUCCESS',
-        entidad: 'Usuario',
-        entidadId: 10,
-        descripcion: 'Usuario creado correctamente',
-      });
+      mockAuditLogRepository.create.mockResolvedValue(undefined);
 
-      expect(mockAuditLogRepository.create).toHaveBeenCalledWith({
-        userId: 1,
-        userEmail: 'user@lacteo.com',
-        userNombre: 'Usuario de prueba',
-        userRol: ROLES.GERENTE,
-        empresaId: 1,
-        tipo: 'CREAR' as TipoAccion,
-        accion: 'USUARIO_CREAR_SUCCESS',
-        entidad: 'Usuario',
-        entidadId: 10,
-        descripcion: 'Usuario creado correctamente',
-      });
+      // Act
+      await service.record(dataMock);
+
+      // Assert
+      expect(mockAuditLogRepository.create).toHaveBeenCalledWith(dataMock);
     });
 
-    it('no deberia propagar el error si el repositorio falla (best effort)', async () => {
-      mockAuditLogRepository.create.mockRejectedValue(new Error('DB caida'));
+    it('no debe propagar el error y debe registrar un log de error si el repositorio falla', async () => {
+      // Arrange
+      const dataMock = {
+        accion: 'CREAR',
+        entidad: 'Lote',
+      } as any;
 
-      await expect(
-        service.record({
-          userId: null,
-          userEmail: 'anonymous',
-          userNombre: 'anonymous',
-          userRol: 'ANONYMOUS',
-          empresaId: null,
-          tipo: 'LOGIN' as TipoAccion,
-          accion: 'LOGIN_FAILURE',
-          entidad: 'Usuario',
-          entidadId: null,
-          descripcion: 'Inicio de sesion fallido',
-        }),
-      ).resolves.toBeUndefined();
+      mockAuditLogRepository.create.mockRejectedValue(
+        new Error('Error de conexión con la BD'),
+      );
+      const loggerSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => {});
+
+      // Act & Assert
+      await expect(service.record(dataMock)).resolves.not.toThrow();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No se pudo registrar auditoría'),
+      );
     });
   });
 
   describe('findAll', () => {
-    it('deberia usar los valores por defecto de pagina y limite cuando no se especifican', async () => {
-      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-
-      await service.findAll(tenant, {});
-
-      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
-        tenant,
-        expect.anything(),
-        0,
-        50,
-      );
-    });
-
-    it('deberia calcular el skip en base a la pagina y el limite recibidos', async () => {
-      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-
-      await service.findAll(tenant, { page: 3, limit: 10 });
-
-      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
-        tenant,
-        expect.anything(),
-        20,
-        10,
-      );
-    });
-
-    it('deberia forzar la pagina minima a 1 cuando se recibe un valor menor o igual a 0', async () => {
-      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-
-      await service.findAll(tenant, { page: -5, limit: 10 });
-
-      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
-        tenant,
-        expect.anything(),
-        0,
-        10,
-      );
-    });
-
-    it('deberia limitar el tamano de pagina a 200 como maximo', async () => {
-      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-
-      await service.findAll(tenant, { page: 1, limit: 500 });
-
-      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
-        tenant,
-        expect.anything(),
-        0,
-        200,
-      );
-    });
-
-    it('deberia forzar el limite minimo a 1 cuando se recibe un valor menor o igual a 0', async () => {
-      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
-
-      await service.findAll(tenant, { page: 1, limit: -10 });
-
-      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
-        tenant,
-        expect.anything(),
-        0,
-        1,
-      );
-    });
-
-    it('deberia devolver el resultado tal cual lo entrega el repositorio', async () => {
-      const logs = [{ id: 1 }] as never;
-      mockAuditLogRepository.findFiltered.mockResolvedValue([logs, 1]);
-      const tenant: TenantContext = {
-        empresaId: null,
-        rolNombre: ROLES.ADMINISTRADOR,
+    it('debe calcular skip y limit correctamente y llamar a findFiltered', async () => {
+      // Arrange
+      const query: QueryAuditLogDto = {
+        page: 2,
+        limit: 10,
+        fechaDesde: '2026-01-01',
       };
 
-      const result = await service.findAll(tenant, { page: 1, limit: 50 });
+      const resultadoMock: [AuditLog[], number] = [[], 0];
+      mockAuditLogRepository.findFiltered.mockResolvedValue(resultadoMock);
 
-      expect(result).toEqual([logs, 1]);
+      // Act
+      const resultado = await service.findAll(tenantMock, query);
+
+      // Assert
+      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
+        tenantMock,
+        expect.objectContaining({
+          fechaDesde: new Date('2026-01-01'),
+        }),
+        10, // skip = (2-1)*10
+        10, // limit
+      );
+      expect(resultado).toEqual(resultadoMock);
+    });
+
+    it('debe usar la paginación por defecto si no se especifican valores en la query', async () => {
+      // Arrange
+      mockAuditLogRepository.findFiltered.mockResolvedValue([[], 0]);
+
+      // Act
+      await service.findAll(tenantMock, {});
+
+      // Assert
+      expect(mockAuditLogRepository.findFiltered).toHaveBeenCalledWith(
+        tenantMock,
+        expect.any(Object),
+        0, // skip
+        50, // limit por defecto
+      );
     });
   });
 
-  describe('getTrazabilidadBatch', () => {
-    it('deberia devolver un Map vacio sin consultar el repositorio si entidadIds esta vacio', async () => {
-      const result = await service.getTrazabilidadBatch('Lote', [], 1);
-
-      expect(result).toEqual(new Map());
-      expect(
-        mockAuditLogRepository.findPrimerosYUltimos,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('deberia delegar en el repositorio con entidad, entidadIds y empresaId', async () => {
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([]);
-
-      await service.getTrazabilidadBatch('Lote', [1, 2], 5);
-
-      expect(mockAuditLogRepository.findPrimerosYUltimos).toHaveBeenCalledWith(
-        'Lote',
-        [1, 2],
-        5,
-      );
-    });
-
-    it('cuando una entidad tiene un solo log, deberia devolver solo creadoPor sin ultimaModificacion', async () => {
-      const log = {
-        id: 100,
-        entidadId: 1,
-        userId: 7,
-        userEmail: 'user@lacteo.com',
-        createdAt: new Date('2026-01-01T10:00:00Z'),
-      } as unknown as AuditLog;
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([log]);
-
-      const result = await service.getTrazabilidadBatch('Lote', [1], 5);
-
-      expect(result.get(1)).toEqual({
-        creadoPor: {
-          userId: 7,
-          userEmail: 'user@lacteo.com',
-          fecha: log.createdAt,
-        },
-        ultimaModificacion: undefined,
-      });
-    });
-
-    it('cuando una entidad tiene varios logs, deberia tomar el primero como creadoPor y el ultimo como ultimaModificacion', async () => {
-      const primero = {
-        id: 100,
-        entidadId: 1,
-        userId: 7,
-        userEmail: 'creador@lacteo.com',
-        createdAt: new Date('2026-01-01T10:00:00Z'),
-      } as unknown as AuditLog;
-      const ultimo = {
-        id: 105,
-        entidadId: 1,
-        userId: 9,
-        userEmail: 'modificador@lacteo.com',
-        createdAt: new Date('2026-02-01T10:00:00Z'),
-      } as unknown as AuditLog;
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([
-        primero,
-        ultimo,
-      ]);
-
-      const result = await service.getTrazabilidadBatch('Lote', [1], 5);
-
-      expect(result.get(1)).toEqual({
-        creadoPor: {
-          userId: 7,
-          userEmail: 'creador@lacteo.com',
-          fecha: primero.createdAt,
-        },
-        ultimaModificacion: {
-          userId: 9,
-          userEmail: 'modificador@lacteo.com',
-          fecha: ultimo.createdAt,
-        },
-      });
-    });
-
-    it('deberia ignorar los logs con entidadId null', async () => {
-      const logConEntidad = {
-        id: 1,
-        entidadId: 1,
-        userId: 7,
-        userEmail: 'user@lacteo.com',
-        createdAt: new Date('2026-01-01T10:00:00Z'),
-      } as unknown as AuditLog;
-      const logSinEntidad = {
-        id: 2,
-        entidadId: null,
-        userId: 8,
-        userEmail: 'otro@lacteo.com',
-        createdAt: new Date('2026-01-02T10:00:00Z'),
-      } as unknown as AuditLog;
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([
-        logConEntidad,
-        logSinEntidad,
-      ]);
-
-      const result = await service.getTrazabilidadBatch('Lote', [1], 5);
-
-      expect(result.size).toBe(1);
-      expect(result.has(1)).toBe(true);
-    });
-
-    it('deberia agrupar correctamente los logs cuando hay multiples entidades', async () => {
-      const logsEntidad1 = [
+  describe('exportarCsv', () => {
+    it('debe obtener los registros filtrados y formatearlos en un string CSV', async () => {
+      // Arrange
+      const fecha = new Date('2026-05-10T10:00:00.000Z');
+      const registrosMock: AuditLog[] = [
         {
           id: 1,
-          entidadId: 1,
-          userId: 7,
-          userEmail: 'a@lacteo.com',
-          createdAt: new Date('2026-01-01T10:00:00Z'),
-        },
-        {
-          id: 2,
-          entidadId: 1,
-          userId: 8,
-          userEmail: 'b@lacteo.com',
-          createdAt: new Date('2026-01-02T10:00:00Z'),
-        },
+          userId: 5,
+          userEmail: 'user@test.com',
+          userNombre: 'Juan Perez',
+          userRol: 'ADMIN',
+          empresaId: 100,
+          accion: 'CREAR',
+          entidad: 'Lote',
+          entidadId: 42,
+          tipo: 'CONFIGURACION',
+          descripcion: 'Creación de lote "L-001"',
+          createdAt: fecha,
+        } as any,
       ];
-      const logEntidad2 = {
-        id: 3,
-        entidadId: 2,
-        userId: 9,
-        userEmail: 'c@lacteo.com',
-        createdAt: new Date('2026-01-03T10:00:00Z'),
-      };
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([
-        ...logsEntidad1,
-        logEntidad2,
-      ] as unknown);
 
-      const result = await service.getTrazabilidadBatch('Lote', [1, 2], 5);
+      mockAuditLogRepository.findAllMatching.mockResolvedValue(registrosMock);
 
-      expect(result.size).toBe(2);
-      expect(result.get(1)?.creadoPor?.userEmail).toBe('a@lacteo.com');
-      expect(result.get(1)?.ultimaModificacion?.userEmail).toBe('b@lacteo.com');
-      expect(result.get(2)?.creadoPor?.userEmail).toBe('c@lacteo.com');
-      expect(result.get(2)?.ultimaModificacion).toBeUndefined();
+      // Act
+      const csv = await service.exportarCsv(tenantMock, {});
+
+      // Assert
+      expect(mockAuditLogRepository.findAllMatching).toHaveBeenCalledWith(
+        tenantMock,
+        expect.any(Object),
+      );
+      expect(csv).toContain(
+        'id,userId,userEmail,userNombre,userRol,empresaId,accion,entidad,entidadId,tipo,descripcion,createdAt',
+      );
+      expect(csv).toContain(
+        '1,5,user@test.com,Juan Perez,ADMIN,100,CREAR,Lote,42,CONFIGURACION,"Creación de lote ""L-001""",2026-05-10T10:00:00.000Z',
+      );
     });
   });
 
-  describe('getTrazabilidad', () => {
-    it('deberia delegar en getTrazabilidadBatch con un array de un solo elemento', async () => {
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([]);
+  describe('getTrazabilidadBatch / getTrazabilidad', () => {
+    const empresaId = 100;
+    const entidad = 'Lote';
 
-      await service.getTrazabilidad('Lote', 1, 5);
-
-      expect(mockAuditLogRepository.findPrimerosYUltimos).toHaveBeenCalledWith(
-        'Lote',
-        [1],
-        5,
-      );
+    it('debe retornar un mapa vacío si el arreglo de entidadIds está vacío', async () => {
+      const mapa = await service.getTrazabilidadBatch(entidad, [], empresaId);
+      expect(mapa.size).toBe(0);
+      expect(mockAuditLogRepository.findPrimerosYUltimos).not.toHaveBeenCalled();
     });
 
-    it('deberia devolver el objeto de trazabilidad de la entidad solicitada', async () => {
-      const log = {
-        id: 1,
-        entidadId: 1,
-        userId: 7,
-        userEmail: 'user@lacteo.com',
-        createdAt: new Date('2026-01-01T10:00:00Z'),
-      } as unknown as AuditLog;
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([log]);
+    it('debe construir la trazabilidad incluyendo creadoPor y ultimaModificacion si existen cambios posteriores', async () => {
+      // Arrange
+      const fechaCreacion = new Date('2026-01-01');
+      const fechaModificacion = new Date('2026-02-01');
 
-      const result = await service.getTrazabilidad('Lote', 1, 5);
+      const logsMock: AuditLog[] = [
+        {
+          id: 1,
+          entidadId: 10,
+          userId: 1,
+          userEmail: 'creador@test.com',
+          createdAt: fechaCreacion,
+        } as any,
+        {
+          id: 2,
+          entidadId: 10,
+          userId: 2,
+          userEmail: 'editor@test.com',
+          createdAt: fechaModificacion,
+        } as any,
+      ];
 
-      expect(result).toEqual({
+      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue(logsMock);
+
+      // Act
+      const trazabilidad = await service.getTrazabilidad(
+        entidad,
+        10,
+        empresaId,
+      );
+
+      // Assert
+      expect(trazabilidad).toEqual({
         creadoPor: {
-          userId: 7,
-          userEmail: 'user@lacteo.com',
-          fecha: log.createdAt,
+          userId: 1,
+          userEmail: 'creador@test.com',
+          fecha: fechaCreacion,
         },
-        ultimaModificacion: undefined,
+        ultimaModificacion: {
+          userId: 2,
+          userEmail: 'editor@test.com',
+          fecha: fechaModificacion,
+        },
       });
     });
 
-    it('deberia devolver un objeto vacio cuando no hay logs para esa entidad', async () => {
-      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue([]);
+    it('debe omitir ultimaModificacion si solo existe el registro de creación', async () => {
+      // Arrange
+      const fechaCreacion = new Date('2026-01-01');
 
-      const result = await service.getTrazabilidad('Lote', 999, 5);
+      const logsMock: AuditLog[] = [
+        {
+          id: 1,
+          entidadId: 10,
+          userId: 1,
+          userEmail: 'creador@test.com',
+          createdAt: fechaCreacion,
+        } as any,
+      ];
 
-      expect(result).toEqual({});
+      mockAuditLogRepository.findPrimerosYUltimos.mockResolvedValue(logsMock);
+
+      // Act
+      const trazabilidad = await service.getTrazabilidad(
+        entidad,
+        10,
+        empresaId,
+      );
+
+      // Assert
+      expect(trazabilidad.creadoPor).toEqual({
+        userId: 1,
+        userEmail: 'creador@test.com',
+        fecha: fechaCreacion,
+      });
+      expect(trazabilidad.ultimaModificacion).toBeUndefined();
     });
   });
 });

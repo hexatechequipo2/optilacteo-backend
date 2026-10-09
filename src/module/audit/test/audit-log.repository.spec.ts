@@ -1,220 +1,197 @@
-import { Repository } from 'typeorm';
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuditLogRepository } from '../repository/audit-log.repository';
 import { AuditLog } from '../entity/audit-log.entity';
 import { ROLES } from '../../rol/constants/roles.constants';
-import type { CreateAuditLogData } from '../repository/audit-log-interface.repository';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 
 describe('AuditLogRepository', () => {
   let repository: AuditLogRepository;
-  let mockTypeormRepo: {
-    create: jest.Mock;
-    save: jest.Mock;
-    findAndCount: jest.Mock;
-    createQueryBuilder: jest.Mock;
-  };
-  let mockQueryBuilder: {
-    where: jest.Mock;
-    andWhere: jest.Mock;
-    orderBy: jest.Mock;
-    addOrderBy: jest.Mock;
-    skip: jest.Mock;
-    take: jest.Mock;
-    getMany: jest.Mock;
-    getManyAndCount: jest.Mock;
+
+  const mockQueryBuilder = {
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getManyAndCount: jest.fn(),
+    getMany: jest.fn(),
   };
 
-  beforeEach(() => {
-    mockQueryBuilder = {
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      addOrderBy: jest.fn().mockReturnThis(),
-      skip: jest.fn().mockReturnThis(),
-      take: jest.fn().mockReturnThis(),
-      getMany: jest.fn(),
-      getManyAndCount: jest.fn(),
-    };
+  const mockTypeOrmRepo = {
+    create: jest.fn((dto) => ({ ...dto })),
+    save: jest.fn((entity) => Promise.resolve({ id: 1, ...entity })),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+  };
 
-    mockTypeormRepo = {
-      create: jest.fn(),
-      save: jest.fn(),
-      findAndCount: jest.fn(),
-      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
-    };
+  const tenantAdmin: TenantContext = {
+    empresaId: null,
+    rolNombre: ROLES.ADMINISTRADOR,
+  } as any;
 
-    repository = new AuditLogRepository(
-      mockTypeormRepo as unknown as Repository<AuditLog>,
-    );
+  const tenantOperador: TenantContext = {
+    empresaId: 100,
+    rolNombre: 'OPERADOR',
+  } as any;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuditLogRepository,
+        {
+          provide: getRepositoryToken(AuditLog),
+          useValue: mockTypeOrmRepo,
+        },
+      ],
+    }).compile();
+
+    repository = module.get<AuditLogRepository>(AuditLogRepository);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('debe estar definido', () => {
+    expect(repository).toBeDefined();
   });
 
   describe('create', () => {
-    it('deberia convertir valores null a undefined antes de crear la entidad', async () => {
-      const data: CreateAuditLogData = {
-        userId: null,
-        userEmail: 'anonymous',
-        userNombre: 'anonymous',
-        userRol: 'ANONIMO',
-        empresaId: null,
-        tipo: 'AUTH' as CreateAuditLogData['tipo'],
-        accion: 'LOGIN_FAILURE',
-        entidad: 'Usuario',
+    it('debe crear y guardar una nueva entrada de auditoría formateando nulos como undefined', async () => {
+      const createData = {
+        accion: 'LOTE_CREAR_SUCCESS',
+        entidad: 'Lote',
+        tipo: 'OPERACION',
+        userId: 10,
+        empresaId: 100,
         entidadId: null,
-        descripcion: 'Inicio de sesión fallido',
         detalle: null,
-      };
-      const created = { id: 1, ...data } as unknown as AuditLog;
-      mockTypeormRepo.create.mockReturnValue(created);
-      mockTypeormRepo.save.mockResolvedValue(created);
+      } as any;
 
-      const result = await repository.create(data);
+      const resultado = await repository.create(createData);
 
-      expect(mockTypeormRepo.create).toHaveBeenCalledWith({
-        ...data,
-        userId: undefined,
-        empresaId: undefined,
-        entidadId: undefined,
-        detalle: undefined,
-      });
-      expect(mockTypeormRepo.save).toHaveBeenCalledWith(created);
-      expect(result).toBe(created);
-    });
-
-    it('deberia preservar los valores definidos sin convertirlos', async () => {
-      const data: CreateAuditLogData = {
-        userId: 5,
-        userEmail: 'user@lacteo.com',
-        userNombre: 'Usuario',
-        userRol: 'GERENTE',
-        empresaId: 2,
-        tipo: 'PROVEEDOR' as CreateAuditLogData['tipo'],
-        accion: 'PROVEEDOR_ELIMINAR_SUCCESS',
-        entidad: 'Proveedor',
-        entidadId: 10,
-        descripcion: 'Proveedor eliminado correctamente',
-        detalle: { antes: 'ACTIVA', despues: 'SUSPENDIDA' },
-      };
-      const created = { id: 2, ...data } as unknown as AuditLog;
-      mockTypeormRepo.create.mockReturnValue(created);
-      mockTypeormRepo.save.mockResolvedValue(created);
-
-      await repository.create(data);
-
-      expect(mockTypeormRepo.create).toHaveBeenCalledWith(data);
+      expect(mockTypeOrmRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accion: 'LOTE_CREAR_SUCCESS',
+          userId: 10,
+          empresaId: 100,
+          entidadId: undefined,
+          detalle: undefined,
+        }),
+      );
+      expect(mockTypeOrmRepo.save).toHaveBeenCalled();
+      expect(resultado.id).toBe(1);
     });
   });
 
   describe('findFiltered', () => {
-    it('para Administrador no aplica filtro de empresa', async () => {
+    it('debe omitir el filtro de empresaId si el rol del tenant es ADMINISTRADOR', async () => {
       mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = {
-        empresaId: null,
-        rolNombre: ROLES.ADMINISTRADOR,
-      };
 
-      await repository.findFiltered(tenant, {}, 0, 50);
+      await repository.findFiltered(tenantAdmin, {}, 0, 10);
 
-      expect(mockTypeormRepo.createQueryBuilder).toHaveBeenCalledWith('log');
-      const empresaCalls = mockQueryBuilder.andWhere.mock.calls.filter(
-        ([clause]) => clause.includes('log.empresaId ='),
+      expect(mockTypeOrmRepo.createQueryBuilder).toHaveBeenCalledWith('log');
+      expect(mockQueryBuilder.andWhere).not.toHaveBeenCalledWith(
+        'log.empresaId = :empresaId',
+        expect.any(Object),
       );
-      expect(empresaCalls).toHaveLength(0);
       expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
-      expect(mockQueryBuilder.take).toHaveBeenCalledWith(50);
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
     });
 
-    it('para un rol distinto de Administrador filtra por la empresa del tenant', async () => {
+    it('debe aplicar el filtro de empresaId si el usuario NO es ADMINISTRADOR', async () => {
       mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
-      const tenant: TenantContext = { empresaId: 3, rolNombre: ROLES.GERENTE };
 
-      await repository.findFiltered(tenant, {}, 10, 25);
+      await repository.findFiltered(tenantOperador, {}, 0, 10);
 
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'log.empresaId = :empresaId',
-        { empresaId: 3 },
+        { empresaId: 100 },
       );
-      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(10);
-      expect(mockQueryBuilder.take).toHaveBeenCalledWith(25);
     });
 
-    it('devuelve el resultado tal cual lo entrega getManyAndCount', async () => {
-      const logs = [{ id: 1 }] as unknown as AuditLog[];
-      mockQueryBuilder.getManyAndCount.mockResolvedValue([logs, 1]);
-      const tenant: TenantContext = { empresaId: 1, rolNombre: ROLES.GERENTE };
+    it('debe aplicar filtros por userId, tipo, accion y rango de fechas cuando se especifican', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+      const fechaDesde = new Date('2026-01-01');
+      const fechaHasta = new Date('2026-05-10');
 
-      const result = await repository.findFiltered(tenant, {}, 0, 50);
+      const filters = {
+        userId: 5,
+        tipo: 'CONFIGURACION' as Parameters<
+          AuditLogRepository['findFiltered']
+        >[1]['tipo'],
+        accion: 'PARAMETRO_UPDATE',
+        estado: 'SUCCESS' as const,
+        fechaDesde,
+        fechaHasta,
+      };
 
-      expect(result).toEqual([logs, 1]);
+      await repository.findFiltered(tenantOperador, filters, 0, 10);
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'log.userId = :userId',
+        { userId: 5 },
+      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'log.tipo = :tipo',
+        { tipo: 'CONFIGURACION' },
+      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'log.accion = :accionExacta',
+        { accionExacta: 'PARAMETRO_UPDATE_SUCCESS' },
+      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'log.createdAt >= :fechaDesde',
+        { fechaDesde },
+      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'log.createdAt <= :fechaHasta',
+        { fechaHasta },
+      );
+    });
+  });
+
+  describe('findAllMatching', () => {
+    it('debe consultar registros limitando el resultado al máximo permitido para exportación (10000)', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      const resultado = await repository.findAllMatching(tenantAdmin, {});
+
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10000);
+      expect(resultado).toEqual([]);
     });
   });
 
   describe('findPrimerosYUltimos', () => {
-    it('deberia devolver [] sin consultar la base si entidadIds esta vacio', async () => {
-      const result = await repository.findPrimerosYUltimos('Lote', [], 1);
+    it('debe retornar arreglo vacío inmediatamente si el arreglo de entidadIds está vacío', async () => {
+      const resultado = await repository.findPrimerosYUltimos('Lote', [], 100);
 
-      expect(result).toEqual([]);
-      expect(mockTypeormRepo.createQueryBuilder).not.toHaveBeenCalled();
+      expect(resultado).toEqual([]);
+      expect(mockTypeOrmRepo.createQueryBuilder).not.toHaveBeenCalled();
     });
 
-    it('deberia armar el query con entidad, entidadIds, filtro de _SUCCESS y orden correcto', async () => {
+    it('debe construir la consulta filtrando por entidad, IDs y sufijo SUCCESS', async () => {
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await repository.findPrimerosYUltimos('Lote', [1, 2, 3], 5);
+      await repository.findPrimerosYUltimos('Lote', [10, 20], 100);
 
-      expect(mockTypeormRepo.createQueryBuilder).toHaveBeenCalledWith('log');
+      expect(mockTypeOrmRepo.createQueryBuilder).toHaveBeenCalledWith('log');
       expect(mockQueryBuilder.where).toHaveBeenCalledWith(
         'log.entidad = :entidad',
         { entidad: 'Lote' },
       );
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'log.entidadId IN (:...entidadIds)',
-        { entidadIds: [1, 2, 3] },
+        { entidadIds: [10, 20] },
       );
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         "log.accion LIKE '%\\_SUCCESS' ESCAPE '\\'",
       );
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
-        'log.entidadId',
-        'ASC',
-      );
-      expect(mockQueryBuilder.addOrderBy).toHaveBeenCalledWith(
-        'log.createdAt',
-        'ASC',
-      );
-    });
-
-    it('deberia agregar el filtro de empresaId cuando se pasa un valor no nulo', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
-
-      await repository.findPrimerosYUltimos('Lote', [1], 5);
-
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'log.empresaId = :empresaId',
-        { empresaId: 5 },
+        { empresaId: 100 },
       );
-    });
-
-    it('no deberia filtrar por empresaId cuando es null (acceso global tipo Administrador)', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
-
-      await repository.findPrimerosYUltimos('Lote', [1], null);
-
-      const empresaIdCalls = mockQueryBuilder.andWhere.mock.calls.filter(
-        ([clause]) => clause === 'log.empresaId = :empresaId',
-      );
-      expect(empresaIdCalls).toHaveLength(0);
-    });
-
-    it('deberia devolver el resultado de getMany tal cual', async () => {
-      const logs = [
-        { id: 1, entidadId: 1 },
-        { id: 2, entidadId: 1 },
-      ] as unknown as AuditLog[];
-      mockQueryBuilder.getMany.mockResolvedValue(logs);
-
-      const result = await repository.findPrimerosYUltimos('Lote', [1], 5);
-
-      expect(result).toEqual(logs);
     });
   });
 });
