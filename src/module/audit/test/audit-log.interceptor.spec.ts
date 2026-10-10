@@ -1,38 +1,76 @@
-import { ExecutionContext, CallHandler } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { of, throwError, lastValueFrom } from 'rxjs';
+import { Observable, lastValueFrom, of, throwError } from 'rxjs';
 import { AuditInterceptor } from '../interceptor/audit-log.interceptor';
 import { AuditLogService } from '../audit-log.service';
+import {
+  AUDIT_CAMBIOS_KEY,
+  AuditMetadata,
+} from '../decorators/audit-log.decorator';
 import { TipoAccion } from '../enums/tipo-accion.enum';
 
-const mockAuditLogService = {
-  record: jest.fn().mockResolvedValue(undefined),
-};
+const mockAuditLogService = { record: jest.fn() };
+const mockReflector = { getAllAndOverride: jest.fn() };
 
-const mockReflector = {
-  getAllAndOverride: jest.fn(),
-};
+// registerAudit corre "fire and forget": hay que vaciar la cola antes de afirmar.
+const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
-function buildExecutionContext(
-  request: Record<string, unknown>,
-): ExecutionContext {
-  return {
+const buildContext = (request: unknown): ExecutionContext =>
+  ({
     getHandler: jest.fn(),
     getClass: jest.fn(),
-    switchToHttp: () => ({
-      getRequest: () => request,
-    }),
-  } as unknown as ExecutionContext;
-}
+    switchToHttp: () => ({ getRequest: () => request }),
+  }) as unknown as ExecutionContext;
 
-// Helper asíncrono para esperar la resolución de las promesas fire-and-forget
-const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
+const next = (obs: Observable<unknown>): CallHandler => ({ handle: () => obs });
+
+const metaBase = {
+  accion: 'LOTE_CREAR',
+  entidad: 'Lote',
+  tipo: TipoAccion.ALTA,
+} as AuditMetadata;
+
+const requestBase = (extra: Record<string, unknown> = {}) =>
+  ({
+    user: { sub: 1, email: 'u@x.com', rolNombre: 'GERENTE', empresaId: 10 },
+    params: { id: '7' },
+    body: {},
+    query: {},
+    ...extra,
+  }) as any;
 
 describe('AuditInterceptor', () => {
   let interceptor: AuditInterceptor;
 
+  // Ejecuta con éxito y devuelve el argumento con el que se llamó a record().
+  const ejecutarOk = async (
+    meta: AuditMetadata,
+    request: unknown,
+    body: unknown = { id: 1 },
+  ) => {
+    mockReflector.getAllAndOverride.mockReturnValue(meta);
+    await lastValueFrom(
+      interceptor.intercept(buildContext(request), next(of(body))),
+    );
+    await flush();
+    return mockAuditLogService.record.mock.calls[0][0];
+  };
+
+  // Ejecuta con error del handler y espera a que se registre la auditoría.
+  const ejecutarFallo = async (
+    meta: AuditMetadata,
+    request: unknown,
+    error: unknown,
+  ) => {
+    mockReflector.getAllAndOverride.mockReturnValue(meta);
+    await lastValueFrom(
+      interceptor.intercept(buildContext(request), next(throwError(() => error))),
+    ).catch((e) => e);
+    await flush();
+  };
+
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     mockAuditLogService.record.mockResolvedValue(undefined);
     interceptor = new AuditInterceptor(
       mockReflector as unknown as Reflector,
@@ -40,276 +78,364 @@ describe('AuditInterceptor', () => {
     );
   });
 
-  it('cuando no hay metadata de auditoria, deberia pasar directo al siguiente handler sin registrar nada', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue(undefined);
-    const context = buildExecutionContext({});
-    const next: CallHandler = { handle: () => of({ id: 1 }) };
+  afterEach(() => jest.restoreAllMocks());
 
-    const result = await lastValueFrom(interceptor.intercept(context, next));
+  it('sin metadata de auditoría, pasa directo al handler sin registrar nada', async () => {
+    mockReflector.getAllAndOverride.mockReturnValue(undefined);
+
+    const result = await lastValueFrom(
+      interceptor.intercept(buildContext({}), next(of({ id: 1 }))),
+    );
+    await flush();
 
     expect(result).toEqual({ id: 1 });
     expect(mockAuditLogService.record).not.toHaveBeenCalled();
   });
 
-  it('en un flujo exitoso, deberia registrar la auditoria con status SUCCESS usando los datos del usuario autenticado', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue({
-      accion: 'PROVEEDOR_ELIMINAR',
-      entidad: 'Proveedor',
-      tipo: TipoAccion.BAJA,
-    });
-    const request = {
-      user: { sub: 7, email: 'gerente@lacteo.com', empresaId: 2 },
-      params: { id: '10' },
-      body: {},
-    };
-    const context = buildExecutionContext(request);
-    const next: CallHandler = { handle: () => of({ id: 10, ok: true }) };
-
-    await lastValueFrom(interceptor.intercept(context, next));
-    await flushPromises();
-
-    expect(mockAuditLogService.record).toHaveBeenCalledWith({
-      userId: 7,
-      userEmail: 'gerente@lacteo.com',
-      userNombre: null,
-      userRol: null,
-      empresaId: 2,
-      accion: 'PROVEEDOR_ELIMINAR_SUCCESS',
-      entidad: 'Proveedor',
-      entidadId: 10,
-      tipo: TipoAccion.BAJA,
-      descripcion: 'Baja de Proveedor #10',
-      detalle: { status: 'SUCCESS', data: { id: 10, ok: true } },
-    });
-  });
-
-  it('cuando no hay usuario autenticado, deberia usar el email del body y null para userId/empresaId', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue({
-      accion: 'LOGIN',
-      entidad: 'Usuario',
-      tipo: TipoAccion.LOGIN,
-    });
-    const request = {
-      params: {},
-      body: { email: 'anonimo@lacteo.com' },
-    };
-    const context = buildExecutionContext(request);
-    const next: CallHandler = { handle: () => of({ access_token: 'abc' }) };
-
-    await lastValueFrom(interceptor.intercept(context, next));
-    await flushPromises();
-
-    expect(mockAuditLogService.record).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: null,
-        userEmail: 'anonimo@lacteo.com',
-        empresaId: null,
-        tipo: TipoAccion.LOGIN,
-        descripcion: 'Inicio de sesión',
-      }),
-    );
-  });
-
-  it('cuando no hay usuario ni email en el body, deberia usar "anonymous" como userEmail', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue({
-      accion: 'ACCION',
-      entidad: 'Entidad',
-      tipo: TipoAccion.OTRO,
-    });
-    const request = { params: {}, body: {} };
-    const context = buildExecutionContext(request);
-    const next: CallHandler = { handle: () => of({}) };
-
-    await lastValueFrom(interceptor.intercept(context, next));
-    await flushPromises();
-
-    expect(mockAuditLogService.record).toHaveBeenCalledWith(
-      expect.objectContaining({ userEmail: 'anonymous' }),
-    );
-  });
-
-  describe('resolveEntidadId', () => {
-    it('deberia resolver entidadId desde params.id cuando es un numero valido', async () => {
-      mockReflector.getAllAndOverride.mockReturnValue({
-        accion: 'ACCION',
-        entidad: 'Entidad',
-        tipo: TipoAccion.OTRO,
-      });
-      const request = { params: { id: '42' }, body: {} };
-      const context = buildExecutionContext(request);
-      const next: CallHandler = { handle: () => of({}) };
-
-      await lastValueFrom(interceptor.intercept(context, next));
-      await flushPromises();
-
-      expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ entidadId: 42 }),
-      );
-    });
-
-    it('deberia resolver entidadId desde el id del response body cuando no hay params.id', async () => {
-      mockReflector.getAllAndOverride.mockReturnValue({
-        accion: 'ACCION',
-        entidad: 'Entidad',
-        tipo: TipoAccion.OTRO,
-      });
-      const request = { params: {}, body: {} };
-      const context = buildExecutionContext(request);
-      const next: CallHandler = { handle: () => of({ id: 99 }) };
-
-      await lastValueFrom(interceptor.intercept(context, next));
-      await flushPromises();
-
-      expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ entidadId: 99 }),
-      );
-    });
-
-    it('deberia resolver entidadId desde body.lote.id cuando no hay params.id ni id en la raiz del response', async () => {
-      mockReflector.getAllAndOverride.mockReturnValue({
-        accion: 'SENSOR_ASOCIAR_LOTE',
-        entidad: 'Sensor',
-        tipo: TipoAccion.OTRO,
-      });
-      const request = { params: {}, body: {} };
-      const context = buildExecutionContext(request);
-      const next: CallHandler = {
-        handle: () => of({ lote: { id: 15, nombre: 'Lote A' } }),
+  describe('flujo exitoso', () => {
+    it('registra SUCCESS con los datos del usuario autenticado', async () => {
+      const request = {
+        user: { sub: 7, email: 'gerente@lacteo.com', empresaId: 2 },
+        params: { id: '10' },
+        body: {},
       };
 
-      await lastValueFrom(interceptor.intercept(context, next));
-      await flushPromises();
+      await ejecutarOk(
+        { accion: 'PROVEEDOR_ELIMINAR', entidad: 'Proveedor', tipo: TipoAccion.BAJA } as AuditMetadata,
+        request,
+        { id: 10, ok: true },
+      );
 
-      expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ entidadId: 15 }),
+      expect(mockAuditLogService.record).toHaveBeenCalledWith({
+        userId: 7,
+        userEmail: 'gerente@lacteo.com',
+        userNombre: null,
+        userRol: null,
+        empresaId: 2,
+        accion: 'PROVEEDOR_ELIMINAR_SUCCESS',
+        entidad: 'Proveedor',
+        entidadId: 10,
+        tipo: TipoAccion.BAJA,
+        descripcion: 'Baja de Proveedor #10',
+        detalle: { status: 'SUCCESS', data: { id: 10, ok: true } },
+      });
+    });
+
+    it('si falla el registro de auditoría, loguea y devuelve igual la respuesta', async () => {
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      mockAuditLogService.record.mockRejectedValue(new Error('db caída'));
+      mockReflector.getAllAndOverride.mockReturnValue(metaBase);
+
+      const res = await lastValueFrom(
+        interceptor.intercept(buildContext(requestBase()), next(of({ id: 1 }))),
+      );
+      await flush();
+
+      expect(res).toEqual({ id: 1 });
+      expect(errorSpy).toHaveBeenCalledWith('Fallo auditando éxito: db caída');
+    });
+
+    it('incluye "cambios" cuando el request los trae', async () => {
+      const cambios = { nombre: { antes: 'a', despues: 'b' } };
+
+      const arg = await ejecutarOk(
+        metaBase,
+        requestBase({ [AUDIT_CAMBIOS_KEY]: cambios }),
+      );
+
+      expect(arg.detalle.cambios).toEqual(cambios);
+    });
+
+    it('prioriza empresaObjetivoId sobre la empresa del usuario', async () => {
+      const arg = await ejecutarOk(metaBase, requestBase({ empresaObjetivoId: 99 }));
+
+      expect(arg.empresaId).toBe(99);
+    });
+
+    it.each([
+      ['array', [1, 2]],
+      ['null', null],
+      ['string', 'texto'],
+    ])('no intenta sanear una respuesta de tipo %s', async (_l, body) => {
+      const arg = await ejecutarOk(metaBase, requestBase({ params: {} }), body);
+
+      expect(arg.detalle.data).toEqual(body);
+    });
+  });
+
+  describe('usuario y email', () => {
+    it('sin usuario autenticado usa el email del body y null para userId/empresaId', async () => {
+      const arg = await ejecutarOk(
+        { accion: 'LOGIN', entidad: 'Usuario', tipo: TipoAccion.LOGIN } as AuditMetadata,
+        { params: {}, body: { email: 'anonimo@lacteo.com' } },
+        { access_token: 'abc' },
+      );
+
+      expect(arg).toEqual(
+        expect.objectContaining({
+          userId: null,
+          userEmail: 'anonimo@lacteo.com',
+          empresaId: null,
+          descripcion: 'Inicio de sesión',
+        }),
       );
     });
 
-    it('deberia priorizar params.id por sobre body.lote.id cuando ambos estan presentes', async () => {
-      mockReflector.getAllAndOverride.mockReturnValue({
-        accion: 'ACCION',
-        entidad: 'Entidad',
-        tipo: TipoAccion.OTRO,
-      });
-      const request = { params: { id: '7' }, body: {} };
-      const context = buildExecutionContext(request);
-      const next: CallHandler = { handle: () => of({ lote: { id: 999 } }) };
-
-      await lastValueFrom(interceptor.intercept(context, next));
-      await flushPromises();
-
-      expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ entidadId: 7 }),
+    it('usa "anonymous" si no hay usuario ni email en el body', async () => {
+      const arg = await ejecutarOk(
+        metaBase,
+        requestBase({ user: undefined, body: undefined }),
       );
+
+      expect(arg.userEmail).toBe('anonymous');
     });
 
-    it('deberia devolver entidadId null cuando body.lote existe pero su id no es un numero', async () => {
-      mockReflector.getAllAndOverride.mockReturnValue({
-        accion: 'ACCION',
-        entidad: 'Entidad',
-        tipo: TipoAccion.OTRO,
+    it('en el LOGIN toma usuario, rol y empresa de la respuesta y no guarda los tokens', async () => {
+      const request = requestBase({
+        user: undefined,
+        params: {},
+        body: { email: 'body@x.com' },
       });
-      const request = { params: {}, body: {} };
-      const context = buildExecutionContext(request);
-      const next: CallHandler = {
-        handle: () => of({ lote: { id: 'no-numerico' } }),
+      const respuesta = {
+        user: {
+          id: 3,
+          email: 'resp@x.com',
+          nombre: 'Ana',
+          rolNombre: 'GERENTE',
+          empresaId: 9,
+        },
+        access_token: 'secreto',
+        refresh_token: 'secreto2',
+        ok: true,
       };
 
-      await lastValueFrom(interceptor.intercept(context, next));
-      await flushPromises();
-
-      expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ entidadId: null }),
+      const arg = await ejecutarOk(
+        { ...metaBase, tipo: TipoAccion.LOGIN },
+        request,
+        respuesta,
       );
+
+      expect(arg).toEqual(
+        expect.objectContaining({
+          userId: 3,
+          userEmail: 'resp@x.com',
+          userNombre: 'Ana',
+          userRol: 'GERENTE',
+          empresaId: 9,
+        }),
+      );
+      expect(arg.detalle.data).not.toHaveProperty('access_token');
+      expect(arg.detalle.data).not.toHaveProperty('refresh_token');
+      expect(arg.detalle.data).toHaveProperty('ok', true);
     });
 
-    it('deberia caer al response body cuando params.id no es numerico', async () => {
-      mockReflector.getAllAndOverride.mockReturnValue({
-        accion: 'ACCION',
-        entidad: 'Entidad',
-        tipo: TipoAccion.OTRO,
-      });
-      const request = { params: { id: 'abc' }, body: {} };
-      const context = buildExecutionContext(request);
-      const next: CallHandler = { handle: () => of({ id: 55 }) };
-
-      await lastValueFrom(interceptor.intercept(context, next));
-      await flushPromises();
-
-      expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ entidadId: 55 }),
+    it('en un LOGIN fallido toma el email del body y queda anónimo', async () => {
+      await ejecutarFallo(
+        { ...metaBase, tipo: TipoAccion.LOGIN },
+        requestBase({ user: undefined, params: {}, body: { email: 'body@x.com' } }),
+        new Error('credenciales'),
       );
-    });
-
-    it('deberia devolver entidadId null cuando no hay params.id, ni id en la raiz, ni body.lote.id', async () => {
-      mockReflector.getAllAndOverride.mockReturnValue({
-        accion: 'ACCION',
-        entidad: 'Entidad',
-        tipo: TipoAccion.OTRO,
-      });
-      const request = { params: {}, body: {} };
-      const context = buildExecutionContext(request);
-      const next: CallHandler = { handle: () => of('respuesta-sin-id') };
-
-      await lastValueFrom(interceptor.intercept(context, next));
-      await flushPromises();
 
       expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ entidadId: null }),
+        expect.objectContaining({
+          userId: null,
+          userEmail: 'body@x.com',
+          userNombre: null,
+          userRol: null,
+          empresaId: null,
+        }),
       );
     });
   });
 
-  it('cuando el handler falla, deberia registrar la auditoria con status FAILURE y repropagar el error', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue({
-      accion: 'PROVEEDOR_ELIMINAR',
-      entidad: 'Proveedor',
-      tipo: TipoAccion.BAJA,
+  describe('descripción genérica por tipo de acción', () => {
+    it.each([
+      [TipoAccion.ALTA, 'Alta de Lote #7'],
+      [TipoAccion.BAJA, 'Baja de Lote #7'],
+      [TipoAccion.EDICION, 'Edición de Lote #7'],
+      [TipoAccion.EXPORTACION, 'Exportación de Lote'],
+      [TipoAccion.LOGIN, 'Inicio de sesión'],
+      [TipoAccion.LOGOUT, 'Cierre de sesión'],
+      [TipoAccion.CONFIGURACION, 'Cambio de configuración en Lote #7'],
+      [TipoAccion.OTRO, 'Acción sobre Lote #7'],
+    ])('%s con id', async (tipo, esperado) => {
+      const arg = await ejecutarOk({ ...metaBase, tipo }, requestBase());
+
+      expect(arg.descripcion).toBe(esperado);
     });
-    const request = {
-      user: { sub: 7, email: 'gerente@lacteo.com', empresaId: 2 },
-      params: { id: '5' },
-      body: {},
-    };
-    const context = buildExecutionContext(request);
-    const error = new Error('No se pudo eliminar');
-    const next: CallHandler = { handle: () => throwError(() => error) };
 
-    await expect(
-      lastValueFrom(interceptor.intercept(context, next)),
-    ).rejects.toThrow('No se pudo eliminar');
+    it.each([
+      [TipoAccion.ALTA, 'Alta de Lote'],
+      [TipoAccion.BAJA, 'Baja de Lote'],
+      [TipoAccion.EDICION, 'Edición de Lote'],
+      [TipoAccion.CONFIGURACION, 'Cambio de configuración en Lote'],
+      [TipoAccion.OTRO, 'Acción sobre Lote'],
+    ])('%s sin id', async (tipo, esperado) => {
+      const arg = await ejecutarOk({ ...metaBase, tipo }, requestBase({ params: {} }), {});
 
-    await flushPromises();
-
-    expect(mockAuditLogService.record).toHaveBeenCalledWith({
-      userId: 7,
-      userEmail: 'gerente@lacteo.com',
-      userNombre: null,
-      userRol: null,
-      empresaId: 2,
-      accion: 'PROVEEDOR_ELIMINAR_FAILURE',
-      entidad: 'Proveedor',
-      entidadId: 5,
-      tipo: TipoAccion.BAJA,
-      descripcion: 'Baja de Proveedor #5',
-      detalle: { status: 'FAILURE', data: { message: 'No se pudo eliminar' } },
+      expect(arg.descripcion).toBe(esperado);
     });
   });
 
-  it('si el registro de auditoria falla, no deberia romper el flujo principal', async () => {
-    mockReflector.getAllAndOverride.mockReturnValue({
-      accion: 'ACCION',
-      entidad: 'Entidad',
-      tipo: TipoAccion.OTRO,
+  describe('descripción custom', () => {
+    it('usa la descripción custom cuando existe', async () => {
+      const descripcion = jest.fn().mockReturnValue('Descripción propia');
+
+      const arg = await ejecutarOk({ ...metaBase, descripcion }, requestBase());
+
+      expect(arg.descripcion).toBe('Descripción propia');
+      expect(descripcion).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'SUCCESS' }),
+      );
     });
-    mockAuditLogService.record.mockRejectedValueOnce(new Error('fallo interno'));
-    const request = { params: {}, body: {} };
-    const context = buildExecutionContext(request);
-    const next: CallHandler = { handle: () => of({ ok: true }) };
 
-    const result = await lastValueFrom(interceptor.intercept(context, next));
-    await flushPromises();
+    it('si lanza un Error, loguea warn y cae a la genérica', async () => {
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const descripcion = jest.fn(() => {
+        throw new Error('boom');
+      });
 
-    expect(result).toEqual({ ok: true });
+      const arg = await ejecutarOk({ ...metaBase, descripcion }, requestBase());
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('boom'));
+      expect(arg.descripcion).toBe('Alta de Lote #7');
+    });
+
+    it('si lanza algo que no es Error, lo convierte con String()', async () => {
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const descripcion = jest.fn(() => {
+        throw 'texto raro';
+      });
+
+      const arg = await ejecutarOk({ ...metaBase, descripcion }, requestBase());
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('texto raro'));
+      expect(arg.descripcion).toBe('Alta de Lote #7');
+    });
+  });
+
+  describe('flujo con error (FAILURE)', () => {
+    it('registra FAILURE y relanza el error original', async () => {
+      const request = {
+        user: { sub: 7, email: 'gerente@lacteo.com', empresaId: 2 },
+        params: { id: '5' },
+        body: {},
+      };
+      const meta = {
+        accion: 'PROVEEDOR_ELIMINAR',
+        entidad: 'Proveedor',
+        tipo: TipoAccion.BAJA,
+      } as AuditMetadata;
+      mockReflector.getAllAndOverride.mockReturnValue(meta);
+      const error = new Error('No se pudo eliminar');
+
+      await expect(
+        lastValueFrom(
+          interceptor.intercept(buildContext(request), next(throwError(() => error))),
+        ),
+      ).rejects.toBe(error);
+      await flush();
+
+      expect(mockAuditLogService.record).toHaveBeenCalledWith({
+        userId: 7,
+        userEmail: 'gerente@lacteo.com',
+        userNombre: null,
+        userRol: null,
+        empresaId: 2,
+        accion: 'PROVEEDOR_ELIMINAR_FAILURE',
+        entidad: 'Proveedor',
+        entidadId: 5,
+        tipo: TipoAccion.BAJA,
+        descripcion: 'Baja de Proveedor #5',
+        detalle: { status: 'FAILURE', data: { message: 'No se pudo eliminar' } },
+      });
+    });
+
+    it('si lo lanzado no es un Error, usa "Error desconocido"', async () => {
+      await ejecutarFallo(metaBase, requestBase(), 'string suelto');
+
+      expect(mockAuditLogService.record.mock.calls[0][0].detalle.data).toEqual({
+        message: 'Error desconocido',
+      });
+    });
+
+    it('si falla el registro de la auditoría de error, loguea y relanza el error original', async () => {
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      mockAuditLogService.record.mockRejectedValue(new Error('db caída'));
+      mockReflector.getAllAndOverride.mockReturnValue(metaBase);
+      const original = new Error('original');
+
+      await expect(
+        lastValueFrom(
+          interceptor.intercept(
+            buildContext(requestBase()),
+            next(throwError(() => original)),
+          ),
+        ),
+      ).rejects.toBe(original);
+      await flush();
+
+      expect(errorSpy).toHaveBeenCalledWith('Fallo auditando error: db caída');
+    });
+
+    it('no incluye "cambios" en el detalle cuando la operación falló', async () => {
+      await ejecutarFallo(
+        metaBase,
+        requestBase({ [AUDIT_CAMBIOS_KEY]: { antes: 1 } }),
+        new Error('x'),
+      );
+
+      expect(mockAuditLogService.record.mock.calls[0][0].detalle).not.toHaveProperty(
+        'cambios',
+      );
+    });
+  });
+
+  describe('resolución del entidadId', () => {
+    it('toma params.id cuando es numérico', async () => {
+      const arg = await ejecutarOk(metaBase, requestBase({ params: { id: '42' } }), {});
+
+      expect(arg.entidadId).toBe(42);
+    });
+
+    it('toma el id de la respuesta cuando no hay params.id', async () => {
+      const arg = await ejecutarOk(metaBase, requestBase({ params: {} }), { id: 99 });
+
+      expect(arg.entidadId).toBe(99);
+    });
+
+    it('toma body.lote.id cuando no hay params.id ni id en la raíz', async () => {
+      const arg = await ejecutarOk(metaBase, requestBase({ params: {} }), {
+        lote: { id: 15, nombre: 'Lote A' },
+      });
+
+      expect(arg.entidadId).toBe(15);
+    });
+
+    it('prioriza params.id sobre body.lote.id', async () => {
+      const arg = await ejecutarOk(metaBase, requestBase({ params: { id: '7' } }), {
+        lote: { id: 999 },
+      });
+
+      expect(arg.entidadId).toBe(7);
+    });
+
+    it('si params.id no es numérico, cae al id de la respuesta', async () => {
+      const arg = await ejecutarOk(metaBase, requestBase({ params: { id: 'abc' } }), {
+        id: 55,
+      });
+
+      expect(arg.entidadId).toBe(55);
+    });
+
+    it.each([
+      ['respuesta sin id', {}],
+      ['lote sin id numérico', { lote: { id: 'x' } }],
+      ['respuesta no objeto', 'texto'],
+    ])('devuelve null con %s', async (_l, body) => {
+      const arg = await ejecutarOk(metaBase, requestBase({ params: {} }), body);
+
+      expect(arg.entidadId).toBeNull();
+    });
   });
 });

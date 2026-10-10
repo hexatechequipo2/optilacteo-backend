@@ -81,4 +81,102 @@ describe('RolController', () => {
     expect(texto).toContain('Laboratorio');
     expect(texto).toContain('trazabilidad');
   });
+  it('la descripción de auditoría de crear incluye el nombre y los permisos posteriores', () => {
+    const meta = Reflect.getMetadata(
+      AUDIT_KEY,
+      RolController.prototype.crear,
+    ) as { descripcion: (ctx: unknown) => string };
+
+    const texto = meta.descripcion({
+      responseBody: {
+        nombre: 'Laboratorio',
+        despues: [{ modulo: 'trazabilidad', canRead: true }],
+      },
+    });
+
+    expect(texto).toContain('Laboratorio');
+    expect(texto).toContain('trazabilidad');
+  });
+
+  it('la descripción de auditoría de crear usa valores por defecto si faltan datos', () => {
+    const meta = Reflect.getMetadata(
+      AUDIT_KEY,
+      RolController.prototype.crear,
+    ) as { descripcion: (ctx: unknown) => string };
+
+    const texto = meta.descripcion({});
+
+    expect(texto).toContain('Rol ? creado');
+    expect(texto).toContain('undefined');
+  });
+
+  it('la descripción de auditoría de asignar incluye el usuario y los roles', () => {
+    const meta = Reflect.getMetadata(
+      AUDIT_KEY,
+      RolController.prototype.asignar,
+    ) as { descripcion: (ctx: unknown) => string };
+
+    const texto = meta.descripcion({
+      responseBody: {
+        usuarioId: 9,
+        rolAnterior: 'Operador',
+        rolNuevo: 'Administrador',
+      },
+    });
+
+    expect(texto).toContain('Usuario 9');
+    expect(texto).toContain('Operador');
+    expect(texto).toContain('Administrador');
+  });
+
+  it('la descripción de auditoría de asignar contempla un usuario sin rol anterior', () => {
+    const meta = Reflect.getMetadata(
+      AUDIT_KEY,
+      RolController.prototype.asignar,
+    ) as { descripcion: (ctx: unknown) => string };
+
+    const texto = meta.descripcion({
+      responseBody: {
+        usuarioId: 9,
+        rolNuevo: 'Operador',
+      },
+    });
+
+    expect(texto).toContain('Usuario 9');
+    expect(texto).toContain('sin rol');
+    expect(texto).toContain('Operador');
+  });
+
+  it('la descripción de auditoría de actualizar incluye el nombre y los permisos', () => {
+    const meta = Reflect.getMetadata(
+      AUDIT_KEY,
+      RolController.prototype.actualizar,
+    ) as { descripcion: (ctx: unknown) => string };
+
+    const texto = meta.descripcion({
+      responseBody: {
+        nombre: 'Laboratorio',
+        antes: [{ modulo: 'usuarios' }],
+        despues: [{ modulo: 'trazabilidad' }],
+      },
+    });
+
+    expect(texto).toContain('Laboratorio');
+    expect(texto).toContain('usuarios');
+    expect(texto).toContain('trazabilidad');
+  });
+
+  it('la descripción de auditoría de actualizar contempla datos ausentes', () => {
+    const meta = Reflect.getMetadata(
+      AUDIT_KEY,
+      RolController.prototype.actualizar,
+    ) as { descripcion: (ctx: unknown) => string };
+
+    const texto = meta.descripcion({});
+
+    expect(texto).toContain('Rol undefined');
+    expect(texto).toContain('Antes: undefined');
+    expect(texto).toContain('Después: undefined');
+  });
+
 });

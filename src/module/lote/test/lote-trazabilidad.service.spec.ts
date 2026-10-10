@@ -306,4 +306,190 @@ describe('LoteTrazabilidadService — trazabilidad completa de lotes', () => {
       ).toBe(false);
     });
   });
+  describe('Recomendaciones de destino', () => {
+    const tenant = { empresaId: 1 } as TenantContext;
+
+    const prepararLote = () => {
+      mockLoteRepository.findById.mockResolvedValue({
+        id: 5,
+        codigo: 'LOT-001',
+        fechaIngreso: new Date('2026-08-01T08:00:00'),
+        materiaPrima: 'LECHE',
+        proveedorId: 2,
+        tamboId: 3,
+        cantidad: 100,
+        parametros: [],
+        estado: EstadoLote.EN_PROCESO,
+        updatedAt: new Date('2026-08-05T15:00:00'),
+      });
+
+      mockClasificacionLoteService.historialDeLote.mockResolvedValue([]);
+      mockLoteRevisionRepository.find.mockResolvedValue([]);
+      mockUbicacionHistorialRepository.find.mockResolvedValue([]);
+      mockIngresoCamaraRepository.find.mockResolvedValue([]);
+      mockLoteConsumoService.historial.mockResolvedValue([]);
+    };
+
+    it('omite las recomendaciones pendientes', async () => {
+      prepararLote();
+
+      mockRecomendacionRepository.find.mockResolvedValue([
+        {
+          estado: 'pendiente',
+          destinoRecomendadoId: 10,
+          destinoRealId: null,
+          destinoRecomendado: { nombre: 'Cámara A' },
+          destinoReal: null,
+          createdAt: new Date('2026-08-01T09:00:00'),
+          respondidaEn: null,
+        },
+      ]);
+
+      const result = await service.getTrazabilidad(5, tenant);
+
+      expect(
+        result.eventos.filter(
+          (evento) =>
+            evento.tipo === TipoEventoTrazabilidad.RECOMENDACION_DESTINO,
+        ),
+      ).toHaveLength(0);
+    });
+
+    it('registra una recomendación aceptada cuando coinciden los destinos', async () => {
+      prepararLote();
+
+      const respondidaEn = new Date('2026-08-01T10:00:00');
+
+      mockRecomendacionRepository.find.mockResolvedValue([
+        {
+          estado: 'aceptada',
+          destinoRecomendadoId: 10,
+          destinoRealId: 10,
+          destinoRecomendado: { nombre: 'Cámara A' },
+          destinoReal: { nombre: 'Cámara A' },
+          createdAt: new Date('2026-08-01T09:00:00'),
+          respondidaEn,
+          justificacion: 'Destino correcto',
+          usuarioId: 7,
+        },
+      ]);
+
+      const result = await service.getTrazabilidad(5, tenant);
+
+      expect(result.eventos).toContainEqual(
+        expect.objectContaining({
+          tipo: TipoEventoTrazabilidad.RECOMENDACION_DESTINO,
+          fecha: respondidaEn,
+          descripcion: 'Destino recomendado aceptado (Cámara A)',
+          detalle: expect.objectContaining({
+            destinoRecomendadoId: 10,
+            destinoRecomendadoNombre: 'Cámara A',
+            destinoRealId: 10,
+            destinoRealNombre: 'Cámara A',
+            divergencia: false,
+            justificacion: 'Destino correcto',
+            usuarioId: 7,
+          }),
+        }),
+      );
+    });
+
+    it('registra una divergencia cuando el destino real es distinto del recomendado', async () => {
+      prepararLote();
+
+      const respondidaEn = new Date('2026-08-01T10:00:00');
+
+      mockRecomendacionRepository.find.mockResolvedValue([
+        {
+          estado: 'rechazada',
+          destinoRecomendadoId: 10,
+          destinoRealId: 20,
+          destinoRecomendado: { nombre: 'Cámara A' },
+          destinoReal: { nombre: 'Cámara B' },
+          createdAt: new Date('2026-08-01T09:00:00'),
+          respondidaEn,
+          justificacion: 'Cámara A ocupada',
+          usuarioId: 8,
+        },
+      ]);
+
+      const result = await service.getTrazabilidad(5, tenant);
+
+      expect(result.eventos).toContainEqual(
+        expect.objectContaining({
+          tipo: TipoEventoTrazabilidad.RECOMENDACION_DESTINO,
+          fecha: respondidaEn,
+          descripcion:
+            'Divergencia: destino elegido distinto al recomendado (Cámara A → Cámara B)',
+          detalle: expect.objectContaining({
+            destinoRecomendadoId: 10,
+            destinoRealId: 20,
+            divergencia: true,
+            destinoRealNombre: 'Cámara B',
+          }),
+        }),
+      );
+    });
+
+    it('usa createdAt cuando respondidaEn es null', async () => {
+      prepararLote();
+
+      const createdAt = new Date('2026-08-01T09:00:00');
+
+      mockRecomendacionRepository.find.mockResolvedValue([
+        {
+          estado: 'aceptada',
+          destinoRecomendadoId: 10,
+          destinoRealId: 10,
+          destinoRecomendado: { nombre: 'Cámara A' },
+          destinoReal: { nombre: 'Cámara A' },
+          createdAt,
+          respondidaEn: null,
+          justificacion: null,
+          usuarioId: 7,
+        },
+      ]);
+
+      const result = await service.getTrazabilidad(5, tenant);
+
+      expect(result.eventos).toContainEqual(
+        expect.objectContaining({
+          tipo: TipoEventoTrazabilidad.RECOMENDACION_DESTINO,
+          fecha: createdAt,
+        }),
+      );
+    });
+
+    it('contempla que destinoReal no tenga nombre asociado', async () => {
+      prepararLote();
+
+      mockRecomendacionRepository.find.mockResolvedValue([
+        {
+          estado: 'rechazada',
+          destinoRecomendadoId: 10,
+          destinoRealId: 20,
+          destinoRecomendado: { nombre: 'Cámara A' },
+          destinoReal: null,
+          createdAt: new Date('2026-08-01T09:00:00'),
+          respondidaEn: null,
+          justificacion: null,
+          usuarioId: 7,
+        },
+      ]);
+
+      const result = await service.getTrazabilidad(5, tenant);
+
+      expect(result.eventos).toContainEqual(
+        expect.objectContaining({
+          tipo: TipoEventoTrazabilidad.RECOMENDACION_DESTINO,
+          descripcion:
+            'Divergencia: destino elegido distinto al recomendado (Cámara A → undefined)',
+          detalle: expect.objectContaining({
+            destinoRealNombre: undefined,
+            divergencia: true,
+          }),
+        }),
+      );
+    });
+  });
 });

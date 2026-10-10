@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+src/**/*.js
+src/**/*.d.ts
+
 # Herramientas locales
 .claude/
 CLAUDE.local.md

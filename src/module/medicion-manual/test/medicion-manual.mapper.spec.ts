@@ -1,167 +1,249 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { MedicionManualLoteRepository } from '../repository/medicion-manual-lote.repository';
+import { MedicionManualMapper } from '../mappers/medicion-manual.mapper';
+import { CreateMedicionManualLoteDto } from '../dto/create-medicion-manual-lote.dto';
 import { MedicionManualLote } from '../entities/medicion-manual-lote.entity';
-import { Parametro } from '../../config-parametro/enums/parametro.enum';
+import { ConfiguracionParametro } from '../../config-parametro/entities/config-parametro.entity';
+import { SemaforoService } from '../../config-parametro/semaforo.service';
 
-describe('MedicionManualLoteRepository', () => {
-  let repository: MedicionManualLoteRepository;
-  let rawRepo: Repository<MedicionManualLote>;
+describe('MedicionManualMapper', () => {
+  const semaforoService = {
+    calcularEstado: jest.fn(),
+  } as unknown as SemaforoService;
 
-  const createQueryBuilderMock: any = {
-    where: jest.fn().mockReturnThis(),
-    andWhere: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    skip: jest.fn().mockReturnThis(),
-    take: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    getManyAndCount: jest.fn(),
-    getRawMany: jest.fn(),
-  };
-
-  const mockTypeOrmRepository = {
-    save: jest.fn(),
-    createQueryBuilder: jest.fn(() => createQueryBuilderMock),
-  };
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        MedicionManualLoteRepository,
-        {
-          provide: getRepositoryToken(MedicionManualLote),
-          useValue: mockTypeOrmRepository,
-        },
-      ],
-    }).compile();
-
-    repository = module.get<MedicionManualLoteRepository>(
-      MedicionManualLoteRepository,
-    );
-    rawRepo = module.get<Repository<MedicionManualLote>>(
-      getRepositoryToken(MedicionManualLote),
-    );
-  });
-
-  afterEach(() => {
+  beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('create', () => {
-    it('debe delegar el guardado de mediciones en el repositorio de TypeORM', async () => {
-      const mediciones: Partial<MedicionManualLote>[] = [
-        { loteId: 1, empresaId: 2, parametro: 'TEMP' as any, valor: 4.5 },
-      ];
-      const savedMediciones = [{ id: 10, ...mediciones[0] }] as MedicionManualLote[];
+  describe('toEntities', () => {
+    it('debe construir una entidad parcial por cada parámetro', () => {
+      const dto = {
+        tipoMateriaPrima: 'LECHE',
+        parametros: [
+          { parametro: 'temperatura', valor: 4 },
+          { parametro: 'ph', valor: 6.5 },
+        ],
+      } as unknown as CreateMedicionManualLoteDto;
 
-      mockTypeOrmRepository.save.mockResolvedValue(savedMediciones);
+      const resultado = MedicionManualMapper.toEntities(dto, 10, 20, 30);
 
-      const result = await repository.create(mediciones);
+      expect(resultado).toEqual([
+        {
+          loteId: 10,
+          empresaId: 20,
+          usuarioId: 30,
+          tipoMateriaPrima: dto.tipoMateriaPrima,
+          parametro: 'temperatura',
+          valor: 4,
+        },
+        {
+          loteId: 10,
+          empresaId: 20,
+          usuarioId: 30,
+          tipoMateriaPrima: dto.tipoMateriaPrima,
+          parametro: 'ph',
+          valor: 6.5,
+        },
+      ]);
+    });
 
-      expect(rawRepo.save).toHaveBeenCalledWith(mediciones);
-      expect(result).toEqual(savedMediciones);
+    it('debe devolver un array vacío si no hay parámetros', () => {
+      const dto = {
+        tipoMateriaPrima: 'LECHE',
+        parametros: [],
+      } as unknown as CreateMedicionManualLoteDto;
+
+      expect(MedicionManualMapper.toEntities(dto, 1, 2, 3)).toEqual([]);
     });
   });
 
-  describe('findByLotePaginado', () => {
-    it('debe construir la consulta paginada basica sin filtros opcionales de fecha', async () => {
-      const filtro = { loteId: 5, page: 1, limit: 10 };
-      const empresaId = 2;
-      const expectedResult: [MedicionManualLote[], number] = [[], 0];
+  describe('toResponseItem', () => {
+    it('debe convertir la entidad y calcular el estado', () => {
+      const fecha = new Date('2026-08-01T10:00:00.000Z');
+      const estado = 'NORMAL';
 
-      createQueryBuilderMock.getManyAndCount.mockResolvedValue(expectedResult);
+      const entity = {
+        id: 15,
+        parametro: 'temperatura',
+        valor: '4.5',
+        createdAt: fecha,
+      } as unknown as MedicionManualLote;
 
-      const result = await repository.findByLotePaginado(filtro, empresaId);
+      const config = {
+        parametro: 'temperatura',
+      } as ConfiguracionParametro;
 
-      expect(rawRepo.createQueryBuilder).toHaveBeenCalledWith('medicion');
-      expect(createQueryBuilderMock.where).toHaveBeenCalledWith(
-        'medicion.empresaId = :empresaId',
-        { empresaId },
+      (semaforoService.calcularEstado as jest.Mock).mockReturnValue(estado);
+
+      const resultado = MedicionManualMapper.toResponseItem(
+        entity,
+        config,
+        semaforoService,
       );
-      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
-        'medicion.loteId = :loteId',
-        { loteId: filtro.loteId },
-      );
-      expect(createQueryBuilderMock.orderBy).toHaveBeenCalledWith(
-        'medicion.createdAt',
-        'DESC',
-      );
-      expect(createQueryBuilderMock.skip).toHaveBeenCalledWith(0);
-      expect(createQueryBuilderMock.take).toHaveBeenCalledWith(10);
-      expect(result).toEqual(expectedResult);
+
+      expect(resultado.id).toBe(15);
+      expect(resultado.parametro).toBe('temperatura');
+      expect(resultado.valor).toBe(4.5);
+      expect(resultado.estado).toBe(estado);
+      expect(resultado.createdAt).toBe(fecha);
+      expect(semaforoService.calcularEstado).toHaveBeenCalledWith(4.5, config);
     });
 
-    it('debe incluir filtros de fechaInicio y fechaFin cuando estan presentes', async () => {
-      const fechaInicio = new Date('2026-01-01');
-      const fechaFin = new Date('2026-01-31');
-      const filtro = { loteId: 5, page: 2, limit: 20, fechaInicio, fechaFin };
-      const empresaId = 2;
+    it('debe aceptar una configuración de umbral indefinida', () => {
+      const entity = {
+        id: 16,
+        parametro: 'ph',
+        valor: '6.2',
+        createdAt: new Date('2026-08-02T10:00:00.000Z'),
+      } as unknown as MedicionManualLote;
 
-      createQueryBuilderMock.getManyAndCount.mockResolvedValue([[], 0]);
+      const estado = 'SIN_UMBRAL_CONFIGURADO';
 
-      await repository.findByLotePaginado(filtro, empresaId);
+      (semaforoService.calcularEstado as jest.Mock).mockReturnValue(estado);
 
-      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
-        'medicion.createdAt >= :fechaInicio',
-        { fechaInicio },
+      const resultado = MedicionManualMapper.toResponseItem(
+        entity,
+        undefined,
+        semaforoService,
       );
-      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
-        'medicion.createdAt <= :fechaFin',
-        { fechaFin },
+
+      expect(resultado.valor).toBe(6.2);
+      expect(resultado.estado).toBe(estado);
+      expect(semaforoService.calcularEstado).toHaveBeenCalledWith(
+        6.2,
+        undefined,
       );
-      expect(createQueryBuilderMock.skip).toHaveBeenCalledWith(20);
-      expect(createQueryBuilderMock.take).toHaveBeenCalledWith(20);
+    });
+
+    it('debe convertir un valor numérico almacenado como string', () => {
+      const entity = {
+        id: 17,
+        parametro: 'humedad',
+        valor: '12',
+        createdAt: new Date(),
+      } as unknown as MedicionManualLote;
+
+      (semaforoService.calcularEstado as jest.Mock).mockReturnValue('EN_LIMITE');
+
+      const resultado = MedicionManualMapper.toResponseItem(
+        entity,
+        undefined,
+        semaforoService,
+      );
+
+      expect(resultado.valor).toBe(12);
+      expect(resultado.estado).toBe('EN_LIMITE');
     });
   });
 
-  describe('findUltimosValores', () => {
-    it('debe retornar los valores convertidos a Number e invertidos en orden cronologico ascendente', async () => {
-      const loteId = 10;
-      const parametro = Parametro.TEMPERATURA;
-      const empresaId = 1;
-      const limit = 3;
+  describe('toResponseItemList', () => {
+    it('debe usar la configuración correspondiente a cada parámetro y materia prima', () => {
+      const fecha1 = new Date('2026-08-01T10:00:00.000Z');
+      const fecha2 = new Date('2026-08-01T11:00:00.000Z');
 
-      // getRawMany devuelve del mas reciente al mas antiguo (DESC)
-      const mockRawFilas = [
-        { valor: '12.5' },
-        { valor: '10.0' },
-        { valor: '8.2' },
-      ];
+      const entities = [
+        {
+          id: 1,
+          parametro: 'temperatura',
+          valor: '4',
+          tipoMateriaPrima: 'LECHE',
+          createdAt: fecha1,
+        },
+        {
+          id: 2,
+          parametro: 'ph',
+          valor: '6.5',
+          tipoMateriaPrima: 'LECHE',
+          createdAt: fecha2,
+        },
+      ] as unknown as MedicionManualLote[];
 
-      createQueryBuilderMock.getRawMany.mockResolvedValue(mockRawFilas);
+      const configTemperatura = {
+        parametro: 'temperatura',
+      } as ConfiguracionParametro;
 
-      const result = await repository.findUltimosValores(
-        loteId,
-        parametro,
-        empresaId,
-        limit,
-      );
+      const configPh = {
+        parametro: 'ph',
+      } as ConfiguracionParametro;
 
-      expect(createQueryBuilderMock.where).toHaveBeenCalledWith(
-        'medicion.empresaId = :empresaId',
-        { empresaId },
-      );
-      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
-        'medicion.loteId = :loteId',
-        { loteId },
-      );
-      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
-        'medicion.parametro = :parametro',
-        { parametro },
-      );
-      expect(createQueryBuilderMock.orderBy).toHaveBeenCalledWith(
-        'medicion.createdAt',
-        'DESC',
-      );
-      expect(createQueryBuilderMock.take).toHaveBeenCalledWith(limit);
-      expect(createQueryBuilderMock.select).toHaveBeenCalledWith(
-        'medicion.valor',
-        'valor',
+      const mapaConfig = new Map<string, ConfiguracionParametro>([
+        ['temperatura|LECHE', configTemperatura],
+        ['ph|LECHE', configPh],
+      ]);
+
+      (semaforoService.calcularEstado as jest.Mock)
+        .mockReturnValueOnce('NORMAL')
+        .mockReturnValueOnce('FUERA_DE_RANGO');
+
+      const resultado = MedicionManualMapper.toResponseItemList(
+        entities,
+        mapaConfig,
+        semaforoService,
       );
 
-      // Debe quedar en orden cronologico ascendente: [8.2, 10.0, 12.5]
-      expect(result).toEqual([8.2, 10.0, 12.5]);
+      expect(resultado).toHaveLength(2);
+      expect(resultado[0]).toMatchObject({
+        id: 1,
+        parametro: 'temperatura',
+        valor: 4,
+        estado: 'NORMAL',
+        createdAt: fecha1,
+      });
+      expect(resultado[1]).toMatchObject({
+        id: 2,
+        parametro: 'ph',
+        valor: 6.5,
+        estado: 'FUERA_DE_RANGO',
+        createdAt: fecha2,
+      });
+
+      expect(semaforoService.calcularEstado).toHaveBeenNthCalledWith(
+        1,
+        4,
+        configTemperatura,
+      );
+      expect(semaforoService.calcularEstado).toHaveBeenNthCalledWith(
+        2,
+        6.5,
+        configPh,
+      );
+    });
+
+    it('debe devolver un array vacío si no hay mediciones', () => {
+      const resultado = MedicionManualMapper.toResponseItemList(
+        [],
+        new Map<string, ConfiguracionParametro>(),
+        semaforoService,
+      );
+
+      expect(resultado).toEqual([]);
+      expect(semaforoService.calcularEstado).not.toHaveBeenCalled();
+    });
+
+    it('debe pasar undefined si no existe configuración para el parámetro', () => {
+      const entities = [
+        {
+          id: 3,
+          parametro: 'densidad',
+          valor: '1.2',
+          tipoMateriaPrima: 'LECHE',
+          createdAt: new Date(),
+        },
+      ] as unknown as MedicionManualLote[];
+
+      (semaforoService.calcularEstado as jest.Mock).mockReturnValue(
+        'SIN_UMBRAL_CONFIGURADO',
+      );
+
+      const resultado = MedicionManualMapper.toResponseItemList(
+        entities,
+        new Map<string, ConfiguracionParametro>(),
+        semaforoService,
+      );
+
+      expect(resultado[0].estado).toBe('SIN_UMBRAL_CONFIGURADO');
+      expect(semaforoService.calcularEstado).toHaveBeenCalledWith(
+        1.2,
+        undefined,
+      );
     });
   });
 });

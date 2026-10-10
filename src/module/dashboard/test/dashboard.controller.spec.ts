@@ -20,6 +20,8 @@ describe('DashboardController', () => {
   const dashboardServiceMock = {
     getDashboard: jest.fn(),
     getHistoricoLotesProcesados: jest.fn(),
+    getEvolucionIndicadores: jest.fn(),
+    getSemaforoLote: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -210,6 +212,58 @@ describe('DashboardController', () => {
       expect(
         dashboardServiceMock.getHistoricoLotesProcesados,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+    describe('getEvolucionIndicadores', () => {
+    it('cuando el usuario tiene una empresa asociada, delega en el service con el tenant y la query', async () => {
+      const tenant = { empresaId: 5 } as any;
+      const query = { parametro: 'PH' } as any;
+      const respuesta = { puntos: [] };
+      dashboardServiceMock.getEvolucionIndicadores.mockResolvedValue(respuesta);
+
+      const result = await controller.getEvolucionIndicadores(tenant, query);
+
+      expect(
+        dashboardServiceMock.getEvolucionIndicadores,
+      ).toHaveBeenCalledWith(tenant, query);
+      expect(result).toBe(respuesta);
+    });
+
+    it('cuando el usuario no tiene empresa asociada, lanza ForbiddenException sin llamar al service', () => {
+      const tenant = { empresaId: null } as any;
+
+      expect(() =>
+        controller.getEvolucionIndicadores(tenant, {} as any),
+      ).toThrow(ForbiddenException);
+      expect(
+        dashboardServiceMock.getEvolucionIndicadores,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getSemaforoLote', () => {
+    it('cuando el usuario tiene una empresa asociada, delega en el service con loteId y tenant', async () => {
+      const tenant = { empresaId: 5 } as any;
+      const respuesta = { loteId: 9 };
+      dashboardServiceMock.getSemaforoLote.mockResolvedValue(respuesta);
+
+      const result = await controller.getSemaforoLote(tenant, 9);
+
+      expect(dashboardServiceMock.getSemaforoLote).toHaveBeenCalledWith(
+        9,
+        tenant,
+      );
+      expect(result).toBe(respuesta);
+    });
+
+    it('cuando el usuario no tiene empresa asociada, lanza ForbiddenException sin llamar al service', () => {
+      const tenant = { empresaId: null } as any;
+
+      expect(() => controller.getSemaforoLote(tenant, 9)).toThrow(
+        ForbiddenException,
+      );
+      expect(dashboardServiceMock.getSemaforoLote).not.toHaveBeenCalled();
     });
   });
 

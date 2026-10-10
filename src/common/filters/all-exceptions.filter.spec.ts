@@ -46,14 +46,53 @@ describe('AllExceptionsFilter', () => {
     );
   });
 
-  it('un error no controlado responde 500 genérico', () => {
-    jest.spyOn(filter['logger'], 'error').mockImplementation(() => undefined);
-    filter.catch(new Error('boom'), host);
+    it('un error no controlado responde 500 genérico', () => {
+    const errorSpy = jest
+      .spyOn(filter['logger'], 'error')
+      .mockImplementation(() => undefined);
+    const error = new Error('boom');
 
+    filter.catch(error, host);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Excepcion no controlada en GET /x',
+      error.stack,
+    );
     expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(json).toHaveBeenCalledWith({
       statusCode: 500,
       message: 'Internal server error',
     });
+  });
+
+    it('un valor lanzado que no es Error (string) se loguea con String() y responde 500', () => {
+    const errorSpy = jest
+      .spyOn(filter['logger'], 'error')
+      .mockImplementation(() => undefined);
+
+    filter.catch('algo se rompió', host);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Excepcion no controlada en GET /x',
+      'algo se rompió',
+    );
+    expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(json).toHaveBeenCalledWith({
+      statusCode: 500,
+      message: 'Internal server error',
+    });
+  });
+
+  it('un objeto lanzado que no es Error se convierte con String()', () => {
+    const errorSpy = jest
+      .spyOn(filter['logger'], 'error')
+      .mockImplementation(() => undefined);
+
+    filter.catch({ code: 1 }, host);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Excepcion no controlada en GET /x',
+      '[object Object]',
+    );
   });
 });

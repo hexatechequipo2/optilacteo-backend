@@ -4,88 +4,82 @@ import { UmbralCoherenteValidator } from '../validators/umbral-coherente.validat
 describe('UmbralCoherenteValidator', () => {
   let validator: UmbralCoherenteValidator;
 
+  const argsDe = (
+    object: Record<string, unknown>,
+  ): ValidationArguments => ({
+    object,
+    property: 'umbralMax',
+    value: 10,
+    constraints: [],
+    targetName: 'TestDto',
+  });
+
+  const validar = (
+    umbralMax: unknown,
+    object: Record<string, unknown>,
+  ) => validator.validate(umbralMax as number, argsDe(object));
+
   beforeEach(() => {
     validator = new UmbralCoherenteValidator();
   });
 
-  describe('validate', () => {
-    it('debe retornar true si umbralMax es estrictamente mayor que umbralMin', () => {
-      const args: ValidationArguments = {
-        object: { umbralMin: 10 },
-        property: 'umbralMax',
-        value: 20,
-        constraints: [],
-        targetName: 'TestDto',
-      };
-
-      expect(validator.validate(20, args)).toBe(true);
+  describe('validate — valores numéricos', () => {
+    it('es válido cuando umbralMax es mayor que umbralMin', () => {
+      expect(validar(10, { umbralMin: 5 })).toBe(true);
     });
 
-    it('debe retornar false si umbralMax es igual a umbralMin', () => {
-      const args: ValidationArguments = {
-        object: { umbralMin: 15 },
-        property: 'umbralMax',
-        value: 15,
-        constraints: [],
-        targetName: 'TestDto',
-      };
-
-      expect(validator.validate(15, args)).toBe(false);
+    it('es inválido cuando umbralMax es igual a umbralMin', () => {
+      expect(validar(5, { umbralMin: 5 })).toBe(false);
     });
 
-    it('debe retornar false si umbralMax es menor que umbralMin', () => {
-      const args: ValidationArguments = {
-        object: { umbralMin: 20 },
-        property: 'umbralMax',
-        value: 10,
-        constraints: [],
-        targetName: 'TestDto',
-      };
-
-      expect(validator.validate(10, args)).toBe(false);
+    it('es inválido cuando umbralMax es menor que umbralMin', () => {
+      expect(validar(3, { umbralMin: 5 })).toBe(false);
     });
 
-    it('debe retornar true si umbralMin no es de tipo number (ej. undefined, null o string)', () => {
-      const argsUndefined: ValidationArguments = {
-        object: { umbralMin: undefined },
-        property: 'umbralMax',
-        value: 20,
-        constraints: [],
-        targetName: 'TestDto',
-      };
-
-      const argsString: ValidationArguments = {
-        object: { umbralMin: '10' },
-        property: 'umbralMax',
-        value: 20,
-        constraints: [],
-        targetName: 'TestDto',
-      };
-
-      expect(validator.validate(20, argsUndefined)).toBe(true);
-      expect(validator.validate(20, argsString)).toBe(true);
+    it('acepta valores negativos si umbralMax es mayor que umbralMin', () => {
+      expect(validar(-2, { umbralMin: -5 })).toBe(true);
     });
 
-    it('debe retornar true si umbralMax no es de tipo number', () => {
-      const args: ValidationArguments = {
-        object: { umbralMin: 10 },
-        property: 'umbralMax',
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        value: '20' as any,
-        constraints: [],
-        targetName: 'TestDto',
-      };
+    it('acepta cero si es mayor que umbralMin', () => {
+      expect(validar(0, { umbralMin: -1 })).toBe(true);
+    });
+  });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      expect(validator.validate('20' as any, args)).toBe(true);
+  describe('validate — tipos no numéricos', () => {
+    it('devuelve true si umbralMin no es number', () => {
+      expect(validar(10, { umbralMin: '5' })).toBe(true);
+    });
+
+    it('devuelve true si umbralMin es null', () => {
+      expect(validar(10, { umbralMin: null })).toBe(true);
+    });
+
+    it('devuelve true si umbralMin es undefined', () => {
+      expect(validar(10, { umbralMin: undefined })).toBe(true);
+    });
+
+    it('devuelve true si falta umbralMin', () => {
+      expect(validar(10, {})).toBe(true);
+    });
+
+    it('devuelve true si umbralMax no es number', () => {
+      expect(validar('10', { umbralMin: 5 })).toBe(true);
+    });
+
+    it('devuelve true si umbralMax es null', () => {
+      expect(validar(null, { umbralMin: 5 })).toBe(true);
+    });
+
+    it('devuelve true si umbralMax es undefined', () => {
+      expect(validar(undefined, { umbralMin: 5 })).toBe(true);
     });
   });
 
   describe('defaultMessage', () => {
-    it('debe retornar el mensaje de error por defecto esperado', () => {
-      const message = validator.defaultMessage();
-
-      expect(message).toBe('umbralMax debe ser mayor a umbralMin');
+    it('devuelve el mensaje de error esperado', () => {
+      expect(validator.defaultMessage()).toBe(
+        'umbralMax debe ser mayor a umbralMin',
+      );
     });
   });
 });

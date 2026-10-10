@@ -16,6 +16,7 @@ describe('DatasetMlController — datos de entrenamiento para microservicio ML (
 
   const mockDatasetMlService = {
     obtenerSerie: jest.fn(),
+    obtenerLotesPorProveedor: jest.fn(),
   };
 
   const mockQueryDto: SeriesHistoricasQueryDto = {
@@ -71,4 +72,39 @@ describe('DatasetMlController — datos de entrenamiento para microservicio ML (
     );
     expect(resultado).toEqual(mockSerieResult);
   });
+
+  it('debe delegar al servicio al obtener los lotes por proveedor', async () => {
+    const mockLotes = [
+      { proveedorId: 1, lotes: [{ id: 10 }, { id: 11 }] },
+      { proveedorId: 2, lotes: [{ id: 20 }] },
+    ];
+
+    mockDatasetMlService.obtenerLotesPorProveedor.mockResolvedValue(mockLotes);
+
+    const resultado = await controller.obtenerLotesPorProveedor(1);
+
+    expect(service.obtenerLotesPorProveedor).toHaveBeenCalledWith(1);
+    expect(resultado).toEqual(mockLotes);
+  });
+
+  it('debe propagar el error del servicio al obtener la serie histórica', async () => {
+    const error = new Error('Error al obtener la serie histórica');
+
+    mockDatasetMlService.obtenerSerie.mockRejectedValue(error);
+
+    await expect(controller.obtenerSerie(mockQueryDto)).rejects.toThrow(
+      'Error al obtener la serie histórica',
+    );
+  });
+
+  it('debe propagar el error del servicio al obtener los lotes por proveedor', async () => {
+    const error = new Error('Error al obtener los lotes');
+
+    mockDatasetMlService.obtenerLotesPorProveedor.mockRejectedValue(error);
+
+    await expect(controller.obtenerLotesPorProveedor(1)).rejects.toThrow(
+      'Error al obtener los lotes',
+    );
+  });
+
 });

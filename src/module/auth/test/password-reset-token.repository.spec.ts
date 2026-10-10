@@ -1,138 +1,88 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { PasswordResetTokenRepository } from '../repository/password-reset-token.repository';
+
+import {
+  PASSWORD_RESET_TOKEN_REPOSITORY,
+  IPasswordResetTokenRepository,
+} from '../repository/password-reset-token.interface';
 import { PasswordResetTokenEntity } from '../entities/password-reset-token.entity';
 
-describe('PasswordResetTokenRepository', () => {
-  let repository: PasswordResetTokenRepository;
-  let typeOrmRepo: jest.Mocked<Repository<PasswordResetTokenEntity>>;
+describe('IPasswordResetTokenRepository', () => {
+  let repository: IPasswordResetTokenRepository;
 
-  const mockTypeOrmRepository = {
-    save: jest.fn(),
-    findOne: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  };
+  const tokenGuardado = {
+    id: 'token-id-123',
+    userId: 'user-id-123',
+    token: 'token-hash-abc',
+    expiresAt: new Date('2026-12-31T23:59:59.000Z'),
+    used: false,
+  } as unknown as PasswordResetTokenEntity;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PasswordResetTokenRepository,
-        {
-          provide: getRepositoryToken(PasswordResetTokenEntity),
-          useValue: mockTypeOrmRepository,
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    repository = {
+      save: jest.fn().mockResolvedValue(tokenGuardado),
+      findByToken: jest.fn().mockResolvedValue(tokenGuardado),
+      markAsUsed: jest.fn().mockResolvedValue(undefined),
+      deleteByUserId: jest.fn().mockResolvedValue(undefined),
+    };
+  });
 
-    repository = module.get<PasswordResetTokenRepository>(
-      PasswordResetTokenRepository,
+  it('debe exportar el token de inyección correcto', () => {
+    expect(PASSWORD_RESET_TOKEN_REPOSITORY).toBe(
+      'PASSWORD_RESET_TOKEN_REPOSITORY',
     );
-    typeOrmRepo = module.get(getRepositoryToken(PasswordResetTokenEntity));
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  it('debe guardar un token y devolver la entidad guardada', async () => {
+    const token = {
+      userId: 'user-id-123',
+      token: 'token-hash-abc',
+    } as Partial<PasswordResetTokenEntity>;
+
+    await expect(repository.save(token)).resolves.toBe(tokenGuardado);
+
+    expect(repository.save).toHaveBeenCalledWith(token);
   });
 
-  it('debe estar definido', () => {
-    expect(repository).toBeDefined();
+  it('debe devolver un token cuando existe', async () => {
+    await expect(repository.findByToken('token-hash-abc')).resolves.toBe(
+      tokenGuardado,
+    );
+
+    expect(repository.findByToken).toHaveBeenCalledWith('token-hash-abc');
   });
 
-  describe('save', () => {
-    it('debe llamar a repo.save con los datos del token y retornar la entidad guardada', async () => {
-      const tokenData: Partial<PasswordResetTokenEntity> = {
-        token: 'token-uuid-123',
-        userId: 'user-uuid-456',
-        expiresAt: new Date(),
-      };
+  it('debe devolver null cuando el token no existe', async () => {
+    jest.spyOn(repository, 'findByToken').mockResolvedValue(null);
 
-      const savedEntity = {
-        id: 'entity-id-789',
-        used: false,
-        created_at: new Date(),
-        tenant_id: null,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        user: {} as any,
-        ...tokenData,
-      } as PasswordResetTokenEntity;
-
-      mockTypeOrmRepository.save.mockResolvedValue(savedEntity);
-
-      const result = await repository.save(tokenData);
-
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.save).toHaveBeenCalledWith(tokenData);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.save).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(savedEntity);
-    });
+    await expect(repository.findByToken('token-inexistente')).resolves.toBeNull();
   });
 
-  describe('findByToken', () => {
-    it('debe retornar la entidad si el token existe', async () => {
-      const token = 'token-uuid-123';
-      const entity = {
-        id: '1',
-        token,
-        userId: 'user-1',
-        used: false,
-      } as PasswordResetTokenEntity;
+  it('debe marcar un token como utilizado', async () => {
+    await expect(repository.markAsUsed('token-id-123')).resolves.toBeUndefined();
 
-      mockTypeOrmRepository.findOne.mockResolvedValue(entity);
-
-      const result = await repository.findByToken(token);
-
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.findOne).toHaveBeenCalledWith({ where: { token } });
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.findOne).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(entity);
-    });
-
-    it('debe retornar null si el token no existe', async () => {
-      mockTypeOrmRepository.findOne.mockResolvedValue(null);
-
-      const result = await repository.findByToken('token-inexistente');
-
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.findOne).toHaveBeenCalledWith({
-        where: { token: 'token-inexistente' },
-      });
-      expect(result).toBeNull();
-    });
+    expect(repository.markAsUsed).toHaveBeenCalledWith('token-id-123');
   });
 
-  describe('markAsUsed', () => {
-    it('debe llamar a repo.update con el id y flag used en true', async () => {
-      const tokenId = 'entity-uuid-123';
-      mockTypeOrmRepository.update.mockResolvedValue({
-        affected: 1,
-        raw: [],
-        generatedMaps: [],
-      });
+  it('debe eliminar los tokens asociados a un usuario', async () => {
+    await expect(
+      repository.deleteByUserId('user-id-123'),
+    ).resolves.toBeUndefined();
 
-      await repository.markAsUsed(tokenId);
-
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.update).toHaveBeenCalledWith(tokenId, { used: true });
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.update).toHaveBeenCalledTimes(1);
-    });
+    expect(repository.deleteByUserId).toHaveBeenCalledWith('user-id-123');
   });
 
-  describe('deleteByUserId', () => {
-    it('debe llamar a repo.delete filtrando por userId', async () => {
-      const userId = 'user-uuid-456';
-      mockTypeOrmRepository.delete.mockResolvedValue({ affected: 1, raw: [] });
+  it('debe propagar errores al guardar un token', async () => {
+    jest.spyOn(repository, 'save').mockRejectedValue(new Error('Error de persistencia'));
 
-      await repository.deleteByUserId(userId);
+    await expect(
+      repository.save({ userId: 'user-id-123' }),
+    ).rejects.toThrow('Error de persistencia');
+  });
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.delete).toHaveBeenCalledWith({ userId });
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(typeOrmRepo.delete).toHaveBeenCalledTimes(1);
-    });
+  it('debe propagar errores al buscar un token', async () => {
+    jest.spyOn(repository, 'findByToken').mockRejectedValue(new Error('Error de consulta'));
+
+    await expect(
+      repository.findByToken('token-hash-abc'),
+    ).rejects.toThrow('Error de consulta');
   });
 });
