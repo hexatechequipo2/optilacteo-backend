@@ -7,8 +7,10 @@ export class ConfigParametroResponseDto {
   empresaId!: number;
   parametro!: Parametro;
   tipoMateriaPrima!: TipoMateriaPrima;
+  umbralAlertaMin!: number;
   umbralMin!: number;
   umbralMax!: number;
+  umbralAlertaMax!: number;
   createdAt!: Date;
   updatedAt!: Date;
   auditoria?: TrazabilidadEntidadDto;

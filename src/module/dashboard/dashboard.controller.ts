@@ -7,15 +7,12 @@ import {
   UseGuards,
   DefaultValuePipe,
   ForbiddenException,
+  Param,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
-import { ROLES } from '../rol/constants/roles.constants';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { DashboardService } from './dashboard.service';
 import { DashboardResponseDto } from './dto/dashboard-response.dto';
@@ -26,17 +23,17 @@ import {
 
 import { EvolucionIndicadoresQueryDto } from './dto/evolucion-indicadores-query.dto';
 import { EvolucionIndicadoresResponseDto } from './dto/evolucion-indicadores-response.dto';
+import { SemaforoLoteResponseDto } from './dto/semaforo-lote-response.dto';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
 @Controller('dashboard')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get()
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions(ModuloSistema.DASHBOARD, 'canRead')
+  @Permissions(ModuloSistema.DASHBOARD, PermissionAction.READ)
   @ApiQuery({
     name: 'granularidad',
     enum: GranularidadHistorico,
@@ -58,8 +55,7 @@ export class DashboardController {
   }
 
   @Get('lotes-procesados/historico')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions(ModuloSistema.DASHBOARD, 'canRead')
+  @Permissions(ModuloSistema.DASHBOARD, PermissionAction.READ)
   @ApiQuery({
     name: 'granularidad',
     enum: GranularidadHistorico,
@@ -87,8 +83,7 @@ export class DashboardController {
   }
 
   @Get('indicadores/evolucion')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.GERENTE, ROLES.ADMINISTRADOR)
-  @Permissions(ModuloSistema.DASHBOARD, 'canRead')
+  @Permissions(ModuloSistema.DASHBOARD, PermissionAction.READ)
   getEvolucionIndicadores(
     @CurrentEmpresa() tenant: TenantContext,
     @Query() query: EvolucionIndicadoresQueryDto,
@@ -97,5 +92,24 @@ export class DashboardController {
       throw new ForbiddenException('El usuario no tiene una empresa asociada.');
     }
     return this.dashboardService.getEvolucionIndicadores(tenant, query);
+  }
+
+  @Get('lote/:loteId/semaforo')
+// HU-40: Operario de línea no tiene DASHBOARD en PERMISOS_POR_ROL, así que
+// se habilita vía MONITOREO_ALERTAS (PermissionsGuard evalúa el array como OR).
+// TODO(matriz-permisos): cuando la matriz gobierne el acceso (sin @Roles
+// hardcodeado), unificar en un solo módulo y gestionarlo desde permiso_modulos.
+  @Permissions(
+    [ModuloSistema.DASHBOARD, ModuloSistema.MONITOREO_ALERTAS],
+    PermissionAction.READ,
+  )
+  getSemaforoLote(
+    @CurrentEmpresa() tenant: TenantContext,
+    @Param('loteId', ParseIntPipe) loteId: number,
+  ): Promise<SemaforoLoteResponseDto> {
+    if (tenant.empresaId === null) {
+      throw new ForbiddenException('El usuario no tiene una empresa asociada.');
+    }
+    return this.dashboardService.getSemaforoLote(loteId, tenant);
   }
 }

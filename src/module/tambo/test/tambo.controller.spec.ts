@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TamboController } from '../tambo.controller';
 import { TamboService } from '../tambo.service';
 import { TenantContext } from '../../../common/types/tenant-context.type';
-import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import { CreateTamboDto } from '../dto/create-tambo.dto';
 import { UpdateTamboDto } from '../dto/update-tambo.dto';
@@ -45,8 +44,6 @@ describe('TamboController', () => {
         },
       ],
     })
-      .overrideGuard(RolesGuard)
-      .useValue({ canActivate: () => true })
       .overrideGuard(PermissionsGuard)
       .useValue({ canActivate: () => true })
       .compile();

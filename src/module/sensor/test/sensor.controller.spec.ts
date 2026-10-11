@@ -6,8 +6,6 @@ import { UpdateSensorDto } from '../dto/update-sensor.dto';
 import { SensorFilterQueryDto } from '../dto/sensor-filter-query.dto';
 import { AsociarLoteDto } from '../dto/asociar-lote.dto';
 import { TenantContext } from '../../../common/types/tenant-context.type';
-import { ROLES } from '../../rol/constants/roles.constants';
-import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -73,14 +71,6 @@ describe('SensorController', () => {
       expect(sensorServiceMock.create).toHaveBeenCalledWith(dto, mockTenant);
       expect(result).toBe(expectedResult);
     });
-
-    it('debe tener configurados los roles adecuados', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, controller.create);
-      expect(roles).toEqual([
-        ROLES.RESPONSABLE_PRODUCCION,
-        ROLES.RESPONSABLE_CALIDAD,
-      ]);
-    });
   });
 
   describe('findAll', () => {
@@ -95,17 +85,6 @@ describe('SensorController', () => {
       expect(sensorServiceMock.findAll).toHaveBeenCalledWith(query, mockTenant);
       expect(result).toBe(expectedResult);
     });
-
-    it('debe tener configurados los roles adecuados', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, controller.findAll);
-      expect(roles).toEqual([
-        ROLES.RESPONSABLE_PRODUCCION,
-        ROLES.OPERARIO_LINEA,
-        ROLES.RESPONSABLE_CALIDAD,
-        ROLES.GERENTE,
-        ROLES.ADMINISTRADOR,
-      ]);
-    });
   });
 
   describe('findOne', () => {
@@ -119,17 +98,6 @@ describe('SensorController', () => {
 
       expect(sensorServiceMock.findOne).toHaveBeenCalledWith(15, mockTenant);
       expect(result).toBe(expectedResult);
-    });
-
-    it('debe tener configurados los roles adecuados', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, controller.findOne);
-      expect(roles).toEqual([
-        ROLES.RESPONSABLE_PRODUCCION,
-        ROLES.OPERARIO_LINEA,
-        ROLES.RESPONSABLE_CALIDAD,
-        ROLES.GERENTE,
-        ROLES.ADMINISTRADOR,
-      ]);
     });
   });
 
@@ -150,20 +118,6 @@ describe('SensorController', () => {
       );
       expect(result).toBe(expectedResult);
     });
-
-    it('debe tener configurados los roles adecuados', () => {
-      const roles = Reflect.getMetadata(
-        ROLES_KEY,
-        controller.historialPorSensor,
-      );
-      expect(roles).toEqual([
-        ROLES.RESPONSABLE_PRODUCCION,
-        ROLES.OPERARIO_LINEA,
-        ROLES.RESPONSABLE_CALIDAD,
-        ROLES.GERENTE,
-        ROLES.ADMINISTRADOR,
-      ]);
-    });
   });
 
   describe('update', () => {
@@ -178,14 +132,6 @@ describe('SensorController', () => {
 
       expect(sensorServiceMock.update).toHaveBeenCalledWith(3, dto, mockTenant);
       expect(result).toBe(expectedResult);
-    });
-
-    it('debe tener configurados los roles adecuados', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, controller.update);
-      expect(roles).toEqual([
-        ROLES.RESPONSABLE_PRODUCCION,
-        ROLES.RESPONSABLE_CALIDAD,
-      ]);
     });
   });
 
@@ -212,11 +158,6 @@ describe('SensorController', () => {
       );
       expect(result).toBe(expectedResult);
     });
-
-    it('debe tener configurados los roles adecuados', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, controller.asociarALote);
-      expect(roles).toEqual([ROLES.OPERARIO_LINEA, ROLES.RESPONSABLE_CALIDAD]);
-    });
   });
 
   describe('remove', () => {
@@ -230,14 +171,6 @@ describe('SensorController', () => {
 
       expect(sensorServiceMock.remove).toHaveBeenCalledWith(12, mockTenant);
       expect(result).toBe(expectedResult);
-    });
-
-    it('debe tener configurados los roles adecuados', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, controller.remove);
-      expect(roles).toEqual([
-        ROLES.RESPONSABLE_PRODUCCION,
-        ROLES.RESPONSABLE_CALIDAD,
-      ]);
     });
   });
 });

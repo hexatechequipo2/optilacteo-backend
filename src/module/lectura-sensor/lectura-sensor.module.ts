@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
-import { SensorLectura } from './entities/sensor-lectura.entity';
+import { SensorLectura} from './entities/sensor-lectura.entity';
 import { SensorEvento } from './entities/sensor-evento.entity';
 import { Sensor } from '../sensor/entities/sensor.entity';
 import { LecturaSensorController } from './lectura-sensor.controller';
@@ -18,6 +18,7 @@ import { LoteModule } from '../lote/lote.module';
 import { AuthModule } from '../auth/auth.module';
 import { LecturasGateway } from './gateway/lecturas.gateway';
 import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
+import { ConfigParametroModule } from '../config-parametro/config-parametro.module';
 import { AuditLogModule } from '../audit/audit-log.module';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 // --- nuevo: HU-50 ---
@@ -34,6 +35,8 @@ import { AnomaliaModule } from '../anomalia/anomalia.module';
       Sensor,
       ConfiguracionParametro,
     ]),
+    // HU-40: provee SemaforoService
+    ConfigParametroModule,
     SensorModule,
     LoteModule,
     NotificacionesModule,
@@ -51,8 +54,14 @@ import { AnomaliaModule } from '../anomalia/anomalia.module';
     LecturaSensorService,
     LecturasGateway,
     SensorInactividadTask,
-    { provide: SENSOR_LECTURA_REPOSITORY, useClass: SensorLecturaRepository },
-    { provide: SENSOR_EVENTO_REPOSITORY, useClass: SensorEventoRepository },
+    {
+      provide: SENSOR_LECTURA_REPOSITORY,
+      useClass: SensorLecturaRepository,
+    },
+    {
+      provide: SENSOR_EVENTO_REPOSITORY,
+      useClass: SensorEventoRepository,
+    },
     {
       provide: SENSOR_INACTIVIDAD_REPOSITORY,
       useClass: SensorInactividadRepository,

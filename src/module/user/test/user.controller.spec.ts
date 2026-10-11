@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import { UserController } from '../user.controller';
 import { UserService } from '../user.service';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
@@ -34,7 +35,11 @@ describe('UserController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [{ provide: UserService, useValue: mockUserService }],
+      providers: [
+        { provide: UserService, useValue: mockUserService },
+        // Lo pide EmpresaObjetivoGuard; acá no se ejecutan guards.
+        { provide: DataSource, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get<UserController>(UserController);
@@ -49,11 +54,24 @@ describe('UserController', () => {
         rolId: 2,
         empresaId: 1,
       };
-      mockUserService.create.mockResolvedValue({ id: 1, ...dto });
+      mockUserService.create.mockResolvedValue({
+        id: 1,
+        rolId: 2,
+        rolNombre: 'Gerente',
+        empresa: { id: 1 },
+      });
+      const req = {};
 
-      await controller.create(dto, tenantGerente);
+      await controller.create(dto, 1, req);
 
-      expect(mockUserService.create).toHaveBeenCalledWith(dto, tenantGerente);
+      expect(mockUserService.create).toHaveBeenCalledWith(dto, 1);
+      // Deja el diff para la auditoría (alta: antes = null).
+      expect(req).toEqual({
+        auditCambios: {
+          antes: null,
+          despues: { rolId: 2, rolNombre: 'Gerente', empresaId: 1 },
+        },
+      });
     });
   });
 
@@ -86,17 +104,23 @@ describe('UserController', () => {
   });
 
   describe('update', () => {
-    it('deberia convertir el id a number y delegar en userService.update con el body y el tenant', async () => {
+    it('deberia convertir el id a number, delegar con la empresa resuelta y devolver solo el usuario', async () => {
       const dto = { name: 'Nuevo nombre' };
-      mockUserService.update.mockResolvedValue({ id: 3, ...dto });
+      const cambios = {
+        antes: { name: 'x' },
+        despues: { name: 'Nuevo nombre' },
+      };
+      mockUserService.update.mockResolvedValue({
+        usuario: { id: 3, ...dto },
+        cambios,
+      });
+      const req = {};
 
-      await controller.update('3', dto, tenantGerente);
+      const r = await controller.update('3', dto, 1, req);
 
-      expect(mockUserService.update).toHaveBeenCalledWith(
-        3,
-        dto,
-        tenantGerente,
-      );
+      expect(mockUserService.update).toHaveBeenCalledWith(3, dto, 1);
+      expect(r).toEqual({ id: 3, ...dto });
+      expect(req).toEqual({ auditCambios: cambios });
     });
   });
 

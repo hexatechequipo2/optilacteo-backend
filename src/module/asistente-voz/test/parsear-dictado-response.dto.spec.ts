@@ -35,4 +35,5 @@ describe('ParsearDictadoResponseDto — Cobertura de DTOs (HU-XX)', () => {
     expect(fragmentoDto.motivo).toBe('texto_no_reconocido');
     expect(responseDto.parametros.length).toBe(1);
   });
+  
 });

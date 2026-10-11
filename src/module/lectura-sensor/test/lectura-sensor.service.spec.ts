@@ -24,6 +24,7 @@ import { EstadoSensor } from '../../sensor/enums/estado-sensor.enum';
 import { EstadoMedicion } from '../enums/estado-medicion.enum';
 import { ROLES } from '../../rol/constants/roles.constants';
 import { AnomaliaService } from '../../anomalia/anomalia.service';
+import { SemaforoService } from '../../config-parametro/semaforo.service';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -47,6 +48,10 @@ jest.mock('../../config-parametro/validators/rangos-fisicos.constant', () => ({
     PH: { min: 0, max: 14 },
   },
 }));
+
+const mockSemaforoService = {
+  calcularEstado: jest.fn().mockReturnValue('VERDE'), 
+};
 
 const mockAnomaliaService = {
   evaluarAnomalia: jest.fn(),
@@ -121,6 +126,7 @@ describe('LecturaSensorService', () => {
         { provide: AuditLogService, useValue: mockAuditLogService },
         { provide: NotificacionesService, useValue: mockNotificacionesService },
         { provide: AnomaliaService, useValue: mockAnomaliaService },
+        { provide: SemaforoService, useValue: mockSemaforoService },
       ],
     }).compile();
 
@@ -342,7 +348,7 @@ describe('LecturaSensorService', () => {
       });
       (LecturaMapper.toEntity as jest.Mock).mockReturnValue({});
       mockLecturaRepository.create.mockResolvedValue({ id: 1 });
-      (LecturaMapper.toResponseDto as jest.Mock).mockReturnValue({ id: 1 });
+      (LecturaMapper.toResponseDto as jest.Mock).mockReturnValue({ id: 1, estado: 'VERDE' });
       mockClasificacionLoteService.evaluarYClasificar.mockRejectedValue(
         new Error('falló'),
       );
@@ -350,7 +356,7 @@ describe('LecturaSensorService', () => {
       const resultado = await service.ingresar(dto, tenant);
 
       // Assert: la ingesta se completó igual
-      expect(resultado).toEqual({ id: 1 });
+      expect(resultado).toEqual(expect.objectContaining({ id: 1 }));
       // Se le da chance al .catch() de ejecutarse antes de verificar el log
       await new Promise(process.nextTick);
       expect(errorSpy).toHaveBeenCalled();
@@ -499,7 +505,7 @@ describe('LecturaSensorService', () => {
       );
     });
 
-    it('cuando no hay umbral configurado para el parámetro y materia prima de la lectura, debe marcarla como SIN_UMBRAL_CONFIGURADO', async () => {
+    it('cuando no hay umbral configurado para el parámetro y materia prima de la lectura, debe marcarla con el valor calculado por el semáforo', async () => {
       const lectura = {
         valor: 7,
         sensor: { parametro: 'PH' },
@@ -507,16 +513,17 @@ describe('LecturaSensorService', () => {
       };
       mockLecturaRepository.findHistorial.mockResolvedValue([[lectura], 1]);
       mockConfigParametroRepository.find.mockResolvedValue([]); // sin configuraciones
+      mockSemaforoService.calcularEstado.mockReturnValueOnce('VERDE');
 
       await service.consultarHistorial({}, tenant);
 
       expect(LecturaMapper.toHistorialItemDto).toHaveBeenCalledWith(
         lectura,
-        EstadoMedicion.SIN_UMBRAL_CONFIGURADO,
+        'VERDE',
       );
     });
 
-    it('cuando el valor está fuera del umbral configurado por la empresa, debe marcarla como FUERA_DE_RANGO', async () => {
+    it('cuando el valor está fuera del umbral configurado por la empresa, debe marcarla con el valor calculado por el semáforo', async () => {
       const lectura = {
         valor: 20,
         sensor: { parametro: 'PH' },
@@ -531,16 +538,17 @@ describe('LecturaSensorService', () => {
           umbralMax: 14,
         },
       ]);
+      mockSemaforoService.calcularEstado.mockReturnValueOnce('VERDE');
 
       await service.consultarHistorial({}, tenant);
 
       expect(LecturaMapper.toHistorialItemDto).toHaveBeenCalledWith(
         lectura,
-        EstadoMedicion.FUERA_DE_RANGO,
+        'VERDE',
       );
     });
 
-    it('cuando el valor está dentro del umbral configurado, debe marcarla como NORMAL', async () => {
+    it('cuando el valor está dentro del umbral configurado, debe marcarla con el valor calculado por el semáforo', async () => {
       const lectura = {
         valor: 7,
         sensor: { parametro: 'PH' },
@@ -555,12 +563,13 @@ describe('LecturaSensorService', () => {
           umbralMax: 14,
         },
       ]);
+      mockSemaforoService.calcularEstado.mockReturnValueOnce('VERDE');
 
       await service.consultarHistorial({}, tenant);
 
       expect(LecturaMapper.toHistorialItemDto).toHaveBeenCalledWith(
         lectura,
-        EstadoMedicion.NORMAL,
+        'VERDE',
       );
     });
 

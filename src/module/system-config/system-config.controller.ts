@@ -14,9 +14,14 @@ import {
 } from '@nestjs/swagger';
 import { SystemConfigService } from './system-config.service';
 import { UpdateSystemConfigDto } from './dto/update-system-config.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ROLES } from '../rol/constants/roles.constants';
+import {
+  AuthenticatedOnly,
+  Permissions,
+} from '../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('system-config')
 @ApiBearerAuth()
@@ -25,6 +30,7 @@ export class SystemConfigController {
   constructor(private readonly systemConfigService: SystemConfigService) {}
 
   @Get('inactivity-timeout')
+  @AuthenticatedOnly()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener configuracion de tiempo de inactividad' })
   @ApiResponse({
@@ -35,10 +41,10 @@ export class SystemConfigController {
     return this.systemConfigService.getConfig();
   }
 
-  @Roles(ROLES.ADMINISTRADOR)
   @Patch('inactivity-timeout')
+  @Permissions(ModuloAdministrativo.PLATAFORMA, PermissionAction.UPDATE)
   @HttpCode(HttpStatus.OK)
-  @AuditLog('SYSTEM_CONFIG_UPDATE', 'SystemConfig')
+  @AuditLog('SYSTEM_CONFIG_UPDATE', 'SystemConfig', TipoAccion.EDICION)
   @ApiOperation({ summary: 'Actualizar tiempo de inactividad en minutos' })
   @ApiResponse({
     status: 200,

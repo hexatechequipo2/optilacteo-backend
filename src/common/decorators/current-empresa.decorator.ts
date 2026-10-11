@@ -1,15 +1,14 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import type { AuthenticatedRequest } from '../../module/auth/guards/jwt-auth.guard';
 import type { TenantContext } from '../types/tenant-context.type';
-import type { RolNombre } from '../../module/rol/constants/roles.constants';
+import type { RequestConAcceso } from '../types/request-con-acceso.type';
 
 export const CurrentEmpresa = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): TenantContext => {
-    const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
-
+    const req = ctx.switchToHttp().getRequest<RequestConAcceso>();
     return {
-      empresaId: request.user?.empresaId ?? null,
-      rolNombre: (request.user?.rolNombre as RolNombre) ?? null,
+      // Prioriza lo que leyó el guard de la BD; cae al JWT si la ruta no pasó por @Permissions
+      empresaId: req.acceso?.empresaId ?? req.user?.empresaId ?? null,
+      rolNombre: req.user?.rolNombre ?? null,
     };
   },
 );

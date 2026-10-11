@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+src/**/*.js
+src/**/*.d.ts
+
 # Herramientas locales
 .claude/
 CLAUDE.local.md
@@ -56,3 +59,6 @@ pids
 *.tsbuildinfo
 optilacteo_frontend.code-workspace
 .vscode/
+
+# Backups de base de datos
+*.sql

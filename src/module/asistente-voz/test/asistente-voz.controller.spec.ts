@@ -3,7 +3,6 @@ import { AsistenteVozController } from '../asistente-voz.controller';
 import { AsistenteVozService } from '../asistente-voz.service';
 import { ParsearDictadoDto } from '../dto/parsear-dictado.dto';
 import { TenantContext } from '../../../common/types/tenant-context.type';
-import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import { ROLES } from '../../rol/constants/roles.constants';
 
@@ -34,8 +33,6 @@ describe('AsistenteVozController — endpoint de interpretación de dictado por 
         },
       ],
     })
-      .overrideGuard(RolesGuard)
-      .useValue({ canActivate: () => true })
       .overrideGuard(PermissionsGuard)
       .useValue({ canActivate: () => true })
       .compile();

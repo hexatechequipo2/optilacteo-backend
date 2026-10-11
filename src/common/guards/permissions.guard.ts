@@ -1,48 +1,61 @@
+// common/guards/permissions.guard.ts
 import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
+  CanActivate, ExecutionContext, ForbiddenException, Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
+import { IS_PUBLIC_KEY } from '../../module/auth/decorators/public.decorator';
+import {
+  AUTHENTICATED_ONLY_KEY, PERMISSIONS_KEY,
+} from '../decorators/permissions.decorator';
+import { PermissionAction } from '../enums/permission-action.enum';
+import { ModuloPermiso } from '../../module/permiso/enums/modulo-administrativo.enum';
+import { PermisoService } from '../../module/permiso/permiso.service';
+import type { RequestConAcceso } from '../types/request-con-acceso.type';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly permisoService: PermisoService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const required = this.reflector.get<{
-      modulo: string | string[];
-      action: 'canRead' | 'canWrite';
-    }>(PERMISSIONS_KEY, context.getHandler());
-    if (!required) return true;
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const targets = [context.getHandler(), context.getClass()];
 
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets)) return true;
+    if (this.reflector.getAllAndOverride<boolean>(AUTHENTICATED_ONLY_KEY, targets)) return true;
 
-    if (!user?.permisos || !Array.isArray(user.permisos)) {
-      throw new ForbiddenException('El usuario no tiene permisos asignados.');
-    }
+    const required = this.reflector.getAllAndOverride<{
+      modulo: ModuloPermiso | ModuloPermiso[];
+      action: PermissionAction;
+    }>(PERMISSIONS_KEY, targets);
 
-    // Normalizar a array
-    const requiredModulos = Array.isArray(required.modulo)
-      ? required.modulo
-      : [required.modulo];
+    // Default-deny
+    if (!required) throw new ForbiddenException('Recurso sin permiso configurado.');
 
-    // Validar que tenga permiso en al menos uno de los módulos
-    const tienePermiso = requiredModulos.some((mod) =>
-      user.permisos.find(
-        (p: any) => p.modulo === mod && p[required.action] === true,
+    const request = context.switchToHttp().getRequest<RequestConAcceso>();
+    const raw = request.user as unknown as { id?: number; userId?: number; sub?: number } | undefined;
+    const userId = raw?.id ?? raw?.userId ?? raw?.sub;
+    if (!userId) throw new ForbiddenException('Usuario no identificado.');
+
+    const acceso = await this.permisoService.obtenerAcceso(userId);
+    if (!acceso) throw new ForbiddenException('El usuario no tiene un rol activo asignado.');
+
+    request.acceso = acceso;
+    if (acceso.esSistema) return true;
+
+    const modulos = Array.isArray(required.modulo) ? required.modulo : [required.modulo];
+    const ok = modulos.some((m) =>
+      acceso.permisos.some(
+        (p) => p.modulo === m && (p as unknown as Record<string, boolean>)[required.action] === true,
       ),
     );
 
-    if (!tienePermiso) {
+    if (!ok) {
       throw new ForbiddenException(
-        `El rol ${user.rolNombre} no tiene permiso ${required.action} en ninguno de los módulos: ${requiredModulos.join(', ')}.`,
+        `No tiene permiso ${required.action} en: ${modulos.join(', ')}.`,
       );
     }
-
     return true;
   }
 }

@@ -363,4 +363,86 @@ describe('ProveedorRepository - filtro fisico por empresa_id', () => {
       expect(result).toBe(3);
     });
   });
+
+  describe('findAllPaginated - filtros opcionales', () => {
+    it('debería aplicar todos los filtros recibidos', async () => {
+      const qb = mockTypeormRepo.createQueryBuilder();
+      qb.getManyAndCount.mockResolvedValue([[], 0]);
+
+      await repository.findAllPaginated(tenantEmpresaA, 0, 10, {
+        razonSocial: 'Tambo',
+        cuit: '20-123',
+        telefono: '351',
+        emailContacto: 'contacto@test.com',
+        provincia: 'Córdoba',
+        localidad: 'Villa María',
+        tipo: TipoProveedor.TAMBO,
+        estado: EstadoProveedor.ACTIVA,
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.razonSocial ILIKE :razonSocial',
+        { razonSocial: '%Tambo%' },
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.cuit ILIKE :cuit',
+        { cuit: '%20-123%' },
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.telefono ILIKE :telefono',
+        { telefono: '%351%' },
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.emailContacto ILIKE :emailContacto',
+        { emailContacto: '%contacto@test.com%' },
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.provincia ILIKE :provincia',
+        { provincia: '%Córdoba%' },
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.localidad ILIKE :localidad',
+        { localidad: '%Villa María%' },
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.tipo = :tipo',
+        { tipo: TipoProveedor.TAMBO },
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'proveedor.estado = :estado',
+        { estado: EstadoProveedor.ACTIVA },
+      );
+
+      expect(qb.getManyAndCount).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('findByRazonSocial', () => {
+    it('debería buscar un proveedor por razón social', async () => {
+      const proveedor = buildProveedor();
+      mockTypeormRepo.findOneBy.mockResolvedValue(proveedor);
+
+      const result = await repository.findByRazonSocial('Tambo El Sol');
+
+      expect(mockTypeormRepo.findOneBy).toHaveBeenCalledWith({
+        razonSocial: 'Tambo El Sol',
+      });
+      expect(result).toBe(proveedor);
+    });
+
+    it('debería devolver null si no encuentra la razón social', async () => {
+      mockTypeormRepo.findOneBy.mockResolvedValue(null);
+
+      const result = await repository.findByRazonSocial('Inexistente');
+
+      expect(result).toBeNull();
+    });
+  });
 });

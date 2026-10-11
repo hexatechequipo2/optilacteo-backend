@@ -16,6 +16,7 @@ import { CreateProveedorDto } from '../dto/create-proveedor.dto';
 import { ROLES } from '../../rol/constants/roles.constants';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import { AuditLogService } from '../../audit/audit-log.service';
+import { EstabilidadProveedorService } from '../../estabilidad-proveedor/estabilidad-proveedor.service';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
@@ -83,6 +84,10 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
     getTrazabilidadBatch: jest.Mock;
   };
 
+  let mockEstabilidadService: {
+    obtener: jest.Mock;
+  };
+
   beforeEach(async () => {
     mockRepo = {
       findAll: jest.fn(),
@@ -102,6 +107,10 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
       getTrazabilidadBatch: jest.fn().mockResolvedValue(new Map()),
     };
 
+    mockEstabilidadService = {
+      obtener: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProveedoresService,
@@ -113,6 +122,10 @@ describe('ProveedoresService - aislamiento multi-tenant', () => {
         {
           provide: AuditLogService,
           useValue: mockAuditLogService,
+        },
+        {
+          provide: EstabilidadProveedorService,
+          useValue: mockEstabilidadService,
         },
       ],
     }).compile();

@@ -23,6 +23,7 @@ import { AuthService } from '../auth.service';
 export interface AuthenticatedRequest extends Request {
   user?: JwtPayload;
   accessToken?: string;
+  userNombre?: string;
 }
 
 @Injectable()
@@ -86,6 +87,7 @@ export class JwtAuthGuard implements CanActivate {
 
     request.user = payload;
     request.accessToken = token;
+    request.userNombre = user.name;
 
     return true;
   }

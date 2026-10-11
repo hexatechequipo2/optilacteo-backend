@@ -1,0 +1,22 @@
+{
+  "version": "20260908230549",
+  "trained_at": "2026-09-08T23:05:49.086338+00:00",
+  "algorithm": "RandomForestClassifier",
+  "n_samples": 31,
+  "accuracy": 1.0,
+  "features": [
+    "ph",
+    "temperatura",
+    "densidad",
+    "grasa",
+    "proteina",
+    "acidez",
+    "conductividad"
+  ],
+  "clases": [
+    "crema",
+    "dulce_de_leche",
+    "manteca"
+  ],
+  "origen_datos": "nestjs"
+}

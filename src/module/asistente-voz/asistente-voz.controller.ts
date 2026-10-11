@@ -1,12 +1,9 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
-import { ROLES } from '../rol/constants/roles.constants';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { AsistenteVozService } from './asistente-voz.service';
 import { ParsearDictadoDto } from './dto/parsear-dictado.dto';
@@ -14,17 +11,16 @@ import { ParsearDictadoDto } from './dto/parsear-dictado.dto';
 @ApiTags('asistente-voz')
 @ApiBearerAuth()
 @Controller('lotes/:id/dictado')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class AsistenteVozController {
   constructor(private readonly asistenteVozService: AsistenteVozService) {}
 
-  // Previsualización, no registro: por eso mismos guards/rol/permiso que
-  // MedicionManualController.registrar, pero SIN @AuditLog — acá no se
-  // persiste nada que auditar. El alta real sigue siendo
-  // POST /lotes/:id/mediciones-manuales con el DTO ya existente.
+  // Previsualización, no registro: no persiste nada, por eso no lleva @AuditLog.
+  // El alta real sigue siendo POST /lotes/:id/mediciones-manuales.
+  //
+  // Es un POST que NO crea nada, así que no corresponde CREATE.
+  // Se protege con el permiso que habilita el flujo del que forma parte.
   @Post('parsear')
-  @Roles(ROLES.OPERARIO_LINEA)
-  @Permissions([ModuloSistema.RECEPCION], 'canWrite')
+  @Permissions(ModuloSistema.ASISTENTE_VOZ, PermissionAction.READ)
   parsear(
     @Param('id') id: string,
     @Body() dto: ParsearDictadoDto,

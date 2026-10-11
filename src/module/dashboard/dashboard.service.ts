@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Between, In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Lote } from '../lote/entities/lote.entity';
@@ -31,8 +31,15 @@ import {
   GranularidadAgregacion,
 } from './dto/evolucion-indicadores-response.dto';
 import { Parametro } from '../config-parametro/enums/parametro.enum';
+import { SemaforoService } from '../config-parametro/semaforo.service';
+import {
+  SemaforoLoteResponseDto,
+  SemaforoParametroDto,
+} from './dto/semaforo-lote-response.dto';
+
 
 const TIMEZONE_EMPRESA = 'America/Argentina/Cordoba';
+type OrigenLecturaSemaforo = 'SENSOR' | 'MANUAL';
 
 @Injectable()
 export class DashboardService {
@@ -47,6 +54,7 @@ export class DashboardService {
     private readonly sensorLecturaRepo: Repository<SensorLectura>,
     @InjectRepository(MedicionManualLote)
     private readonly medicionManualRepo: Repository<MedicionManualLote>,
+    private readonly semaforoService: SemaforoService,
   ) {}
 
   async getDashboard(
@@ -649,5 +657,110 @@ export class DashboardService {
       [GranularidadHistorico.MES]: 'month',
     };
     return mapa[granularidad];
+  }
+
+    // ============================================================
+  // HU-40: SEMÁFORO EN TIEMPO REAL POR LOTE
+  // ============================================================
+
+  async getSemaforoLote(
+    loteId: number,
+    tenant: TenantContext,
+  ): Promise<SemaforoLoteResponseDto> {
+    const empresaId = tenant.empresaId!;
+
+    const lote = await this.loteRepo.findOne({
+      where: { id: loteId, empresaId },
+    });
+
+    if (!lote) {
+      throw new NotFoundException(`Lote ${loteId} no encontrado`);
+    }
+
+    // DISTINCT ON (Postgres): última lectura por parámetro, en una sola
+    // query en vez de N queries (una por parámetro).
+    const [ultimasSensor, ultimasManual, configs] = await Promise.all([
+      this.sensorLecturaRepo
+        .createQueryBuilder('lectura')
+        .innerJoin('lectura.sensor', 'sensor')
+        .distinctOn(['sensor.parametro'])
+        .select('sensor.parametro', 'parametro')
+        .addSelect('lectura.valor', 'valor')
+        .addSelect('lectura.timestampLectura', 'timestampLectura')
+        .where('lectura.empresaId = :empresaId', { empresaId })
+        .andWhere('lectura.loteId = :loteId', { loteId })
+        .orderBy('sensor.parametro')
+        .addOrderBy('lectura.timestampLectura', 'DESC')
+        .getRawMany<{
+          parametro: Parametro;
+          valor: string;
+          timestampLectura: Date;
+        }>(),
+      this.medicionManualRepo
+        .createQueryBuilder('m')
+        .distinctOn(['m.parametro'])
+        .select('m.parametro', 'parametro')
+        .addSelect('m.valor', 'valor')
+        .addSelect('m.createdAt', 'createdAt')
+        .where('m.empresaId = :empresaId', { empresaId })
+        .andWhere('m.loteId = :loteId', { loteId })
+        .orderBy('m.parametro')
+        .addOrderBy('m.createdAt', 'DESC')
+        .getRawMany<{ parametro: Parametro; valor: string; createdAt: Date }>(),
+      this.configParametroRepo.find({
+        where: { empresaId, tipoMateriaPrima: lote.materiaPrima },
+      }),
+    ]);
+
+    // Última lectura EFECTIVA por parámetro: la más reciente entre
+    // sensor_lecturas y medicion_manual_lote (mismo criterio que usan
+    // lectura-sensor y medicion-manual para HU-40/HU-25).
+    const mapaUltimaLectura = new Map<
+      Parametro,
+      { valor: number; timestamp: Date; origen: OrigenLecturaSemaforo }
+    >();
+
+    for (const fila of ultimasSensor) {
+      mapaUltimaLectura.set(fila.parametro, {
+        valor: Number(fila.valor),
+        timestamp: new Date(fila.timestampLectura),
+        origen: 'SENSOR',
+      });
+    }
+
+    for (const fila of ultimasManual) {
+      const actual = mapaUltimaLectura.get(fila.parametro);
+      const timestampManual = new Date(fila.createdAt);
+
+      if (!actual || timestampManual > actual.timestamp) {
+        mapaUltimaLectura.set(fila.parametro, {
+          valor: Number(fila.valor),
+          timestamp: timestampManual,
+          origen: 'MANUAL',
+        });
+      }
+    }
+
+    const mapaConfig = new Map(configs.map((c) => [c.parametro, c]));
+
+    const parametros: SemaforoParametroDto[] = [];
+
+    for (const [parametro, lectura] of mapaUltimaLectura) {
+      const config = mapaConfig.get(parametro);
+
+      parametros.push({
+        parametro,
+        valor: lectura.valor,
+        estado: this.semaforoService.calcularEstado(lectura.valor, config),
+        origen: lectura.origen,
+        timestamp: lectura.timestamp,
+      });
+    }
+
+    return {
+      loteId: lote.id,
+      loteCodigo: lote.codigo,
+      parametros,
+    };
   }
 }

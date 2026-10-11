@@ -11,8 +11,7 @@ export interface JwtPayload {
   sub: number;
   email: string;
   rolId: number | null;
-  rolNombre: RolNombre | null;
-  permisos: PermisoPayload[];
+  rolNombre: string | null;
   empresaId: number | null;
   jti: string;
   exp?: number;

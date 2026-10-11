@@ -10,13 +10,18 @@ import { LoteModule } from '../lote/lote.module';
 import { SensorModule } from '../sensor/sensor.module';
 // HU-50
 import { AnomaliaModule } from '../anomalia/anomalia.module';
+import { ConfigParametroModule } from '../config-parametro/config-parametro.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MedicionManualLote, ConfiguracionParametro]),
+    TypeOrmModule.forFeature([
+      MedicionManualLote,
+      ConfiguracionParametro,
+    ]),
     forwardRef(() => LoteModule),
     forwardRef(() => SensorModule),
     AnomaliaModule,
+    ConfigParametroModule,
   ],
   controllers: [MedicionManualController],
   providers: [

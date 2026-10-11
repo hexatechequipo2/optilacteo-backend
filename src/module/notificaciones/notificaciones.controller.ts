@@ -18,19 +18,20 @@ import type { Response } from 'express';
 import { ApiBearerAuth, ApiTags, ApiProduces } from '@nestjs/swagger';
 
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 import type { TenantContext } from '../../common/types/tenant-context.type';
 
 import { NotificacionesService } from './notificaciones.service';
 
 import { NotificacionFilterQueryDto } from './dto/notificacion-filter-query.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ROLES } from '../rol/constants/roles.constants';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
-import { Permissions } from '../../common/decorators/permissions.decorator';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
+import {
+  AuthenticatedOnly,
+  Permissions,
+} from '../../common/decorators/permissions.decorator';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 import { CrearConfiguracionNotificacionDto } from './dto/crear-configuracion-notificacion.dto';
 import { HistorialAlertasQueryDto } from './dto/historial-alertas-query.dto';
@@ -42,13 +43,13 @@ import { ActualizarConfiguracionAlertaDesconexionDto } from './dto/actualizar-co
 
 import { CrearConfiguracionSilencioDto } from './dto/crear-configuracion-silencio.dto';
 import { ActualizarConfiguracionSilencioDto } from './dto/actualizar-configuracion-silencio.dto';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 @ApiTags('notificaciones')
 @ApiBearerAuth()
 @Controller('notificaciones')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class NotificacionesController {
   constructor(
     private readonly notificacionesService: NotificacionesService,
@@ -56,6 +57,7 @@ export class NotificacionesController {
   ) {}
 
   @Get()
+  @AuthenticatedOnly()
   findMine(
     @Query() query: NotificacionFilterQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -69,6 +71,7 @@ export class NotificacionesController {
   }
 
   @Patch(':id/leida')
+  @AuthenticatedOnly()
   marcarLeida(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -82,6 +85,7 @@ export class NotificacionesController {
   }
 
   @Get('no-leidas/count')
+  @AuthenticatedOnly()
   contarNoLeidas(@CurrentEmpresa() tenant: TenantContext, @Req() req: any) {
     return this.notificacionesService.contarNoLeidas(
       req.user.sub,
@@ -90,18 +94,23 @@ export class NotificacionesController {
   }
 
   @Get('configuracion')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.READ,
+  )
   listarConfiguracion(@CurrentEmpresa() tenant: TenantContext) {
     return this.notificacionesService.listarConfiguracion(tenant.empresaId!);
   }
 
   @Post('configuracion')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.CREATE,
+  )
   @AuditLog(
     'CONFIGURACION_NOTIFICACION_CREAR',
     'ConfiguracionNotificacionNivel',
+    TipoAccion.CONFIGURACION,
   )
   crearConfiguracion(
     @Body() dto: CrearConfiguracionNotificacionDto,
@@ -114,11 +123,14 @@ export class NotificacionesController {
   }
 
   @Delete('configuracion/:id')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.DELETE,
+  )
   @AuditLog(
     'CONFIGURACION_NOTIFICACION_ELIMINAR',
     'ConfiguracionNotificacionNivel',
+    TipoAccion.CONFIGURACION,
   )
   eliminarConfiguracion(
     @Param('id') id: string,
@@ -137,13 +149,7 @@ export class NotificacionesController {
    * ============================================================
    */
   @Get('historial')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.ADMINISTRADOR,
-    ROLES.GERENTE,
-  )
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.READ)
   obtenerHistorial(
     @Query() query: HistorialAlertasQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -161,14 +167,9 @@ export class NotificacionesController {
    * ============================================================
    */
   @Get('historial/exportar/csv')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.ADMINISTRADOR,
-    ROLES.GERENTE,
-  )
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.READ)
   @ApiProduces('text/csv')
+  @AuditLog('HISTORIAL_ALERTAS_EXPORTAR_CSV', 'HistorialAlertas', TipoAccion.EXPORTACION)
   async exportarHistorialCsv(
     @Query() query: HistorialAlertasQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -196,14 +197,9 @@ export class NotificacionesController {
    * ============================================================
    */
   @Get('historial/exportar/pdf')
-  @Roles(
-    ROLES.RESPONSABLE_PRODUCCION,
-    ROLES.RESPONSABLE_CALIDAD,
-    ROLES.ADMINISTRADOR,
-    ROLES.GERENTE,
-  )
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.READ)
   @ApiProduces('application/pdf')
+  @AuditLog('HISTORIAL_ALERTAS_EXPORTAR_PDF', 'HistorialAlertas', TipoAccion.EXPORTACION)
   async exportarHistorialPdf(
     @Query() query: HistorialAlertasQueryDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -230,9 +226,8 @@ export class NotificacionesController {
    * ============================================================
    */
   @Patch(':id/resolver')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('ALERTA_RESOLVER', 'Notificacion')
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
+  @AuditLog('ALERTA_RESOLVER', 'Notificacion', TipoAccion.EDICION)
   resolverAlerta(
     @Param('id') id: string,
     @Body() dto: ResolverAlertaDto,
@@ -254,9 +249,8 @@ export class NotificacionesController {
    * ============================================================
    */
   @Patch(':id/falso-positivo')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('ANOMALIA_MARCAR_FALSO_POSITIVO', 'Notificacion')
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
+  @AuditLog('ANOMALIA_MARCAR_FALSO_POSITIVO', 'Notificacion', TipoAccion.EDICION)
   marcarFalsoPositivo(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -276,8 +270,10 @@ export class NotificacionesController {
    * ============================================================
    */
   @Get('configuracion-alerta-desconexion')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.READ,
+  )
   obtenerConfiguracionAlertaDesconexion(
     @CurrentEmpresa() tenant: TenantContext,
   ) {
@@ -293,8 +289,7 @@ export class NotificacionesController {
  * ============================================================
  */
   @Get('horarios-silencio')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canRead')
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.READ)
   listarHorariosSilencio(@CurrentEmpresa() tenant: TenantContext) {
     return this.notificacionesService.listarHorariosSilencio(
       tenant.empresaId!,
@@ -302,9 +297,12 @@ export class NotificacionesController {
   }
 
   @Post('horarios-silencio')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('HORARIO_SILENCIO_CREAR', 'ConfiguracionSilencioAlerta')
+  // HU-30: crear, editar o borrar un horario de silencio es ajustar cómo se
+  // comportan las alertas, no crear datos del módulo. Se exige monitoreo:U para
+  // que lo haga quien atiende alertas (Producción) y no el Operario, cuyo
+  // monitoreo:C es solo para registrar mediciones manuales.
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
+  @AuditLog('HORARIO_SILENCIO_CREAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   crearHorarioSilencio(
     @Body() dto: CrearConfiguracionSilencioDto,
     @CurrentEmpresa() tenant: TenantContext,
@@ -316,9 +314,12 @@ export class NotificacionesController {
   }
 
   @Patch('horarios-silencio/:id')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('HORARIO_SILENCIO_ACTUALIZAR', 'ConfiguracionSilencioAlerta')
+  // HU-30: crear, editar o borrar un horario de silencio es ajustar cómo se
+  // comportan las alertas, no crear datos del módulo. Se exige monitoreo:U para
+  // que lo haga quien atiende alertas (Producción) y no el Operario, cuyo
+  // monitoreo:C es solo para registrar mediciones manuales.
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
+  @AuditLog('HORARIO_SILENCIO_ACTUALIZAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   actualizarHorarioSilencio(
     @Param('id') id: string,
     @Body() dto: ActualizarConfiguracionSilencioDto,
@@ -332,9 +333,12 @@ export class NotificacionesController {
   }
 
   @Delete('horarios-silencio/:id')
-  @Roles(ROLES.RESPONSABLE_PRODUCCION, ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
-  @AuditLog('HORARIO_SILENCIO_ELIMINAR', 'ConfiguracionSilencioAlerta')
+  // HU-30: crear, editar o borrar un horario de silencio es ajustar cómo se
+  // comportan las alertas, no crear datos del módulo. Se exige monitoreo:U para
+  // que lo haga quien atiende alertas (Producción) y no el Operario, cuyo
+  // monitoreo:C es solo para registrar mediciones manuales.
+  @Permissions(ModuloSistema.MONITOREO_ALERTAS, PermissionAction.UPDATE)
+  @AuditLog('HORARIO_SILENCIO_ELIMINAR', 'ConfiguracionSilencioAlerta', TipoAccion.CONFIGURACION)
   eliminarHorarioSilencio(
     @Param('id') id: string,
     @CurrentEmpresa() tenant: TenantContext,
@@ -346,11 +350,14 @@ export class NotificacionesController {
   }
 
   @Patch('configuracion-alerta-desconexion')
-  @Roles(ROLES.ADMINISTRADOR, ROLES.GERENTE)
-  @Permissions(ModuloSistema.MONITOREO_ALERTAS, 'canWrite')
+  @Permissions(
+    ModuloAdministrativo.CONFIGURACION_EMPRESA,
+    PermissionAction.UPDATE,
+  )
   @AuditLog(
     'CONFIGURACION_ALERTA_DESCONEXION_ACTUALIZAR',
     'ConfiguracionAlertaDesconexion',
+    TipoAccion.CONFIGURACION,
   )
   actualizarConfiguracionAlertaDesconexion(
     @Body() dto: ActualizarConfiguracionAlertaDesconexionDto,

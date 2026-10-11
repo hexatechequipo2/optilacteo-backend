@@ -29,6 +29,8 @@ import { RecomendacionDestino } from './module/ml/entities/recomendacion-destino
 import { DestinoProductivo } from './module/destino-productivo/entities/destino-productivo.entity'; // <-- NUEVO (HU-34)
 import { LoteDestinoHistorial } from './module/lote/entities/lote-destino-historial.entity';
 import { ConfiguracionSilencioAlerta } from './module/notificaciones/entities/configuracion-silencio-alerta.entity';
+import { RetencionModule } from './module/retencion/retencion.module';
+import { PoliticaRetencion } from './module/retencion/entities/politica-retencion.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -66,7 +68,8 @@ export default new DataSource({
     RecomendacionDestino,
     DestinoProductivo,
     LoteDestinoHistorial,
-    ConfiguracionSilencioAlerta
+    ConfiguracionSilencioAlerta,
+    PoliticaRetencion
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,

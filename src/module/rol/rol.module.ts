@@ -1,27 +1,16 @@
+// module/rol/rol.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RolService } from './rol.service';
-import { RolController } from './rol.controller';
-import { Rol } from './entities/rol.entity';
-import { PermisoModulo } from '../permiso/entities/permiso-modulo.entity';
-import { RolRepository } from './repository/rol.repository';
-import { ROL_REPOSITORY } from './repository/rol-interface.repository';
-import { Empresa } from '../empresa/entities/empresa.entity';
 import { User } from '../user/entities/user.entity';
+import { PermisoModulo } from '../permiso/entities/permiso-modulo.entity';
+import { Rol } from './entities/rol.entity';
+import { RolController } from './rol.controller';
+import { RolService } from './rol.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Rol, PermisoModulo, Empresa, User])],
+  imports: [TypeOrmModule.forFeature([Rol, User, PermisoModulo])],
   controllers: [RolController],
-  providers: [
-    RolService,
-    {
-      provide: ROL_REPOSITORY,
-      useClass: RolRepository,
-    },
-  ],
-  exports: [
-    RolService,
-    ROL_REPOSITORY, // <-- agregar esto
-  ],
+  providers: [RolService],
+  exports: [RolService],
 })
 export class RolModule {}

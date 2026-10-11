@@ -1,9 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 import { DashboardController } from '../dashboard.controller';
 import { DashboardService } from '../dashboard.service';
 import { GranularidadHistorico } from '../dto/dashboard-historico.dto';
+import { PermissionsGuard } from '../../../common/guards/permissions.guard';
+import type { PermisoService } from '../../permiso/permiso.service';
+import { ROLES } from '../../rol/constants/roles.constants';
+import { PERMISOS_POR_ROL } from '../../rol/config/roles-permisos.config';
+import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -14,6 +20,8 @@ describe('DashboardController', () => {
   const dashboardServiceMock = {
     getDashboard: jest.fn(),
     getHistoricoLotesProcesados: jest.fn(),
+    getEvolucionIndicadores: jest.fn(),
+    getSemaforoLote: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -204,6 +212,113 @@ describe('DashboardController', () => {
       expect(
         dashboardServiceMock.getHistoricoLotesProcesados,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+    describe('getEvolucionIndicadores', () => {
+    it('cuando el usuario tiene una empresa asociada, delega en el service con el tenant y la query', async () => {
+      const tenant = { empresaId: 5 } as any;
+      const query = { parametro: 'PH' } as any;
+      const respuesta = { puntos: [] };
+      dashboardServiceMock.getEvolucionIndicadores.mockResolvedValue(respuesta);
+
+      const result = await controller.getEvolucionIndicadores(tenant, query);
+
+      expect(
+        dashboardServiceMock.getEvolucionIndicadores,
+      ).toHaveBeenCalledWith(tenant, query);
+      expect(result).toBe(respuesta);
+    });
+
+    it('cuando el usuario no tiene empresa asociada, lanza ForbiddenException sin llamar al service', () => {
+      const tenant = { empresaId: null } as any;
+
+      expect(() =>
+        controller.getEvolucionIndicadores(tenant, {} as any),
+      ).toThrow(ForbiddenException);
+      expect(
+        dashboardServiceMock.getEvolucionIndicadores,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getSemaforoLote', () => {
+    it('cuando el usuario tiene una empresa asociada, delega en el service con loteId y tenant', async () => {
+      const tenant = { empresaId: 5 } as any;
+      const respuesta = { loteId: 9 };
+      dashboardServiceMock.getSemaforoLote.mockResolvedValue(respuesta);
+
+      const result = await controller.getSemaforoLote(tenant, 9);
+
+      expect(dashboardServiceMock.getSemaforoLote).toHaveBeenCalledWith(
+        9,
+        tenant,
+      );
+      expect(result).toBe(respuesta);
+    });
+
+    it('cuando el usuario no tiene empresa asociada, lanza ForbiddenException sin llamar al service', () => {
+      const tenant = { empresaId: null } as any;
+
+      expect(() => controller.getSemaforoLote(tenant, 9)).toThrow(
+        ForbiddenException,
+      );
+      expect(dashboardServiceMock.getSemaforoLote).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getSemaforoLote — acceso por permisos (HU-40)', () => {
+    const reflector = new Reflector();
+    const obtenerAcceso = jest.fn();
+    const permissionsGuard = new PermissionsGuard(reflector, {
+      obtenerAcceso,
+    } as unknown as PermisoService);
+
+    function buildContext() {
+      return {
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        getHandler: () => DashboardController.prototype.getSemaforoLote,
+        getClass: () => DashboardController,
+        switchToHttp: () => ({ getRequest: () => ({ user: { sub: 7 } }) }),
+      } as unknown as ExecutionContext;
+    }
+
+    function acceso(permisos: unknown[]) {
+      return {
+        userId: 7,
+        rolId: 3,
+        rolNombre: 'Operario de línea',
+        empresaId: 1,
+        esSistema: false,
+        permisos,
+      };
+    }
+
+    it('Operario de línea no tiene DASHBOARD en su config de roles', () => {
+      const modulos = PERMISOS_POR_ROL[ROLES.OPERARIO_LINEA].map(
+        (p) => p.modulo,
+      );
+      expect(modulos).not.toContain(ModuloSistema.DASHBOARD);
+    });
+
+    it('permite el acceso con READ en MONITOREO_ALERTAS', async () => {
+      obtenerAcceso.mockResolvedValue(
+        acceso([{ modulo: ModuloSistema.MONITOREO_ALERTAS, canRead: true }]),
+      );
+
+      await expect(permissionsGuard.canActivate(buildContext())).resolves.toBe(
+        true,
+      );
+    });
+
+    it('rechaza a un rol que no tiene DASHBOARD ni MONITOREO_ALERTAS', async () => {
+      obtenerAcceso.mockResolvedValue(
+        acceso([{ modulo: ModuloSistema.RECEPCION, canRead: true }]),
+      );
+
+      await expect(
+        permissionsGuard.canActivate(buildContext()),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

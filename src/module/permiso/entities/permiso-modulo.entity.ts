@@ -1,29 +1,38 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { ModuloSistema } from '../../empresa/enums/modulo-sistema.enum';
+// module/permiso/entities/permiso-modulo.entity.ts
+import {
+  Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Rol } from '../../rol/entities/rol.entity';
 import { Empresa } from '../../empresa/entities/empresa.entity';
+import { TODOS_LOS_MODULOS_PERMISO } from '../enums/modulo-administrativo.enum';
+import type { ModuloPermiso } from '../enums/modulo-administrativo.enum';
 
 @Entity('permiso_modulos')
+@Index('UQ_permiso_empresa_rol_modulo', ['empresaId', 'rol', 'modulo'], { unique: true })
 export class PermisoModulo {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ type: 'enum', enum: ModuloSistema })
-  modulo!: ModuloSistema;
+  @Column({
+    type: 'enum',
+    enum: TODOS_LOS_MODULOS_PERMISO,
+    enumName: 'permiso_modulos_modulo_enum',
+  })
+  modulo!: ModuloPermiso;
 
-  @Column({ default: false })
-  canRead!: boolean;
+  @Column({ default: false }) canRead!: boolean;
 
-  @Column({ default: false })
-  canWrite!: boolean;
+  // DEPRECADO: se elimina en la migración 2.
+  @Column({ default: false }) canWrite!: boolean;
+
+  @Column({ default: false }) canCreate!: boolean;
+  @Column({ default: false }) canUpdate!: boolean;
+  @Column({ default: false }) canDelete!: boolean;
+  @Column({ default: false }) canExport!: boolean;
 
   @ManyToOne(() => Rol, (rol) => rol.permisos, { onDelete: 'CASCADE' })
   rol!: Rol;
 
-  // Multi-tenant: cada empresa configura sus propios permisos por rol,
-  // sin afectar a las demás. rol sigue siendo catálogo global (los 5
-  // roles son compartidos), pero la combinación (empresa, rol, módulo)
-  // ahora es lo que define permisos+lectura/escritura.
   @Column()
   empresaId!: number;
 

@@ -1,0 +1,14 @@
+{
+  "version": "20260905011436",
+  "trained_at": "2026-09-05T01:14:36.505408+00:00",
+  "algorithm": "IsolationForest",
+  "empresa_id": 2,
+  "parametro": "temperatura",
+  "n_samples": 180,
+  "features": [
+    "valor"
+  ],
+  "scores_min": -0.8409012120240512,
+  "scores_max": -0.3686731700835132,
+  "origen_datos": "archivo"
+}

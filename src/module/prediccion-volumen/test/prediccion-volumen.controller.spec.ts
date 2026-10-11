@@ -3,7 +3,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PrediccionVolumenController } from '../prediccion-volumen.controller';
 import { PrediccionVolumenService } from '../prediccion-volumen.service';
 import { PrediccionVolumenQueryDto } from '../dto/prediccion-volumen-query.dto';
-import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import type { TenantContext } from '../../../common/types/tenant-context.type';
 import type { Response } from 'express';
@@ -36,8 +35,6 @@ describe('PrediccionVolumenController', () => {
         },
       ],
     })
-      .overrideGuard(RolesGuard)
-      .useValue({ canActivate: () => true })
       .overrideGuard(PermissionsGuard)
       .useValue({ canActivate: () => true })
       .compile();

@@ -1,15 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Req } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ROLES } from '../rol/constants/roles.constants';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../common/enums/permission-action.enum';
+import { ModuloAdministrativo } from '../permiso/enums/modulo-administrativo.enum';
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 import { UserFilterQueryDto } from './dto/user-filter-query.dto';
 import { Query } from '@nestjs/common';
+import {
+  ConEmpresaObjetivo,
+  EmpresaObjetivo,
+} from '../../common/tenant/empresa-objetivo';
+import { registrarCambiosAuditoria } from '../audit/decorators/audit-log.decorator';
 
 @ApiTags('user')
 @ApiBearerAuth()
@@ -17,15 +24,35 @@ import { Query } from '@nestjs/common';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
+  // HU-72 criterio 5: empresaId (body o query) elige la empresa solo para el Administrador.
   @Post()
-  @AuditLog('USUARIO_CREAR', 'Usuario')
-  create(@Body() dto: CreateUserDto, @CurrentEmpresa() tenant: TenantContext) {
-    return this.userService.create(dto, tenant);
+  @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.CREATE)
+  @ConEmpresaObjetivo()
+  @AuditLog('USUARIO_CREAR', 'Usuario', TipoAccion.ALTA, (ctx) => {
+    const b = ctx.responseBody as
+      | { email?: string; rolNombre?: string; empresa?: { id?: number } }
+      | undefined;
+    return `Alta de usuario ${b?.email} con rol ${b?.rolNombre} en empresa #${b?.empresa?.id}`;
+  })
+  async create(
+    @Body() dto: CreateUserDto,
+    @EmpresaObjetivo() empresaId: number,
+    @Req() req: object,
+  ) {
+    const usuario = await this.userService.create(dto, empresaId);
+    registrarCambiosAuditoria(req, {
+      antes: null,
+      despues: {
+        rolId: usuario.rolId,
+        rolNombre: usuario.rolNombre,
+        empresaId: usuario.empresa?.id ?? null,
+      },
+    });
+    return usuario;
   }
 
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR, ROLES.RESPONSABLE_CALIDAD)
   @Get()
+  @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.READ)
   findAll(
     @CurrentEmpresa() tenant: TenantContext,
     @Query() query: UserFilterQueryDto,
@@ -33,40 +60,48 @@ export class UserController {
     return this.userService.findAll(tenant, query);
   }
 
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Get(':id')
+  @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.READ)
   findOne(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.findOne(+id, tenant);
   }
 
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id')
-  @AuditLog('USUARIO_ACTUALIZAR', 'Usuario')
-  update(
+  @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.UPDATE)
+  @ConEmpresaObjetivo()
+  @AuditLog('USUARIO_ACTUALIZAR', 'Usuario', TipoAccion.EDICION)
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @CurrentEmpresa() tenant: TenantContext,
+    @EmpresaObjetivo() empresaId: number,
+    @Req() req: object,
   ) {
-    return this.userService.update(+id, dto, tenant);
+    const { usuario, cambios } = await this.userService.update(
+      +id,
+      dto,
+      empresaId,
+    );
+    registrarCambiosAuditoria(req, cambios);
+    return usuario;
   }
 
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/activar')
-  @AuditLog('USUARIO_ACTIVAR', 'Usuario')
+  @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.UPDATE)
+  @AuditLog('USUARIO_ACTIVAR', 'Usuario', TipoAccion.ALTA)
   activate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.activate(+id, tenant);
   }
 
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desactivar')
-  @AuditLog('USUARIO_DESACTIVAR', 'Usuario')
+  @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.UPDATE)
+  @AuditLog('USUARIO_DESACTIVAR', 'Usuario', TipoAccion.BAJA)
   deactivate(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.deactivate(+id, tenant);
   }
 
-  @Roles(ROLES.GERENTE, ROLES.ADMINISTRADOR)
   @Patch(':id/desbloquear')
-  @AuditLog('USUARIO_DESBLOQUEAR', 'Usuario')
+  @Permissions(ModuloAdministrativo.GESTION_USUARIOS, PermissionAction.UPDATE)
+  @AuditLog('USUARIO_DESBLOQUEAR', 'Usuario', TipoAccion.EDICION)
   unlock(@Param('id') id: string, @CurrentEmpresa() tenant: TenantContext) {
     return this.userService.unlock(+id, tenant);
   }

@@ -13,6 +13,11 @@ import {
   PuntoSerieResponseDto,
 } from './dto/punto-serie-response.dto';
 
+import { Lote } from '../lote/entities/lote.entity';
+import { ConfiguracionParametro } from '../config-parametro/entities/config-parametro.entity';
+import { SerieProveedorResponseDto } from './dto/serie-proveedor-response.dto';
+import { MAX_LOTES_VENTANA } from '../estabilidad-proveedor/estabilidad-proveedor.service';
+
 @Injectable()
 export class DatasetMlService {
   constructor(
@@ -21,6 +26,12 @@ export class DatasetMlService {
 
     @InjectRepository(MedicionManualLote)
     private readonly medicionManualRepo: Repository<MedicionManualLote>,
+
+    @InjectRepository(Lote)
+    private readonly loteRepo: Repository<Lote>,
+
+    @InjectRepository(ConfiguracionParametro)
+    private readonly configRepo: Repository<ConfiguracionParametro>,
   ) {}
 
   /**
@@ -96,5 +107,68 @@ export class DatasetMlService {
     return [...puntosDeSensor, ...puntosDeManual].sort(
       (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
     );
+  }
+
+  /**
+   * HU-64: valores de parámetros de cada lote agrupados por proveedor, con
+   * los umbrales de config-parametro. Mismo criterio que
+   * EstabilidadProveedorService.recalcular: solo lotes con parámetros y
+   * los últimos MAX_LOTES_VENTANA por proveedor, para que lo que se
+   * calibra sea exactamente lo que ve el indicador.
+   */
+  async obtenerLotesPorProveedor(
+    empresaId: number,
+  ): Promise<SerieProveedorResponseDto[]> {
+    const lotes = await this.loteRepo.find({
+      where: { empresaId },
+      relations: { proveedor: true },
+      order: { fechaIngreso: 'DESC', id: 'DESC' },
+    });
+
+    const configs = await this.configRepo.find({ where: { empresaId } });
+    const mapaConfig = new Map(
+      configs.map((c) => [`${c.parametro}|${c.tipoMateriaPrima}`, c]),
+    );
+
+    const porProveedor = new Map<number, SerieProveedorResponseDto>();
+
+    for (const lote of lotes) {
+      if (!lote.parametros?.length) continue; // sin parámetros: no aporta
+
+      let entry = porProveedor.get(lote.proveedorId);
+      if (!entry) {
+        entry = {
+          proveedorId: lote.proveedorId,
+          proveedorNombre: lote.proveedor.razonSocial,
+          cantidadLotes: 0,
+          series: [],
+        };
+        porProveedor.set(lote.proveedorId, entry);
+      }
+
+      if (entry.cantidadLotes >= MAX_LOTES_VENTANA) continue; // ventana
+      entry.cantidadLotes++;
+
+      for (const p of lote.parametros) {
+        let serie = entry.series.find(
+          (s) =>
+            s.parametro === p.parametro && s.materiaPrima === lote.materiaPrima,
+        );
+        if (!serie) {
+          const cfg = mapaConfig.get(`${p.parametro}|${lote.materiaPrima}`);
+          serie = {
+            parametro: p.parametro,
+            materiaPrima: lote.materiaPrima,
+            valores: [],
+            umbralMin: cfg ? Number(cfg.umbralMin) : null,
+            umbralMax: cfg ? Number(cfg.umbralMax) : null,
+          };
+          entry.series.push(serie);
+        }
+        serie.valores.push(Number(p.valor));
+      }
+    }
+
+    return [...porProveedor.values()];
   }
 }

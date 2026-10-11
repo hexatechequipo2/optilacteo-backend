@@ -11,6 +11,7 @@ import { CONFIG_PARAMETRO_REPOSITORY } from './repository/config-parametro.repos
 import { CONFIGURACION_COMPARACION_HISTORICA_REPOSITORY } from './repository/configuracion-comparacion-historica.repository.interface';
 import { ConfiguracionComparacionHistoricaController } from './configuracion-comparacion-historica.controller';
 import { AuditLogModule } from '../audit/audit-log.module';
+import { SemaforoService } from './semaforo.service';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AuditLogModule } from '../audit/audit-log.module';
   providers: [
     ConfigParametroService,
     ConfiguracionComparacionHistoricaService,
+    SemaforoService,
     {
       provide: CONFIG_PARAMETRO_REPOSITORY,
       useClass: ConfigParametroRepository,
@@ -36,6 +38,10 @@ import { AuditLogModule } from '../audit/audit-log.module';
       useClass: ConfiguracionComparacionHistoricaRepository,
     },
   ],
-  exports: [ConfigParametroService, ConfiguracionComparacionHistoricaService],
+  exports: [
+    ConfigParametroService,
+    ConfiguracionComparacionHistoricaService,
+    SemaforoService,
+  ],
 })
 export class ConfigParametroModule {}

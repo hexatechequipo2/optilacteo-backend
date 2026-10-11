@@ -1,36 +1,36 @@
+
 import {
   Controller,
   Get,
-  Headers,
+  ParseIntPipe,
   Query,
-  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/decorators/public.decorator';
+import { InternalApiKeyGuard } from '../internal/guards/internal-api-key.guard';
 
 import { DatasetMlService } from './dataset-ml.service';
 import { SeriesHistoricasQueryDto } from './dto/series-historicas-query.dto';
+import { EstabilidadProveedorService } from '../estabilidad-proveedor/estabilidad-proveedor.service';
 
-// HU-50: lo consume la cuenta de servicio del microservicio ML
-// (entrenamiento vía data_client.py), no un usuario con rol de negocio.
-// Autenticación por API key en header, mismo patrón que ya usa
-// data_client.py contra /internal/ml-training-data/lotes (HU-49).
-// Sin @CurrentEmpresa(): el microservicio pide datos de la empresa que
-// está entrenando puntualmente, por eso empresaId viene explícito por
-// query en vez de resolverse del tenant de un usuario logueado.
+// Servicio a servicio (microservicio de IA): sin JWT, solo API key por header.
+// @Public() saltea JwtAuthGuard y PermissionsGuard globales; el guard de API key
+// corre antes que los pipes, así que sin key válida responde 401 siempre.
 @ApiTags('internal')
+@Public()
+@UseGuards(InternalApiKeyGuard)
 @Controller('internal/series-historicas')
 export class DatasetMlController {
-  constructor(private readonly datasetMlService: DatasetMlService) {}
+  constructor(
+    private readonly datasetMlService: DatasetMlService,
+    private readonly estabilidadProveedorService: EstabilidadProveedorService,
+  ) {}
 
   @Get()
   obtenerSerie(
     @Query() query: SeriesHistoricasQueryDto,
-    @Headers('x-internal-api-key') apiKey: string,
   ) {
-    if (!apiKey || apiKey !== process.env.NEST_INTERNAL_API_KEY) {
-      throw new UnauthorizedException('API key inválida o ausente');
-    }
-
     return this.datasetMlService.obtenerSerie(
       query.empresaId,
       query.parametro,
@@ -38,4 +38,12 @@ export class DatasetMlController {
       new Date(query.hasta),
     );
   }
+
+  @Get('proveedores-lotes')
+  obtenerLotesPorProveedor(
+    @Query('empresaId', ParseIntPipe) empresaId: number,
+  ) {
+    return this.datasetMlService.obtenerLotesPorProveedor(empresaId);
+  }
+
 }

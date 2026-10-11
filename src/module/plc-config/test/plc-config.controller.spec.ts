@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PlcConfigController } from '../plc-config.controller';
 import { PlcConfigService } from '../plc-config.service';
 import { TenantContext } from '../../../common/types/tenant-context.type';
-import { RolesGuard } from '../../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 
 /* eslint-disable @typescript-eslint/unbound-method */
@@ -29,8 +28,6 @@ describe('PlcConfigController', () => {
         },
       ],
     })
-      .overrideGuard(RolesGuard)
-      .useValue({ canActivate: () => true })
       .overrideGuard(PermissionsGuard)
       .useValue({ canActivate: () => true })
       .compile();

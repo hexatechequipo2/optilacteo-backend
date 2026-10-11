@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import type { StringValue } from 'ms';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -12,8 +11,6 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RevokedToken } from './entities/revoked-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { REVOKED_TOKEN_REPOSITORY } from './repository/revoked-token-repository.interface';
 import { RevokedTokenRepository } from './repository/revoked-token.repository';
 import { REFRESH_TOKEN_REPOSITORY } from './repository/refresh-token-repository.interface';
@@ -66,14 +63,6 @@ import { PermisoModule } from '../permiso/permiso.module';
     {
       provide: REFRESH_TOKEN_REPOSITORY,
       useClass: RefreshTokenRepository,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
     },
     PasswordResetService,
     MailService,

@@ -10,6 +10,7 @@ import { USER_REPOSITORY } from '../repository/user-repository.interface';
 import { User } from '../entities/user.entity';
 import { Empresa } from '../../empresa/entities/empresa.entity';
 import { Rol } from '../../rol/entities/rol.entity';
+import { RolService } from '../../rol/rol.service';
 import { EmpresaService } from '../../empresa/empresa.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { ROLES } from '../../rol/constants/roles.constants';
@@ -93,7 +94,7 @@ describe('UserService', () => {
     countByEmpresa: jest.Mock;
   };
   let mockEmpresaTypeormRepo: { findOneBy: jest.Mock };
-  let mockRolTypeormRepo: { findOneBy: jest.Mock };
+  let mockRolService: { obtenerAsignable: jest.Mock };
   let mockEmpresaService: { getLimiteUsuarios: jest.Mock };
 
   beforeEach(async () => {
@@ -115,7 +116,7 @@ describe('UserService', () => {
       countByEmpresa: jest.fn(),
     };
     mockEmpresaTypeormRepo = { findOneBy: jest.fn() };
-    mockRolTypeormRepo = { findOneBy: jest.fn() };
+    mockRolService = { obtenerAsignable: jest.fn() };
     mockEmpresaService = { getLimiteUsuarios: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -126,7 +127,7 @@ describe('UserService', () => {
           provide: getRepositoryToken(Empresa),
           useValue: mockEmpresaTypeormRepo,
         },
-        { provide: getRepositoryToken(Rol), useValue: mockRolTypeormRepo },
+        { provide: RolService, useValue: mockRolService },
         { provide: EmpresaService, useValue: mockEmpresaService },
       ],
     }).compile();
@@ -134,16 +135,19 @@ describe('UserService', () => {
     service = module.get<UserService>(UserService);
   });
 
-  describe('create - alta de usuario (HU-07)', () => {
-    it('deberia crear el usuario con la contraseña hasheada, empresa y rol resueltos', async () => {
-      const dto = buildCreateDto();
+  describe('create - alta de usuario (HU-07, HU-72 criterio 5)', () => {
+    const preparar = (usuariosActuales = 1) => {
       mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol());
+      mockRolService.obtenerAsignable.mockResolvedValue(buildRol());
       mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
-      mockUserRepository.countByEmpresa.mockResolvedValue(1);
+      mockUserRepository.countByEmpresa.mockResolvedValue(usuariosActuales);
       mockUserRepository.createUser.mockResolvedValue(buildUser());
+    };
 
-      const result = await service.create(dto, tenantAdministrador);
+    it('deberia crear el usuario con la contraseña hasheada, empresa y rol resueltos', async () => {
+      preparar();
+
+      const result = await service.create(buildCreateDto(), 1);
 
       expect(bcryptHash).toHaveBeenCalledWith('plainPassword123', 10);
       expect(mockUserRepository.createUser).toHaveBeenCalledWith(
@@ -153,14 +157,9 @@ describe('UserService', () => {
     });
 
     it('nunca deberia persistir la contraseña en texto plano', async () => {
-      const dto = buildCreateDto({ password: 'plainPassword123' });
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol());
-      mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
-      mockUserRepository.countByEmpresa.mockResolvedValue(0);
-      mockUserRepository.createUser.mockResolvedValue(buildUser());
+      preparar(0);
 
-      await service.create(dto, tenantAdministrador);
+      await service.create(buildCreateDto({ password: 'plainPassword123' }), 1);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const created = mockUserRepository.createUser.mock.calls[0][0];
@@ -168,142 +167,56 @@ describe('UserService', () => {
       expect(created.password).not.toBe('plainPassword123');
     });
 
-    it('lanza NotFoundException si la empresa indicada no existe', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(null);
+    it('opera sobre la empresa resuelta (no la del body) y valida el rol en esa empresa', async () => {
+      preparar(0);
 
-      await expect(
-        service.create(buildCreateDto(), tenantAdministrador),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockUserRepository.createUser).not.toHaveBeenCalled();
-    });
-
-    it('lanza NotFoundException si el rol indicado no existe', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(null);
-
-      await expect(
-        service.create(buildCreateDto(), tenantAdministrador),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockUserRepository.createUser).not.toHaveBeenCalled();
-    });
-
-    it('lanza BadRequestException si la empresa alcanzo el limite de usuarios de su plan', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol());
-      mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
-      mockUserRepository.countByEmpresa.mockResolvedValue(5);
-
-      await expect(
-        service.create(buildCreateDto(), tenantAdministrador),
-      ).rejects.toThrow(BadRequestException);
-      expect(mockUserRepository.createUser).not.toHaveBeenCalled();
-    });
-
-    it('permite crear el usuario cuando esta justo debajo del limite (usuariosActuales < limite)', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol());
-      mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
-      mockUserRepository.countByEmpresa.mockResolvedValue(4);
-      mockUserRepository.createUser.mockResolvedValue(buildUser());
-
-      await expect(
-        service.create(buildCreateDto(), tenantAdministrador),
-      ).resolves.toBeDefined();
-      expect(mockUserRepository.createUser).toHaveBeenCalled();
-    });
-
-    it('lanza ForbiddenException si un Gerente intenta asignar el rol Administrador', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(
-        buildRol({ id: 9, nombre: ROLES.ADMINISTRADOR }),
-      );
-
-      await expect(
-        service.create(buildCreateDto({ rolId: 9 }), tenantGerente),
-      ).rejects.toThrow(ForbiddenException);
-      expect(mockUserRepository.createUser).not.toHaveBeenCalled();
-    });
-
-    it('permite a un Gerente asignar un rol que no sea Administrador', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(
-        buildRol({ nombre: ROLES.GERENTE }),
-      );
-      mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
-      mockUserRepository.countByEmpresa.mockResolvedValue(0);
-      mockUserRepository.createUser.mockResolvedValue(buildUser());
-
-      await expect(
-        service.create(buildCreateDto(), tenantGerente),
-      ).resolves.toBeDefined();
-      expect(mockUserRepository.createUser).toHaveBeenCalled();
-    });
-
-    it('permite a un Gerente cambiar el rol a otro distinto de Administrador', async () => {
-      const nuevoRol = buildRol({
-        id: 3,
-        nombre: ROLES.RESPONSABLE_CALIDAD,
-      });
-
-      mockUserRepository.findById.mockResolvedValue(buildUser());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(nuevoRol);
-      mockUserRepository.updateUser.mockResolvedValue(
-        buildUser({ rol: nuevoRol }),
-      );
-
-      await service.update(10, { rolId: 3 }, tenantGerente);
-
-      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
-        rol: nuevoRol,
-      });
-    });
-
-    it('ignora el empresaId del body y fuerza el de su propio tenant cuando quien crea es Gerente', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(
-        buildRol({ nombre: ROLES.GERENTE }),
-      );
-      mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
-      mockUserRepository.countByEmpresa.mockResolvedValue(0);
-      mockUserRepository.createUser.mockResolvedValue(buildUser());
-
-      // tenantGerente.empresaId es 1, pero el body intenta crear en la empresa 99
-      await service.create(buildCreateDto({ empresaId: 99 }), tenantGerente);
-
-      expect(mockEmpresaTypeormRepo.findOneBy).toHaveBeenCalledWith({ id: 1 });
-      expect(mockEmpresaService.getLimiteUsuarios).toHaveBeenCalledWith(1);
-      expect(mockUserRepository.countByEmpresa).toHaveBeenCalledWith(1);
-    });
-
-    it('respeta el empresaId del body cuando quien crea es Administrador', async () => {
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(
-        buildEmpresa({ id: 7 }),
-      );
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(buildRol());
-      mockEmpresaService.getLimiteUsuarios.mockResolvedValue(5);
-      mockUserRepository.countByEmpresa.mockResolvedValue(0);
-      mockUserRepository.createUser.mockResolvedValue(buildUser());
-
-      await service.create(
-        buildCreateDto({ empresaId: 7 }),
-        tenantAdministrador,
-      );
+      await service.create(buildCreateDto({ empresaId: 99 }), 7);
 
       expect(mockEmpresaTypeormRepo.findOneBy).toHaveBeenCalledWith({ id: 7 });
+      expect(mockRolService.obtenerAsignable).toHaveBeenCalledWith(2, 7);
       expect(mockEmpresaService.getLimiteUsuarios).toHaveBeenCalledWith(7);
       expect(mockUserRepository.countByEmpresa).toHaveBeenCalledWith(7);
     });
 
-    it('lanza ForbiddenException si un tenant sin empresa asociada intenta crear un usuario', async () => {
-      const tenantSinEmpresa: TenantContext = {
-        empresaId: null,
-        rolNombre: ROLES.GERENTE,
-      };
+    it('lanza NotFoundException si la empresa no existe', async () => {
+      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(null);
 
-      await expect(
-        service.create(buildCreateDto(), tenantSinEmpresa),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.create(buildCreateDto(), 1)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockUserRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['no visible en la empresa', new NotFoundException('Rol no encontrado.')],
+      [
+        'Administrador',
+        new ForbiddenException(
+          'El rol Administrador no se puede asignar a usuarios de empresa.',
+        ),
+      ],
+    ])('propaga el rechazo del rol (%s) sin crear', async (_caso, error) => {
+      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(buildEmpresa());
+      mockRolService.obtenerAsignable.mockRejectedValue(error);
+
+      await expect(service.create(buildCreateDto(), 1)).rejects.toThrow(error);
+      expect(mockUserRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('lanza BadRequestException si la empresa alcanzo el limite de usuarios de su plan', async () => {
+      preparar(5);
+
+      await expect(service.create(buildCreateDto(), 1)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockUserRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('permite crear el usuario cuando esta justo debajo del limite (usuariosActuales < limite)', async () => {
+      preparar(4);
+
+      await expect(service.create(buildCreateDto(), 1)).resolves.toBeDefined();
+      expect(mockUserRepository.createUser).toHaveBeenCalled();
     });
   });
 
@@ -398,39 +311,48 @@ describe('UserService', () => {
     it('lanza NotFoundException si el usuario no existe', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.update(999, { name: 'x' }, tenantAdministrador),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update(999, { name: 'x' }, 1)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockUserRepository.updateUser).not.toHaveBeenCalled();
     });
 
-    it('deberia actualizar nombre y email cuando vienen en el DTO', async () => {
+    it('lanza NotFoundException si el usuario es de otra empresa', async () => {
+      mockUserRepository.findById.mockResolvedValue(buildUser());
+
+      await expect(service.update(10, { name: 'x' }, 2)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockUserRepository.updateUser).not.toHaveBeenCalled();
+    });
+
+    it('deberia actualizar nombre y email y devolver el diff', async () => {
       mockUserRepository.findById.mockResolvedValue(buildUser());
       mockUserRepository.updateUser.mockResolvedValue(
-        buildUser({ name: 'Nuevo nombre' }),
+        buildUser({ name: 'Nuevo nombre', email: 'nuevo@lacteosnorte.com' }),
       );
 
-      await service.update(
+      const r = await service.update(
         10,
         { name: 'Nuevo nombre', email: 'nuevo@lacteosnorte.com' },
-        tenantAdministrador,
+        1,
       );
 
       expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
         name: 'Nuevo nombre',
         email: 'nuevo@lacteosnorte.com',
       });
+      expect(r.usuario.name).toBe('Nuevo nombre');
+      expect(r.cambios.antes).toMatchObject({ name: 'Juan Pérez' });
+      expect(r.cambios.despues).toMatchObject({ name: 'Nuevo nombre' });
+      expect(JSON.stringify(r.cambios)).not.toContain('password');
     });
 
     it('deberia re-hashear la contraseña cuando el DTO trae una nueva', async () => {
       mockUserRepository.findById.mockResolvedValue(buildUser());
       mockUserRepository.updateUser.mockResolvedValue(buildUser());
 
-      await service.update(
-        10,
-        { password: 'nuevaPasswordSegura' },
-        tenantAdministrador,
-      );
+      await service.update(10, { password: 'nuevaPasswordSegura' }, 1);
 
       expect(bcryptHash).toHaveBeenCalledWith('nuevaPasswordSegura', 10);
       expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
@@ -442,7 +364,7 @@ describe('UserService', () => {
       mockUserRepository.findById.mockResolvedValue(buildUser());
       mockUserRepository.updateUser.mockResolvedValue(buildUser());
 
-      await service.update(10, { name: 'Solo nombre' }, tenantAdministrador);
+      await service.update(10, { name: 'Solo nombre' }, 1);
 
       expect(bcryptHash).not.toHaveBeenCalled();
       expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
@@ -450,70 +372,15 @@ describe('UserService', () => {
       });
     });
 
-    it('deberia cambiar el rol del usuario resolviendolo por rolId', async () => {
-      const nuevoRol = buildRol({ id: 3, nombre: ROLES.ADMINISTRADOR });
+    it('empresaId del DTO no mueve al usuario de empresa', async () => {
       mockUserRepository.findById.mockResolvedValue(buildUser());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(nuevoRol);
-      mockUserRepository.updateUser.mockResolvedValue(
-        buildUser({ rol: nuevoRol }),
-      );
+      mockUserRepository.updateUser.mockResolvedValue(buildUser());
 
-      await service.update(10, { rolId: 3 }, tenantAdministrador);
+      await service.update(10, { empresaId: 1, name: 'x' }, 1);
 
-      expect(mockRolTypeormRepo.findOneBy).toHaveBeenCalledWith({ id: 3 });
       expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
-        rol: nuevoRol,
+        name: 'x',
       });
-    });
-
-    it('lanza NotFoundException si el nuevo rol no existe', async () => {
-      mockUserRepository.findById.mockResolvedValue(buildUser());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(null);
-
-      await expect(
-        service.update(10, { rolId: 999 }, tenantAdministrador),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockUserRepository.updateUser).not.toHaveBeenCalled();
-    });
-
-    it('deberia cambiar la empresa del usuario resolviendola por empresaId', async () => {
-      const nuevaEmpresa = buildEmpresa({
-        id: 2,
-        name: 'Lacteos Sur',
-      });
-      mockUserRepository.findById.mockResolvedValue(buildUser());
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(nuevaEmpresa);
-      mockUserRepository.updateUser.mockResolvedValue(
-        buildUser({ empresa: nuevaEmpresa }),
-      );
-
-      await service.update(10, { empresaId: 2 }, tenantAdministrador);
-
-      expect(mockEmpresaTypeormRepo.findOneBy).toHaveBeenCalledWith({ id: 2 });
-      expect(mockUserRepository.updateUser).toHaveBeenCalledWith(10, {
-        empresa: nuevaEmpresa,
-      });
-    });
-
-    it('lanza NotFoundException si la nueva empresa no existe', async () => {
-      mockUserRepository.findById.mockResolvedValue(buildUser());
-      mockEmpresaTypeormRepo.findOneBy.mockResolvedValue(null);
-
-      await expect(
-        service.update(10, { empresaId: 999 }, tenantAdministrador),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockUserRepository.updateUser).not.toHaveBeenCalled();
-    });
-
-    it('lanza ForbiddenException si un Gerente intenta reasignar el rol Administrador a un usuario existente', async () => {
-      const rolAdministrador = buildRol({ id: 9, nombre: ROLES.ADMINISTRADOR });
-      mockUserRepository.findById.mockResolvedValue(buildUser());
-      mockRolTypeormRepo.findOneBy.mockResolvedValue(rolAdministrador);
-
-      await expect(
-        service.update(10, { rolId: 9 }, tenantGerente),
-      ).rejects.toThrow(ForbiddenException);
-      expect(mockUserRepository.updateUser).not.toHaveBeenCalled();
     });
   });
 

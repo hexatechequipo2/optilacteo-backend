@@ -8,14 +8,20 @@ function buildPermiso(overrides: Partial<PermisoModulo> = {}): PermisoModulo {
     modulo: ModuloSistema.DASHBOARD,
     canRead: true,
     canWrite: false,
+    canCreate: false,
+    canUpdate: false,
+    canDelete: false,
+    canExport: false,
     rol: { id: 5, nombre: 'Gerente' } as PermisoModulo['rol'],
     ...overrides,
+    empresa: overrides.empresa ?? ({} as PermisoModulo['empresa']),
+    empresaId: overrides.empresaId ?? 1,
   };
 }
 
 describe('PermisoMapper', () => {
   describe('toResponse', () => {
-    it('deberia mapear id, modulo, canRead/canWrite y el rol asociado', () => {
+    it('deberia mapear id, modulo, permisos granulares (canRead, canCreate, canUpdate, canDelete, canExport) y el rol asociado', () => {
       const permiso = buildPermiso();
 
       const result = PermisoMapper.toResponse(permiso);
@@ -24,7 +30,10 @@ describe('PermisoMapper', () => {
         id: 1,
         modulo: ModuloSistema.DASHBOARD,
         canRead: true,
-        canWrite: false,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+        canExport: false,
         rol: { id: 5, nombre: 'Gerente' },
       });
     });
@@ -37,12 +46,14 @@ describe('PermisoMapper', () => {
       expect(result.rol).toBeNull();
     });
 
-    it('deberia reflejar canWrite en true cuando el permiso tiene escritura habilitada', () => {
-      const permiso = buildPermiso({ canRead: true, canWrite: true });
+    it('deberia reflejar permisos de edicion/creacion en true cuando estan habilitados', () => {
+      const permiso = buildPermiso({ canRead: true, canCreate: true, canUpdate: true });
 
       const result = PermisoMapper.toResponse(permiso);
 
-      expect(result.canWrite).toBe(true);
+      expect(result.canCreate).toBe(true);
+      expect(result.canUpdate).toBe(true);
+      expect(result.canDelete).toBe(false);
     });
   });
 
@@ -72,28 +83,49 @@ describe('PermisoMapper', () => {
   });
 
   describe('toUserPermisoResponse - permisos efectivos de un usuario (via su rol)', () => {
-    it('deberia exponer solo modulo/canRead/canWrite, sin id ni rol', () => {
+    it('deberia exponer solo modulo y flags de permisos (canRead, canCreate, canUpdate, canDelete, canExport), sin id ni rol', () => {
       const permisos = [
         buildPermiso({
           modulo: ModuloSistema.DASHBOARD,
           canRead: true,
-          canWrite: false,
+          canCreate: false,
+          canUpdate: false,
+          canDelete: false,
+          canExport: false,
         }),
         buildPermiso({
           modulo: ModuloSistema.RECEPCION,
           canRead: true,
-          canWrite: true,
+          canCreate: true,
+          canUpdate: true,
+          canDelete: false,
+          canExport: true,
         }),
       ];
 
       const result = PermisoMapper.toUserPermisoResponse(permisos);
 
       expect(result).toEqual([
-        { modulo: ModuloSistema.DASHBOARD, canRead: true, canWrite: false },
-        { modulo: ModuloSistema.RECEPCION, canRead: true, canWrite: true },
+        {
+          modulo: ModuloSistema.DASHBOARD,
+          canRead: true,
+          canCreate: false,
+          canUpdate: false,
+          canDelete: false,
+          canExport: false,
+        },
+        {
+          modulo: ModuloSistema.RECEPCION,
+          canRead: true,
+          canCreate: true,
+          canUpdate: true,
+          canDelete: false,
+          canExport: true,
+        },
       ]);
       expect(result[0]).not.toHaveProperty('id');
       expect(result[0]).not.toHaveProperty('rol');
+      expect(result[0]).not.toHaveProperty('canWrite');
     });
 
     it('deberia devolver un array vacio cuando el usuario no tiene permisos', () => {

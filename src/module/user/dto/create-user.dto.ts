@@ -5,8 +5,10 @@ import {
   IsNotEmpty,
   IsInt,
   IsPositive,
+  IsOptional,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DESCRIPCION_EMPRESA_ID } from '../../../common/tenant/empresa-objetivo';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'Juan Pérez' })
@@ -28,8 +30,9 @@ export class CreateUserDto {
   @IsPositive()
   rolId!: number;
 
-  @ApiProperty({ example: 1, description: 'ID de la empresa' })
+  @ApiPropertyOptional({ example: 1, description: DESCRIPCION_EMPRESA_ID })
+  @IsOptional()
   @IsInt()
   @IsPositive()
-  empresaId!: number;
+  empresaId?: number;
 }

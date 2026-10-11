@@ -1,38 +1,63 @@
-import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
-import { ROLES } from '../../rol/constants/roles.constants';
+import {
+  AUTHENTICATED_ONLY_KEY,
+  PERMISSIONS_KEY,
+} from '../../../common/decorators/permissions.decorator';
+import { PermissionAction } from '../../../common/enums/permission-action.enum';
+import { ModuloAdministrativo } from '../../permiso/enums/modulo-administrativo.enum';
 import { EmpresaController } from '../empresa.controller';
 import { PlanesController } from '../planes.controller';
 
 /* eslint-disable @typescript-eslint/unbound-method */
 
-describe('Metadata de @Roles en endpoints de Empresa/Planes', () => {
-  it('EmpresaController no tiene @Roles a nivel de clase (los roles se definen por metodo)', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, EmpresaController)).toBeUndefined();
+const permisoDe = (handler: object): unknown =>
+  Reflect.getMetadata(PERMISSIONS_KEY, handler);
+
+describe('Metadata de permisos en endpoints de Empresa/Planes (HU-72)', () => {
+  it('EmpresaController no tiene permisos a nivel de clase (se definen por metodo)', () => {
+    expect(permisoDe(EmpresaController)).toBeUndefined();
   });
 
-  it('findAll (listado admin de empresas) requiere ROLES.ADMINISTRADOR', () => {
-    expect(
-      Reflect.getMetadata(ROLES_KEY, EmpresaController.prototype.findAll),
-    ).toEqual([ROLES.ADMINISTRADOR]);
+  it.each([
+    ['create', PermissionAction.CREATE],
+    ['findAll', PermissionAction.READ],
+    ['findOne', PermissionAction.READ],
+    ['update', PermissionAction.UPDATE],
+    ['activate', PermissionAction.UPDATE],
+    ['deactivate', PermissionAction.UPDATE],
+    ['activarModulo', PermissionAction.UPDATE],
+    ['desactivarModulo', PermissionAction.UPDATE],
+    ['remove', PermissionAction.DELETE],
+  ] as const)('%s requiere PLATAFORMA %s', (metodo, action) => {
+    expect(permisoDe(EmpresaController.prototype[metodo])).toEqual({
+      modulo: ModuloAdministrativo.PLATAFORMA,
+      action,
+    });
   });
 
-  it('findOne requiere ROLES.ADMINISTRADOR', () => {
+  it.each(['updateIdentidad', 'uploadLogo', 'deleteLogo'] as const)(
+    '%s requiere CONFIGURACION_EMPRESA UPDATE',
+    (metodo) => {
+      expect(permisoDe(EmpresaController.prototype[metodo])).toEqual({
+        modulo: ModuloAdministrativo.CONFIGURACION_EMPRESA,
+        action: PermissionAction.UPDATE,
+      });
+    },
+  );
+
+  it('findMine (GET /empresa/me) es @AuthenticatedOnly: cualquier autenticado ve su empresa', () => {
     expect(
-      Reflect.getMetadata(ROLES_KEY, EmpresaController.prototype.findOne),
-    ).toEqual([ROLES.ADMINISTRADOR]);
+      Reflect.getMetadata(
+        AUTHENTICATED_ONLY_KEY,
+        EmpresaController.prototype.findMine,
+      ),
+    ).toBe(true);
+    expect(permisoDe(EmpresaController.prototype.findMine)).toBeUndefined();
   });
 
-  // findMine (GET /empresa/me) no lleva @Roles(): cualquier rol autenticado
-  // puede ver los datos de su propia empresa (ver EmpresaService.findMine).
-  it('findMine (GET /empresa/me) no tiene restriccion de rol -- abierto a cualquier autenticado', () => {
-    expect(
-      Reflect.getMetadata(ROLES_KEY, EmpresaController.prototype.findMine),
-    ).toBeUndefined();
-  });
-
-  it('GET /planes requiere ROLES.ADMINISTRADOR', () => {
-    expect(
-      Reflect.getMetadata(ROLES_KEY, PlanesController.prototype.findAll),
-    ).toEqual([ROLES.ADMINISTRADOR]);
+  it('GET /planes requiere PLATAFORMA READ', () => {
+    expect(permisoDe(PlanesController.prototype.findAll)).toEqual({
+      modulo: ModuloAdministrativo.PLATAFORMA,
+      action: PermissionAction.READ,
+    });
   });
 });

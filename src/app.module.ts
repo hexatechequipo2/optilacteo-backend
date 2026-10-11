@@ -28,6 +28,12 @@ import { InternalModule } from './module/internal/internal.module';
 import { DestinoProductivoModule } from './module/destino-productivo/destino-productivo.module';
 // --- NUEVO (HU-51) ---
 import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-volumen.module';
+import { RetencionModule } from './module/retencion/retencion.module';
+import { DatasetMlModule } from './module/dataset-ml/dataset-ml.module';
+import { EstabilidadProveedorModule } from './module/estabilidad-proveedor/estabilidad-proveedor.module';
+import { JwtAuthGuard } from './module/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from './common/guards/permissions.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -72,8 +78,15 @@ import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-
     InternalModule,
     DestinoProductivoModule,
     PrediccionVolumenModule,
+    RetencionModule,
+    DatasetMlModule,
+    EstabilidadProveedorModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },     // 1º autentica
+    { provide: APP_GUARD, useClass: PermissionsGuard }, // 2º autoriza
+  ],
 })
 export class AppModule {}

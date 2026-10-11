@@ -13,6 +13,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from './decorators/public.decorator';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { TipoAccion } from '../audit/enums/tipo-accion.enum';
 
 @ApiTags('Auth — Reset de contraseña')
 @Controller()
@@ -27,7 +28,7 @@ export class PasswordResetController {
   // enumeración automatizada y abuso del SMTP sin afectar uso real.
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
-  @AuditLog('PASSWORD_REQUEST', 'Usuario')
+  @AuditLog('PASSWORD_REQUEST', 'Usuario', TipoAccion.EDICION)
   @ApiOperation({
     summary: 'Solicitar restablecimiento de contraseña',
     description:
@@ -64,7 +65,7 @@ export class PasswordResetController {
   // en profundidad no está de más).
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
-  @AuditLog('PASSWORD_RESET', 'Usuario')
+  @AuditLog('PASSWORD_RESET', 'Usuario', TipoAccion.EDICION)
   @ApiOperation({
     summary: 'Confirmar nueva contraseña',
     description:

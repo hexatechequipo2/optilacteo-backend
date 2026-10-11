@@ -7,6 +7,7 @@ import {
 } from '@nestjs/throttler';
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
+import { PermisoService } from '../../permiso/permiso.service';
 
 function buildLoginContext(ip: string): ExecutionContext {
   const request = { ip, headers: {} };
@@ -39,6 +40,7 @@ describe('Rate limiting real de POST /auth/login', () => {
           provide: AuthService,
           useValue: { login: jest.fn(), logout: jest.fn(), refresh: jest.fn() },
         },
+        { provide: PermisoService, useValue: {} },
       ],
     }).compile();
 

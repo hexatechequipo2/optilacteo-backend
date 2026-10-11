@@ -33,11 +33,29 @@ export class ConfiguracionParametro {
   @Column({ name: 'tipo_materia_prima', type: 'enum', enum: TipoMateriaPrima })
   tipoMateriaPrima!: TipoMateriaPrima;
 
+  // HU-40: banda de alerta (amarillo). Debe cumplir
+  // umbralAlertaMin <= umbralMin <= umbralMax <= umbralAlertaMax.
+  @Column({
+    name: 'umbral_alerta_min',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+  })
+  umbralAlertaMin!: number;
+
   @Column({ name: 'umbral_min', type: 'decimal', precision: 10, scale: 2 })
   umbralMin!: number;
 
   @Column({ name: 'umbral_max', type: 'decimal', precision: 10, scale: 2 })
   umbralMax!: number;
+
+  @Column({
+    name: 'umbral_alerta_max',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+  })
+  umbralAlertaMax!: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

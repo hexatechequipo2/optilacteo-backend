@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   Index,
 } from 'typeorm';
+import { TipoAccion } from '../enums/tipo-accion.enum';
 
 @Entity('audit_log')
 export class AuditLog {
@@ -14,28 +15,35 @@ export class AuditLog {
   @Column({ type: 'int', nullable: true })
   userId!: number | null;
 
-  // Se denormaliza el email: si el usuario se desactiva o elimina más
-  // adelante, el log de auditoría no debe perder la trazabilidad de quién
-  // hizo la acción.
   @Column()
   userEmail!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  userNombre!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  userRol!: string | null;
 
   @Index()
   @Column({ type: 'int', nullable: true })
   empresaId!: number | null;
 
-  // Ej: 'PROVEEDOR_ELIMINAR', 'USUARIO_DESACTIVAR', 'ROL_MODIFICAR'
   @Column()
   accion!: string;
 
-  // Ej: 'Proveedor', 'Usuario', 'Rol'
   @Column()
   entidad!: string;
 
   @Column({ type: 'int', nullable: true })
   entidadId!: number | null;
 
-  // Contexto adicional opcional (ej: valores anteriores/nuevos en un update)
+  @Index()
+  @Column({ type: 'varchar' })
+  tipo!: TipoAccion;
+
+  @Column({ type: 'text', nullable: true })
+  descripcion!: string | null;
+
   @Column({ type: 'jsonb', nullable: true })
   detalle!: Record<string, unknown> | null;
 

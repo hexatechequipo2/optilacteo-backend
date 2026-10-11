@@ -2,154 +2,248 @@ import { MedicionManualMapper } from '../mappers/medicion-manual.mapper';
 import { CreateMedicionManualLoteDto } from '../dto/create-medicion-manual-lote.dto';
 import { MedicionManualLote } from '../entities/medicion-manual-lote.entity';
 import { ConfiguracionParametro } from '../../config-parametro/entities/config-parametro.entity';
-import { EstadoMedicion } from '../../lectura-sensor/enums/estado-medicion.enum';
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { SemaforoService } from '../../config-parametro/semaforo.service';
 
 describe('MedicionManualMapper', () => {
+  const semaforoService = {
+    calcularEstado: jest.fn(),
+  } as unknown as SemaforoService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('toEntities', () => {
-    it('debe mapear correctamente un DTO con sus parámetros a un array de entidades parciales', () => {
-      const dto: CreateMedicionManualLoteDto = {
+    it('debe construir una entidad parcial por cada parámetro', () => {
+      const dto = {
         tipoMateriaPrima: 'LECHE',
         parametros: [
-          { parametro: 'TEMP', valor: 4.5 },
-          { parametro: 'PH', valor: 6.7 },
+          { parametro: 'temperatura', valor: 4 },
+          { parametro: 'ph', valor: 6.5 },
         ],
-      } as any;
+      } as unknown as CreateMedicionManualLoteDto;
 
-      const loteId = 10;
-      const empresaId = 1;
-      const usuarioId = 5;
+      const resultado = MedicionManualMapper.toEntities(dto, 10, 20, 30);
 
-      const result = MedicionManualMapper.toEntities(
-        dto,
-        loteId,
-        empresaId,
-        usuarioId,
-      );
+      expect(resultado).toEqual([
+        {
+          loteId: 10,
+          empresaId: 20,
+          usuarioId: 30,
+          tipoMateriaPrima: dto.tipoMateriaPrima,
+          parametro: 'temperatura',
+          valor: 4,
+        },
+        {
+          loteId: 10,
+          empresaId: 20,
+          usuarioId: 30,
+          tipoMateriaPrima: dto.tipoMateriaPrima,
+          parametro: 'ph',
+          valor: 6.5,
+        },
+      ]);
+    });
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
-        loteId: 10,
-        empresaId: 1,
-        usuarioId: 5,
+    it('debe devolver un array vacío si no hay parámetros', () => {
+      const dto = {
         tipoMateriaPrima: 'LECHE',
-        parametro: 'TEMP',
-        valor: 4.5,
-      });
-      expect(result[1]).toEqual({
-        loteId: 10,
-        empresaId: 1,
-        usuarioId: 5,
-        tipoMateriaPrima: 'LECHE',
-        parametro: 'PH',
-        valor: 6.7,
-      });
+        parametros: [],
+      } as unknown as CreateMedicionManualLoteDto;
+
+      expect(MedicionManualMapper.toEntities(dto, 1, 2, 3)).toEqual([]);
     });
   });
 
   describe('toResponseItem', () => {
-    const mockEntity: MedicionManualLote = {
-      id: 100,
-      parametro: 'TEMP',
-      valor: '5.5' as any, // Simula valor almacenado como string/decimal en BD
-      createdAt: new Date('2026-07-31T10:00:00Z'),
-      tipoMateriaPrima: 'LECHE',
-    } as unknown as MedicionManualLote;
+    it('debe convertir la entidad y calcular el estado', () => {
+      const fecha = new Date('2026-08-01T10:00:00.000Z');
+      const estado = 'NORMAL';
 
-    it('debe devolver estado SIN_UMBRAL_CONFIGURADO si no existe configuración', () => {
-      const result = MedicionManualMapper.toResponseItem(mockEntity, undefined);
+      const entity = {
+        id: 15,
+        parametro: 'temperatura',
+        valor: '4.5',
+        createdAt: fecha,
+      } as unknown as MedicionManualLote;
 
-      expect(result.id).toBe(100);
-      expect(result.parametro).toBe('TEMP');
-      expect(result.valor).toBe(5.5); // Verifica conversión a Number
-      expect(result.estado).toBe(EstadoMedicion.SIN_UMBRAL_CONFIGURADO);
-      expect(result.createdAt).toEqual(mockEntity.createdAt);
-    });
-
-    it('debe devolver estado NORMAL si el valor está dentro de los umbrales', () => {
-      const config: ConfiguracionParametro = {
-        umbralMin: 2.0,
-        umbralMax: 8.0,
+      const config = {
+        parametro: 'temperatura',
       } as ConfiguracionParametro;
 
-      const result = MedicionManualMapper.toResponseItem(mockEntity, config);
+      (semaforoService.calcularEstado as jest.Mock).mockReturnValue(estado);
 
-      expect(result.estado).toBe(EstadoMedicion.NORMAL);
+      const resultado = MedicionManualMapper.toResponseItem(
+        entity,
+        config,
+        semaforoService,
+      );
+
+      expect(resultado.id).toBe(15);
+      expect(resultado.parametro).toBe('temperatura');
+      expect(resultado.valor).toBe(4.5);
+      expect(resultado.estado).toBe(estado);
+      expect(resultado.createdAt).toBe(fecha);
+      expect(semaforoService.calcularEstado).toHaveBeenCalledWith(4.5, config);
     });
 
-    it('debe devolver estado NORMAL en los valores límite (inclusivo)', () => {
-      const config: ConfiguracionParametro = {
-        umbralMin: 5.5,
-        umbralMax: 5.5,
-      } as ConfiguracionParametro;
+    it('debe aceptar una configuración de umbral indefinida', () => {
+      const entity = {
+        id: 16,
+        parametro: 'ph',
+        valor: '6.2',
+        createdAt: new Date('2026-08-02T10:00:00.000Z'),
+      } as unknown as MedicionManualLote;
 
-      const result = MedicionManualMapper.toResponseItem(mockEntity, config);
+      const estado = 'SIN_UMBRAL_CONFIGURADO';
 
-      expect(result.estado).toBe(EstadoMedicion.NORMAL);
+      (semaforoService.calcularEstado as jest.Mock).mockReturnValue(estado);
+
+      const resultado = MedicionManualMapper.toResponseItem(
+        entity,
+        undefined,
+        semaforoService,
+      );
+
+      expect(resultado.valor).toBe(6.2);
+      expect(resultado.estado).toBe(estado);
+      expect(semaforoService.calcularEstado).toHaveBeenCalledWith(
+        6.2,
+        undefined,
+      );
     });
 
-    it('debe devolver estado FUERA_DE_RANGO si el valor es menor al umbral mínimo', () => {
-      const config: ConfiguracionParametro = {
-        umbralMin: 6.0,
-        umbralMax: 10.0,
-      } as ConfiguracionParametro;
+    it('debe convertir un valor numérico almacenado como string', () => {
+      const entity = {
+        id: 17,
+        parametro: 'humedad',
+        valor: '12',
+        createdAt: new Date(),
+      } as unknown as MedicionManualLote;
 
-      const result = MedicionManualMapper.toResponseItem(mockEntity, config);
+      (semaforoService.calcularEstado as jest.Mock).mockReturnValue('EN_LIMITE');
 
-      expect(result.estado).toBe(EstadoMedicion.FUERA_DE_RANGO);
-    });
+      const resultado = MedicionManualMapper.toResponseItem(
+        entity,
+        undefined,
+        semaforoService,
+      );
 
-    it('debe devolver estado FUERA_DE_RANGO si el valor es mayor al umbral máximo', () => {
-      const config: ConfiguracionParametro = {
-        umbralMin: 1.0,
-        umbralMax: 5.0,
-      } as ConfiguracionParametro;
-
-      const result = MedicionManualMapper.toResponseItem(mockEntity, config);
-
-      expect(result.estado).toBe(EstadoMedicion.FUERA_DE_RANGO);
+      expect(resultado.valor).toBe(12);
+      expect(resultado.estado).toBe('EN_LIMITE');
     });
   });
 
   describe('toResponseItemList', () => {
-    it('debe mapear una lista de entidades utilizando el mapa de configuración', () => {
-      const entities: MedicionManualLote[] = [
+    it('debe usar la configuración correspondiente a cada parámetro y materia prima', () => {
+      const fecha1 = new Date('2026-08-01T10:00:00.000Z');
+      const fecha2 = new Date('2026-08-01T11:00:00.000Z');
+
+      const entities = [
         {
           id: 1,
-          parametro: 'TEMP',
+          parametro: 'temperatura',
+          valor: '4',
           tipoMateriaPrima: 'LECHE',
-          valor: 4,
-          createdAt: new Date(),
-        } as unknown as MedicionManualLote,
+          createdAt: fecha1,
+        },
         {
           id: 2,
-          parametro: 'PH',
+          parametro: 'ph',
+          valor: '6.5',
           tipoMateriaPrima: 'LECHE',
-          valor: 8.5,
-          createdAt: new Date(),
-        } as unknown as MedicionManualLote,
-      ];
+          createdAt: fecha2,
+        },
+      ] as unknown as MedicionManualLote[];
 
-      const configTemp: ConfiguracionParametro = {
-        umbralMin: 2,
-        umbralMax: 6,
+      const configTemperatura = {
+        parametro: 'temperatura',
       } as ConfiguracionParametro;
 
-      const configMap = new Map<string, ConfiguracionParametro>();
-      configMap.set('TEMP|LECHE', configTemp); // 'PH|LECHE' no se agrega para probar SIN_UMBRAL
+      const configPh = {
+        parametro: 'ph',
+      } as ConfiguracionParametro;
 
-      const results = MedicionManualMapper.toResponseItemList(
+      const mapaConfig = new Map<string, ConfiguracionParametro>([
+        ['temperatura|LECHE', configTemperatura],
+        ['ph|LECHE', configPh],
+      ]);
+
+      (semaforoService.calcularEstado as jest.Mock)
+        .mockReturnValueOnce('NORMAL')
+        .mockReturnValueOnce('FUERA_DE_RANGO');
+
+      const resultado = MedicionManualMapper.toResponseItemList(
         entities,
-        configMap,
+        mapaConfig,
+        semaforoService,
       );
 
-      expect(results).toHaveLength(2);
+      expect(resultado).toHaveLength(2);
+      expect(resultado[0]).toMatchObject({
+        id: 1,
+        parametro: 'temperatura',
+        valor: 4,
+        estado: 'NORMAL',
+        createdAt: fecha1,
+      });
+      expect(resultado[1]).toMatchObject({
+        id: 2,
+        parametro: 'ph',
+        valor: 6.5,
+        estado: 'FUERA_DE_RANGO',
+        createdAt: fecha2,
+      });
 
-      expect(results[0].id).toBe(1);
-      expect(results[0].estado).toBe(EstadoMedicion.NORMAL);
+      expect(semaforoService.calcularEstado).toHaveBeenNthCalledWith(
+        1,
+        4,
+        configTemperatura,
+      );
+      expect(semaforoService.calcularEstado).toHaveBeenNthCalledWith(
+        2,
+        6.5,
+        configPh,
+      );
+    });
 
-      expect(results[1].id).toBe(2);
-      expect(results[1].estado).toBe(EstadoMedicion.SIN_UMBRAL_CONFIGURADO);
+    it('debe devolver un array vacío si no hay mediciones', () => {
+      const resultado = MedicionManualMapper.toResponseItemList(
+        [],
+        new Map<string, ConfiguracionParametro>(),
+        semaforoService,
+      );
+
+      expect(resultado).toEqual([]);
+      expect(semaforoService.calcularEstado).not.toHaveBeenCalled();
+    });
+
+    it('debe pasar undefined si no existe configuración para el parámetro', () => {
+      const entities = [
+        {
+          id: 3,
+          parametro: 'densidad',
+          valor: '1.2',
+          tipoMateriaPrima: 'LECHE',
+          createdAt: new Date(),
+        },
+      ] as unknown as MedicionManualLote[];
+
+      (semaforoService.calcularEstado as jest.Mock).mockReturnValue(
+        'SIN_UMBRAL_CONFIGURADO',
+      );
+
+      const resultado = MedicionManualMapper.toResponseItemList(
+        entities,
+        new Map<string, ConfiguracionParametro>(),
+        semaforoService,
+      );
+
+      expect(resultado[0].estado).toBe('SIN_UMBRAL_CONFIGURADO');
+      expect(semaforoService.calcularEstado).toHaveBeenCalledWith(
+        1.2,
+        undefined,
+      );
     });
   });
 });

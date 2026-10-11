@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
 import { ConfigParametroController } from '../config-parametro.controller';
 import { ConfigParametroService } from '../config-parametro.service';
+import { AUDIT_KEY } from '../../audit/decorators/audit-log.decorator';
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
@@ -101,5 +102,44 @@ describe('ConfigParametroController', () => {
       expect(mockService.eliminar).toHaveBeenCalledWith(5, 1);
       expect(resultado).toEqual({ message: 'ok' });
     });
+  });
+
+    describe('descripciones de auditoría', () => {
+    const descripcionDe = (metodo: Function) => {
+      const meta = Reflect.getMetadata(AUDIT_KEY, metodo);
+      return meta.descripcion as (ctx: { responseBody?: unknown }) => string;
+    };
+
+    it.each([
+      ['crear', 'creado'],
+      ['editar', 'modificado'],
+    ] as const)('%s arma el texto con los datos de la respuesta', (nombre, verbo) => {
+      const descripcion = descripcionDe(controller[nombre]);
+
+      expect(
+        descripcion({
+          responseBody: {
+            parametro: 'PH',
+            tipoMateriaPrima: 'LECHE',
+            umbralMin: 6,
+            umbralMax: 7,
+          },
+        }),
+      ).toBe(`Umbral de PH ${verbo} para LECHE: 6 - 7`);
+    });
+
+    it.each(['crear', 'editar'] as const)(
+      '%s usa "?" cuando la respuesta no trae datos',
+      (nombre) => {
+        const descripcion = descripcionDe(controller[nombre]);
+
+        expect(descripcion({ responseBody: undefined })).toContain(
+          'Umbral de ? ',
+        );
+        expect(descripcion({ responseBody: undefined })).toContain(
+          'para ?: ? - ?',
+        );
+      },
+    );
   });
 });
