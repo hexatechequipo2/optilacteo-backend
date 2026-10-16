@@ -23,6 +23,7 @@ export const DEMO_TEMPERATURA_INICIAL_DEFAULT = 4;
 // GET /demo/tablero: vida del cache en memoria de la respuesta completa.
 export const DEMO_TABLERO_CACHE_MS = 1_000;
 
-// Rate limits (ttl en ms, @nestjs/throttler v6).
-export const DEMO_THROTTLE_TURNO = { limit: 10, ttl: 60_000 };
+// Rate limits (ttl en ms, @nestjs/throttler v6). /demo/turno es por IP y
+// el día del evento todos los visitantes comparten la del wifi.
+export const DEMO_THROTTLE_TURNO = { limit: 60, ttl: 60_000 };
 export const DEMO_THROTTLE_LECTURAS = { limit: 10, ttl: 1_000 };

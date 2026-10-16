@@ -28,6 +28,8 @@ idempotente) e imprime los IDs para las variables de arriba.
    el separador es ` · `, con espacios). Son exclusivos de la demo: al tomar
    un turno pasan a `Sensor N · {nombre}` y la ingesta identifica al sensor
    por nombre, así que ningún simulador ni PLC debe mandarles lecturas.
+   El seed les pone `umbralDesconexionMinutos = 525600` (un año) para que el
+   cron de desconexión no alerte mientras no hay visitantes.
 2. **Umbral** de temperatura para `leche_cruda` (Configuración de
    parámetros). Define APTO/NO_APTO, los desvíos y las alertas. El lote
    arranca con la temperatura en el punto medio del rango.
@@ -49,11 +51,11 @@ idempotente) e imprime los IDs para las variables de arriba.
 
 | Método | Ruta                         | Qué hace |
 | ------ | ---------------------------- | -------- |
-| POST   | `/demo/turno`                | `{ sensorId, nombre }` → crea el lote (`DEMO-{sensorId}-{timestamp}`), le asocia el sensor y lo renombra. Devuelve `{ loteId }`. Puede tardar hasta 3 s si la IA no responde. |
+| POST   | `/demo/turno`                | `{ sensorId?, nombre }` → crea el lote (`DEMO-{sensorId}-{timestamp}`), le asocia el sensor y lo renombra. Sin `sensorId` asigna el sensor disponible (libre o con el turno vencido) de menor N. Devuelve `{ loteId, sensorId, numero }`. Puede tardar hasta 3 s si la IA no responde. |
 | POST   | `/demo/lecturas`             | `{ loteId, sensorId, valor }` → `LecturaSensorService.ingresar()`. |
 | POST   | `/demo/turno/:loteId/fin`    | Libera el sensor, clasifica (sincrónico), pide el destino a la IA con la última lectura y devuelve el resumen. |
 | GET    | `/demo/lotes/:id/resumen`    | El mismo resumen, solo lectura (por si se recarga la página). |
-| GET    | `/demo/tablero`              | Para la tele: cada sensor con su visitante, lote, última temperatura, semáforo (umbralMin/Max), clasificación, desvíos y alertas. Seis consultas fijas. Un sensor libre muestra su último turno con `ocupado: false`. |
+| GET    | `/demo/tablero`              | Para la tele: cada sensor con su visitante, lote, última temperatura, semáforo (umbralMin/Max), clasificación, desvíos y alertas. Seis consultas fijas. Un sensor libre, o con un turno vencido (más de 60 s sin actividad, el mismo criterio que permite tomarlo), muestra su último turno con `ocupado: false`. Cada fila trae el `estado` del sensor y `disponible` (activo y no ocupado: se puede tomar). |
 
 Resumen: `estado` (APTO/NO_APTO), `desvios` (episodios: veces que la
 lectura pasó de dentro a fuera del umbral), `alertas` (sin repetir por
@@ -67,13 +69,20 @@ destinatario), `destinoSugerido` (`null` si la IA no respondió) y
 - La toma del sensor es atómica: un `UPDATE ... WHERE nombre = <el leído>`.
   Si dos visitantes eligen el mismo sensor a la vez, uno recibe 409. Si
   después falla crear o asociar el lote, el sensor vuelve a `· libre`.
+- Con `sensorId`, un sensor que no está `activo` → 409, antes de renombrarlo
+  o crear el lote.
+- Sin `sensorId`: se recorren los sensores ACTIVOS por N y se toma el
+  primero libre o vencido, con la misma toma atómica; si otro visitante lo
+  gana en el medio, se prueba con el siguiente. Si no queda ninguno → 409
+  "Todos los sensores están en uso".
 - Valor fuera del rango físico (`RANGOS_FISICOS`) → 400, antes de la
   ingesta, para que el sensor no quede en FALLA.
 - Lecturas con el turno terminado (`· libre`) → 409.
 - `/fin` solo libera el sensor (y genera la recomendación) si la última
   asociación del sensor es ese lote y nadie lo está tomando en ese momento.
   Si no, devuelve el resumen sin tocar el sensor.
-- Rate limit: `/demo/turno` 10 por minuto por IP (último valor de
+- Rate limit: `/demo/turno` 60 por minuto por IP (el día del evento todos
+  los visitantes comparten la del wifi; se toma el último valor de
   `X-Forwarded-For`, el que agrega el proxy de Railway; sin header,
   `req.ip`); `/demo/lecturas` 10 por segundo por `loteId`. `/demo/tablero`
   no tiene rate limit, pero cachea la respuesta 1 s. Los contadores, el
@@ -127,7 +136,7 @@ del frontend, ya está.
 
 Verificar después del deploy:
 
-- `GET /demo/tablero` responde 200 con los 4 sensores.
+- `GET /demo/tablero` responde 200 con los 8 sensores.
 - En los logs del backend, el primer `POST /demo/turno` imprime
   `[temporal] X-Forwarded-For="…" req.ip=…`. Confirmar que el último
   valor del header es la IP real del celular (y distinta entre dos

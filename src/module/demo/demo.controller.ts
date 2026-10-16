@@ -44,13 +44,18 @@ export class DemoController {
   @UseGuards(DemoIpThrottlerGuard)
   @Throttle({ default: DEMO_THROTTLE_TURNO })
   @ApiOperation({
-    summary: 'Inicia un turno: crea un lote demo y le asocia el sensor',
+    summary:
+      'Inicia un turno: crea un lote demo y le asocia el sensor elegido o, sin sensorId, el disponible de menor N',
   })
   @ApiResponse({ status: 201, type: TurnoDemoResponseDto })
   @ApiResponse({ status: 404, description: 'Sensor fuera de la empresa demo' })
-  @ApiResponse({ status: 409, description: 'Sensor en uso o no es de demo' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Sensor en uso o no es de demo; sin sensorId: "Todos los sensores están en uso"',
+  })
   @ApiTooManyRequestsResponse({
-    description: 'Más de 10 turnos por minuto desde la misma IP',
+    description: 'Más de 60 turnos por minuto desde la misma IP',
   })
   iniciarTurno(
     @Body() dto: IniciarTurnoDemoDto,

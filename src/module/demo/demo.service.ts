@@ -16,6 +16,7 @@ import type { ISensorLoteHistorialRepository } from '../sensor/repository/sensor
 import { SENSOR_LOTE_HISTORIAL_REPOSITORY } from '../sensor/repository/sensor-lote-historial.repository.interface';
 import { SensorService } from '../sensor/sensor.service';
 import type { Sensor } from '../sensor/entities/sensor.entity';
+import { EstadoSensor } from '../sensor/enums/estado-sensor.enum';
 
 import type { ILoteRepository } from '../lote/repository/lote-repository.interface';
 import { LOTE_REPOSITORY } from '../lote/repository/lote-repository.interface';
@@ -125,12 +126,24 @@ export class DemoService {
   // ============================================================
 
   async iniciarTurno(dto: IniciarTurnoDemoDto): Promise<TurnoDemoResponseDto> {
-    const empresaId = this.config.empresaId;
+    // sensorId null o ausente → asignación automática (@Min(1) descarta el 0).
+    return dto.sensorId
+      ? this.iniciarTurnoEnSensor(dto.sensorId, dto.nombre)
+      : this.iniciarTurnoEnSensorDisponible(dto.nombre);
+  }
 
-    const sensor = await this.sensorRepository.findOne(dto.sensorId, empresaId);
+  // Con sensorId: el visitante eligió el sensor.
+  private async iniciarTurnoEnSensor(
+    sensorId: number,
+    nombreVisitante: string,
+  ): Promise<TurnoDemoResponseDto> {
+    const sensor = await this.sensorRepository.findOne(
+      sensorId,
+      this.config.empresaId,
+    );
     if (!sensor) {
       throw new NotFoundException(
-        `Sensor ${dto.sensorId} no encontrado en la empresa demo.`,
+        `Sensor ${sensorId} no encontrado en la empresa demo.`,
       );
     }
 
@@ -145,42 +158,111 @@ export class DemoService {
         `El sensor "${sensor.nombre}" no mide temperatura y no sirve para la demo.`,
       );
     }
+    // asociarALote exige ACTIVO: se rechaza antes de renombrar el sensor y
+    // crear un lote que quedaría sin turno.
+    if (sensor.estado !== EstadoSensor.ACTIVO) {
+      throw new ConflictException(
+        `El sensor "${sensor.nombre}" no está activo (estado: ${sensor.estado}). Probá con otro.`,
+      );
+    }
     if (nombreActual.ocupante !== DEMO_OCUPANTE_LIBRE) {
       await this.validarTurnoAbandonado(sensor);
     }
 
-    // Se marca ANTES del UPDATE: un /fin que lea el nombre nuevo ya ve la
-    // marca, y uno que leyó el nombre viejo falla en su UPDATE condicional.
-    if (this.tomasEnCurso.has(sensor.id)) {
+    const turno = await this.intentarTomar(
+      sensor,
+      nombreActual,
+      nombreVisitante,
+    );
+    if (!turno) {
       throw new ConflictException(
         `El sensor "${sensor.nombre}" acaba de ser tomado por otra persona.`,
       );
     }
+    return turno;
+  }
+
+  // Sin sensorId: se asigna el sensor disponible (libre o con el turno
+  // vencido) de menor N. Los candidatos salen de dos consultas fijas
+  // (sensores + última asociación de cada uno). Si otro visitante gana un
+  // candidato entre la lectura y el UPDATE, se prueba con el siguiente.
+  private async iniciarTurnoEnSensorDisponible(
+    nombreVisitante: string,
+  ): Promise<TurnoDemoResponseDto> {
+    const empresaId = this.config.empresaId;
+
+    const sensores = (
+      await this.sensorRepository.findAll(
+        { parametro: Parametro.TEMPERATURA },
+        empresaId,
+      )
+    )
+      .map((sensor) => ({ sensor, nombre: this.parsearNombre(sensor.nombre) }))
+      .filter(
+        (s): s is { sensor: Sensor; nombre: NombreSensorDemo } =>
+          s.nombre !== null,
+      )
+      .sort((a, b) => a.nombre.numero - b.nombre.numero);
+
+    const asociaciones = await this.historialRepository.findUltimosPorSensores(
+      sensores.map((s) => s.sensor.id),
+      empresaId,
+    );
+    const fechaAsociacionPorSensor = new Map(
+      asociaciones.map((a) => [a.sensorId, a.fecha]),
+    );
+
+    for (const { sensor, nombre } of sensores) {
+      const fechaAsociacion = fechaAsociacionPorSensor.get(sensor.id) ?? null;
+      if (!this.estaDisponible(sensor, nombre, fechaAsociacion)) continue;
+
+      if (nombre.ocupante !== DEMO_OCUPANTE_LIBRE) {
+        this.logger.warn(
+          `Turno abandonado en "${sensor.nombre}" (id ${sensor.id}): se reasigna.`,
+        );
+      }
+      const turno = await this.intentarTomar(sensor, nombre, nombreVisitante);
+      if (turno) return turno;
+    }
+
+    throw new ConflictException('Todos los sensores están en uso');
+  }
+
+  // Toma el sensor y le crea el lote. Devuelve null si otro turno lo ganó
+  // (toma en curso o UPDATE condicional sin filas); cualquier otro error
+  // se propaga, con el sensor de vuelta en "· libre".
+  private async intentarTomar(
+    sensor: Sensor,
+    nombreActual: NombreSensorDemo,
+    nombreVisitante: string,
+  ): Promise<TurnoDemoResponseDto | null> {
+    // Se marca ANTES del UPDATE: un /fin que lea el nombre nuevo ya ve la
+    // marca, y uno que leyó el nombre viejo falla en su UPDATE condicional.
+    if (this.tomasEnCurso.has(sensor.id)) return null;
     this.tomasEnCurso.add(sensor.id);
 
     try {
       // Toma atómica: el nombre solo cambia si sigue siendo el que se leyó
       // ("· libre" o el del turno vencido). Si otro turno lo tomó en el
       // medio, el UPDATE afecta 0 filas. Recién después se crea el lote.
-      const nombreTomado = this.nombreSensor(nombreActual.numero, dto.nombre);
+      const nombreTomado = this.nombreSensor(
+        nombreActual.numero,
+        nombreVisitante,
+      );
       const tomado = await this.demoRepository.reemplazarNombreSensor(
         sensor.id,
-        empresaId,
+        this.config.empresaId,
         sensor.nombre,
         nombreTomado,
       );
-      if (!tomado) {
-        throw new ConflictException(
-          `El sensor "${sensor.nombre}" acaba de ser tomado por otra persona.`,
-        );
-      }
+      if (!tomado) return null;
 
       try {
         const loteId = await this.crearLoteYAsociar(sensor.id);
         this.logger.log(
           `Turno demo iniciado: sensor ${sensor.id} → lote ${loteId}`,
         );
-        return { loteId };
+        return { loteId, sensorId: sensor.id, numero: nombreActual.numero };
       } catch (err) {
         await this.liberarSensorTomado(
           sensor.id,
@@ -364,8 +446,8 @@ export class DemoService {
 
   // Seis consultas en total, sin importar cuántos sensores haya: sensores,
   // última asociación de cada uno, y en paralelo lotes, lecturas, alertas
-  // y umbral. Para un sensor libre se muestran los datos de su último
-  // turno (ocupado = false).
+  // y umbral. Para un sensor libre, o con un turno vencido, se muestran
+  // los datos de su último turno (ocupado = false).
   private async calcularTablero(): Promise<TableroDemoResponseDto> {
     const empresaId = this.config.empresaId;
 
@@ -386,10 +468,10 @@ export class DemoService {
       sensores.map((s) => s.sensor.id),
       empresaId,
     );
-    const loteIdPorSensor = new Map(
-      asociaciones.map((a) => [a.sensorId, a.loteIdNuevo]),
+    const asociacionPorSensor = new Map(
+      asociaciones.map((a) => [a.sensorId, a]),
     );
-    const loteIds = [...new Set(loteIdPorSensor.values())];
+    const loteIds = [...new Set(asociaciones.map((a) => a.loteIdNuevo))];
 
     const [lotes, lecturas, alertasPorLote, umbrales] = await Promise.all([
       this.demoRepository.findLotes(loteIds, empresaId),
@@ -416,11 +498,14 @@ export class DemoService {
         ? { min: Number(umbral.umbralMin), max: Number(umbral.umbralMax) }
         : null,
       sensores: sensores.map(({ sensor, nombre }) => {
-        const loteId = loteIdPorSensor.get(sensor.id);
-        const lote = loteId !== undefined ? lotePorId.get(loteId) : undefined;
+        const asociacion = asociacionPorSensor.get(sensor.id);
+        const lote = asociacion
+          ? lotePorId.get(asociacion.loteIdNuevo)
+          : undefined;
         return this.filaTablero(
           sensor,
           nombre,
+          asociacion?.fecha ?? null,
           lote ?? null,
           lote ? (lecturasPorLote.get(lote.id) ?? []) : [],
           lote ? (alertasPorLote.get(lote.id) ?? 0) : 0,
@@ -433,6 +518,7 @@ export class DemoService {
   private filaTablero(
     sensor: Sensor,
     nombre: NombreSensorDemo,
+    fechaAsociacion: Date | null,
     lote: LoteDemo | null,
     lecturas: LecturaDemo[],
     alertas: number,
@@ -452,7 +538,9 @@ export class DemoService {
     return {
       id: sensor.id,
       nombre: sensor.nombre,
-      ocupado: nombre.ocupante !== DEMO_OCUPANTE_LIBRE,
+      estado: sensor.estado,
+      ocupado: this.estaOcupado(sensor, nombre, fechaAsociacion),
+      disponible: this.estaDisponible(sensor, nombre, fechaAsociacion),
       lote: lote ? { id: lote.id, codigo: lote.codigo } : null,
       ultimaTemperatura: ultima?.valor ?? null,
       ultimaLecturaEn: ultima?.timestampLectura ?? null,
@@ -490,22 +578,59 @@ export class DemoService {
     return `Sensor ${numero} · ${ocupante}`;
   }
 
+  // Para el tablero, con el mismo criterio que POST /demo/turno: un
+  // sensor con visitante cuyo turno venció se muestra libre (se puede
+  // tomar). Con una toma en curso se muestra ocupado: el nombre ya cambió
+  // pero la asociación nueva todavía no existe, así que la fecha de la
+  // vieja lo daría por vencido.
+  private estaOcupado(
+    sensor: Sensor,
+    nombre: NombreSensorDemo,
+    fechaAsociacion: Date | null,
+  ): boolean {
+    if (nombre.ocupante === DEMO_OCUPANTE_LIBRE) return false;
+    if (this.tomasEnCurso.has(sensor.id)) return true;
+    return !this.turnoVencido(sensor, fechaAsociacion);
+  }
+
+  // Mismo criterio para la asignación automática y para `disponible` del
+  // tablero: asociarALote exige ACTIVO, así que un sensor inactivo o en
+  // falla no se puede tomar aunque no tenga turno.
+  private estaDisponible(
+    sensor: Sensor,
+    nombre: NombreSensorDemo,
+    fechaAsociacion: Date | null,
+  ): boolean {
+    return (
+      sensor.estado === EstadoSensor.ACTIVO &&
+      !this.estaOcupado(sensor, nombre, fechaAsociacion)
+    );
+  }
+
   // Un turno ocupado se puede tomar si lleva más de 60 s sin actividad.
   // Actividad = la última lectura del sensor o, si el turno todavía no
   // tiene lecturas, el momento en que empezó (la última asociación). Se
   // toma la más reciente: ultimaLectura puede ser de un turno anterior.
+  private turnoVencido(
+    sensor: Sensor,
+    fechaAsociacion: Date | null | undefined,
+  ): boolean {
+    const ultimaActividad = Math.max(
+      sensor.ultimaLectura ? new Date(sensor.ultimaLectura).getTime() : 0,
+      fechaAsociacion ? new Date(fechaAsociacion).getTime() : 0,
+    );
+    return (
+      Date.now() - ultimaActividad >= DEMO_SEGUNDOS_VENCIMIENTO_TURNO * 1000
+    );
+  }
+
   private async validarTurnoAbandonado(sensor: Sensor): Promise<void> {
     const asociacion = await this.historialRepository.findUltimoPorSensor(
       sensor.id,
       this.config.empresaId,
     );
 
-    const ultimaActividad = Math.max(
-      sensor.ultimaLectura ? new Date(sensor.ultimaLectura).getTime() : 0,
-      asociacion?.fecha ? new Date(asociacion.fecha).getTime() : 0,
-    );
-
-    if (Date.now() - ultimaActividad < DEMO_SEGUNDOS_VENCIMIENTO_TURNO * 1000) {
+    if (!this.turnoVencido(sensor, asociacion?.fecha)) {
       throw new ConflictException(
         `El sensor "${sensor.nombre}" está en uso. Probá con otro o esperá un minuto.`,
       );

@@ -1,6 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { DEMO_NOMBRE_MAX_CARACTERES } from '../constants/demo.constants';
 
 // El nombre lo escribe un visitante y termina en el nombre del sensor que
@@ -18,10 +25,15 @@ export function sanitizarNombreVisitante(valor: unknown): unknown {
 }
 
 export class IniciarTurnoDemoDto {
-  @ApiProperty({ description: 'Id del sensor de la empresa demo', example: 1 })
+  @ApiPropertyOptional({
+    description:
+      'Id del sensor de la empresa demo. Si no viene, se asigna el sensor disponible (libre o con el turno vencido) de menor N.',
+    example: 1,
+  })
+  @IsOptional()
   @IsInt()
   @Min(1)
-  sensorId!: number;
+  sensorId?: number;
 
   @ApiProperty({
     description: `Nombre del visitante: solo letras, espacios y guiones, máx. ${DEMO_NOMBRE_MAX_CARACTERES} caracteres`,

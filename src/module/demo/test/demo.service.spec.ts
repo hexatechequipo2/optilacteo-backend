@@ -201,7 +201,7 @@ describe('DemoService', () => {
         nombre: 'Juan',
       });
 
-      expect(resultado).toEqual({ loteId: 50 });
+      expect(resultado).toEqual({ loteId: 50, sensorId: 1, numero: 1 });
       expect(sensorRepository.findOne).toHaveBeenCalledWith(1, EMPRESA_ID);
 
       const [dto, tenant] = loteService.create.mock.calls[0];
@@ -307,11 +307,15 @@ describe('DemoService', () => {
       ).rejects.toBeInstanceOf(ConflictException);
 
       terminarAlta({ lote: { id: 50 } });
-      await expect(primera).resolves.toEqual({ loteId: 50 });
+      await expect(primera).resolves.toEqual({
+        loteId: 50,
+        sensorId: 1,
+        numero: 1,
+      });
       // Terminada la toma, la marca se libera.
       await expect(
         service.iniciarTurno({ sensorId: 1, nombre: 'Ana' }),
-      ).resolves.toEqual({ loteId: 50 });
+      ).resolves.toEqual({ loteId: 50, sensorId: 1, numero: 1 });
     });
 
     it('si la compensación falla, igual propaga el error original', async () => {
@@ -366,6 +370,20 @@ describe('DemoService', () => {
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
+    it.each([EstadoSensor.INACTIVO, EstadoSensor.FALLA])(
+      '409 si el sensor está %s, antes de renombrarlo o crear el lote',
+      async (estado) => {
+        sensorRepository.findOne.mockResolvedValue(crearSensor({ estado }));
+
+        await expect(
+          service.iniciarTurno({ sensorId: 1, nombre: 'Juan' }),
+        ).rejects.toThrow(`no está activo (estado: ${estado})`);
+        expect(demoRepository.reemplazarNombreSensor).not.toHaveBeenCalled();
+        expect(loteService.create).not.toHaveBeenCalled();
+        expect(sensorService.asociarALote).not.toHaveBeenCalled();
+      },
+    );
+
     describe('sensor ocupado', () => {
       const AHORA = new Date('2026-10-15T12:00:00.000Z').getTime();
 
@@ -419,7 +437,7 @@ describe('DemoService', () => {
 
         await expect(
           service.iniciarTurno({ sensorId: 1, nombre: 'Juan' }),
-        ).resolves.toEqual({ loteId: 50 });
+        ).resolves.toEqual({ loteId: 50, sensorId: 1, numero: 1 });
         // Condicionado al nombre del turno vencido: si otro lo tomó
         // primero, este UPDATE no afecta filas.
         expect(demoRepository.reemplazarNombreSensor).toHaveBeenCalledWith(
@@ -429,6 +447,205 @@ describe('DemoService', () => {
           'Sensor 1 · Juan',
         );
       });
+    });
+  });
+
+  // ------------------------------------------------------------------
+  describe('iniciarTurno sin sensorId (asignación automática)', () => {
+    const AHORA = new Date('2026-10-15T12:00:00.000Z').getTime();
+
+    beforeEach(() => {
+      jest.useFakeTimers({ now: AHORA, doNotFake: ['setImmediate'] });
+      loteService.create.mockResolvedValue({ lote: { id: 50 } });
+    });
+
+    // Turno de Ana en el sensor 1: activo (lectura de hace 10 s) o vencido.
+    const anaActiva = crearSensor({
+      id: 1,
+      nombre: 'Sensor 1 · Ana',
+      ultimaLectura: new Date(AHORA - 10_000),
+    });
+    const anaVencida = crearSensor({
+      id: 1,
+      nombre: 'Sensor 1 · Ana',
+      ultimaLectura: new Date(AHORA - 61_000),
+    });
+
+    function conAsociaciones(...sensorIds: number[]): void {
+      historialRepository.findUltimosPorSensores.mockResolvedValue(
+        sensorIds.map((sensorId) => ({
+          sensorId,
+          loteIdNuevo: 40,
+          fecha: new Date(AHORA - 90_000),
+        })),
+      );
+    }
+
+    it('toma el sensor libre de menor N y devuelve { loteId, sensorId, numero }', async () => {
+      // Desordenados a propósito; el 9 no es de demo.
+      sensorRepository.findAll.mockResolvedValue([
+        crearSensor({ id: 7, nombre: 'Sensor 5 · libre' }),
+        crearSensor({ id: 9, nombre: 'TEMP-PLANTA' }),
+        crearSensor({ id: 3, nombre: 'Sensor 3 · libre' }),
+        anaActiva,
+      ]);
+      conAsociaciones(1);
+
+      await expect(service.iniciarTurno({ nombre: 'Juan' })).resolves.toEqual({
+        loteId: 50,
+        sensorId: 3,
+        numero: 3,
+      });
+      expect(sensorRepository.findAll).toHaveBeenCalledWith(
+        { parametro: Parametro.TEMPERATURA },
+        EMPRESA_ID,
+      );
+      expect(demoRepository.reemplazarNombreSensor).toHaveBeenCalledTimes(1);
+      expect(demoRepository.reemplazarNombreSensor).toHaveBeenCalledWith(
+        3,
+        EMPRESA_ID,
+        'Sensor 3 · libre',
+        'Sensor 3 · Juan',
+      );
+      expect(sensorService.asociarALote).toHaveBeenCalledWith(
+        50,
+        [3],
+        USUARIO_ID,
+        expect.anything(),
+      );
+      expect(sensorRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('un turno vencido cuenta como disponible y gana por tener menor N', async () => {
+      sensorRepository.findAll.mockResolvedValue([
+        crearSensor({ id: 2, nombre: 'Sensor 2 · libre' }),
+        anaVencida,
+      ]);
+      conAsociaciones(1);
+
+      await expect(service.iniciarTurno({ nombre: 'Juan' })).resolves.toEqual({
+        loteId: 50,
+        sensorId: 1,
+        numero: 1,
+      });
+      expect(demoRepository.reemplazarNombreSensor).toHaveBeenCalledWith(
+        1,
+        EMPRESA_ID,
+        'Sensor 1 · Ana',
+        'Sensor 1 · Juan',
+      );
+    });
+
+    it('saltea sensores no ACTIVOS', async () => {
+      sensorRepository.findAll.mockResolvedValue([
+        crearSensor({
+          id: 1,
+          nombre: 'Sensor 1 · libre',
+          estado: EstadoSensor.FALLA,
+        }),
+        crearSensor({ id: 2, nombre: 'Sensor 2 · libre' }),
+      ]);
+      conAsociaciones();
+
+      await expect(service.iniciarTurno({ nombre: 'Juan' })).resolves.toEqual({
+        loteId: 50,
+        sensorId: 2,
+        numero: 2,
+      });
+    });
+
+    it('si otro visitante gana el sensor en el UPDATE, prueba con el siguiente', async () => {
+      sensorRepository.findAll.mockResolvedValue([
+        crearSensor({ id: 1, nombre: 'Sensor 1 · libre' }),
+        crearSensor({ id: 2, nombre: 'Sensor 2 · libre' }),
+      ]);
+      conAsociaciones();
+      demoRepository.reemplazarNombreSensor.mockResolvedValueOnce(false);
+
+      await expect(service.iniciarTurno({ nombre: 'Juan' })).resolves.toEqual({
+        loteId: 50,
+        sensorId: 2,
+        numero: 2,
+      });
+      expect(demoRepository.reemplazarNombreSensor).toHaveBeenCalledTimes(2);
+      expect(loteService.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('dos pedidos simultáneos reciben sensores distintos (toma en curso)', async () => {
+      sensorRepository.findAll.mockResolvedValue([
+        crearSensor({ id: 1, nombre: 'Sensor 1 · libre' }),
+        crearSensor({ id: 2, nombre: 'Sensor 2 · libre' }),
+      ]);
+      conAsociaciones();
+      let terminarAlta!: (v: unknown) => void;
+      loteService.create.mockReturnValueOnce(
+        new Promise((resolve) => (terminarAlta = resolve)),
+      );
+
+      const primera = service.iniciarTurno({ nombre: 'Juan' });
+      await new Promise((r) => setImmediate(r));
+      // El mock de findAll sigue mostrando el sensor 1 libre: lo frena la
+      // marca en memoria, no el nombre.
+      const segunda = await service.iniciarTurno({ nombre: 'Ana' });
+      terminarAlta({ lote: { id: 60 } });
+
+      await expect(primera).resolves.toEqual({
+        loteId: 60,
+        sensorId: 1,
+        numero: 1,
+      });
+      expect(segunda).toEqual({ loteId: 50, sensorId: 2, numero: 2 });
+    });
+
+    it('409 "Todos los sensores están en uso" si no queda ninguno disponible', async () => {
+      sensorRepository.findAll.mockResolvedValue([
+        anaActiva,
+        crearSensor({ id: 2, nombre: 'Sensor 2 · libre' }),
+      ]);
+      conAsociaciones(1);
+      demoRepository.reemplazarNombreSensor.mockResolvedValue(false);
+
+      const error = await service
+        .iniciarTurno({ nombre: 'Juan' })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).message).toBe(
+        'Todos los sensores están en uso',
+      );
+      // El ocupado ni se intenta; el libre se perdió en el UPDATE.
+      expect(demoRepository.reemplazarNombreSensor).toHaveBeenCalledTimes(1);
+      expect(loteService.create).not.toHaveBeenCalled();
+    });
+
+    it('409 también si no hay sensores de demo', async () => {
+      sensorRepository.findAll.mockResolvedValue([]);
+      conAsociaciones();
+
+      await expect(service.iniciarTurno({ nombre: 'Juan' })).rejects.toThrow(
+        'Todos los sensores están en uso',
+      );
+    });
+
+    it('un error al crear el lote no prueba otro sensor: libera el tomado y propaga', async () => {
+      sensorRepository.findAll.mockResolvedValue([
+        crearSensor({ id: 1, nombre: 'Sensor 1 · libre' }),
+        crearSensor({ id: 2, nombre: 'Sensor 2 · libre' }),
+      ]);
+      conAsociaciones();
+      const falla = new BadRequestException('proveedor inactivo');
+      loteService.create.mockRejectedValue(falla);
+
+      await expect(service.iniciarTurno({ nombre: 'Juan' })).rejects.toBe(
+        falla,
+      );
+      expect(loteService.create).toHaveBeenCalledTimes(1);
+      expect(demoRepository.reemplazarNombreSensor).toHaveBeenLastCalledWith(
+        1,
+        EMPRESA_ID,
+        'Sensor 1 · Juan',
+        'Sensor 1 · libre',
+      );
     });
   });
 
@@ -594,7 +811,11 @@ describe('DemoService', () => {
       expect(mlService.generarRecomendacion).not.toHaveBeenCalled();
 
       terminarAlta({ lote: { id: 60 } });
-      await expect(toma).resolves.toEqual({ loteId: 60 });
+      await expect(toma).resolves.toEqual({
+        loteId: 60,
+        sensorId: 1,
+        numero: 1,
+      });
     });
 
     it('no genera recomendación si el lote no tiene lecturas', async () => {
@@ -728,6 +949,8 @@ describe('DemoService', () => {
 
   // ------------------------------------------------------------------
   describe('obtenerTablero', () => {
+    // Juan tiene un turno con actividad reciente (la asociación se crea en
+    // beforeEach, con la hora real del test).
     const sensorJuan = crearSensor({ id: 1, nombre: 'Sensor 1 · Juan' });
     const sensorLibre = crearSensor({ id: 2, nombre: 'Sensor 2 · libre' });
     const sensorSinTurnos = crearSensor({ id: 3, nombre: 'Sensor 3 · libre' });
@@ -742,8 +965,8 @@ describe('DemoService', () => {
         sensorJuan,
       ]);
       historialRepository.findUltimosPorSensores.mockResolvedValue([
-        { sensorId: 1, loteIdNuevo: 50 },
-        { sensorId: 2, loteIdNuevo: 40 },
+        { sensorId: 1, loteIdNuevo: 50, fecha: new Date() },
+        { sensorId: 2, loteIdNuevo: 40, fecha: new Date() },
       ]);
       demoRepository.findLotes.mockResolvedValue([
         crearLote({
@@ -774,7 +997,9 @@ describe('DemoService', () => {
       expect(juan).toEqual({
         id: 1,
         nombre: 'Sensor 1 · Juan',
+        estado: EstadoSensor.ACTIVO,
         ocupado: true,
+        disponible: false,
         lote: { id: 50, codigo: 'DEMO-1-1' },
         ultimaTemperatura: 7,
         ultimaLecturaEn: lecturas([4, 8, 7], 50)[2].timestampLectura,
@@ -786,6 +1011,7 @@ describe('DemoService', () => {
       // Libre: muestra su último turno con ocupado = false.
       expect(libre).toMatchObject({
         ocupado: false,
+        disponible: true,
         lote: { id: 40, codigo: 'DEMO-2-1' },
         ultimaTemperatura: 5,
         semaforo: 'EN_RANGO',
@@ -796,7 +1022,9 @@ describe('DemoService', () => {
       expect(sinTurnos).toEqual({
         id: 3,
         nombre: 'Sensor 3 · libre',
+        estado: EstadoSensor.ACTIVO,
         ocupado: false,
+        disponible: true,
         lote: null,
         ultimaTemperatura: null,
         ultimaLecturaEn: null,
@@ -805,6 +1033,162 @@ describe('DemoService', () => {
         desvios: 0,
         alertas: 0,
       });
+    });
+
+    describe('turno vencido (mismo criterio que POST /demo/turno)', () => {
+      const AHORA = new Date('2026-10-15T12:00:00.000Z').getTime();
+
+      beforeEach(() => {
+        jest.useFakeTimers({ now: AHORA });
+      });
+
+      function conActividad(
+        ultimaLectura: number | null,
+        fechaAsociacion: number,
+      ): void {
+        sensorRepository.findAll.mockResolvedValue([
+          crearSensor({
+            id: 1,
+            nombre: 'Sensor 1 · Ana',
+            ultimaLectura:
+              ultimaLectura !== null ? new Date(ultimaLectura) : null,
+          }),
+        ]);
+        historialRepository.findUltimosPorSensores.mockResolvedValue([
+          { sensorId: 1, loteIdNuevo: 50, fecha: new Date(fechaAsociacion) },
+        ]);
+      }
+
+      it('más de 60 s sin lecturas ni asociación → ocupado false, con los datos de su turno', async () => {
+        conActividad(AHORA - 61_000, AHORA - 90_000);
+
+        const [ana] = (await service.obtenerTablero()).sensores;
+
+        expect(ana).toMatchObject({
+          nombre: 'Sensor 1 · Ana',
+          ocupado: false,
+          disponible: true,
+          lote: { id: 50, codigo: 'DEMO-1-1' },
+          ultimaTemperatura: 7,
+        });
+      });
+
+      it('lectura de hace menos de 60 s → ocupado true', async () => {
+        conActividad(AHORA - 10_000, AHORA - 90_000);
+
+        const [ana] = (await service.obtenerTablero()).sensores;
+
+        expect(ana).toMatchObject({ ocupado: true, disponible: false });
+      });
+
+      it('turno recién empezado, sin lecturas (ultimaLectura de un turno viejo) → ocupado true', async () => {
+        conActividad(AHORA - 3_600_000, AHORA - 5_000);
+
+        const [ana] = (await service.obtenerTablero()).sensores;
+
+        expect(ana).toMatchObject({ ocupado: true, disponible: false });
+      });
+
+      it('sin asociación ni lecturas → ocupado false', async () => {
+        sensorRepository.findAll.mockResolvedValue([
+          crearSensor({ id: 1, nombre: 'Sensor 1 · Ana' }),
+        ]);
+        historialRepository.findUltimosPorSensores.mockResolvedValue([]);
+
+        const [ana] = (await service.obtenerTablero()).sensores;
+
+        expect(ana).toMatchObject({ ocupado: false, lote: null });
+      });
+
+      it('con una toma en curso → ocupado true aunque la asociación vieja esté vencida', async () => {
+        // La toma queda frenada en la creación del lote: el nombre ya es
+        // el del visitante nuevo, la asociación sigue siendo la vieja.
+        jest.useFakeTimers({ now: AHORA, doNotFake: ['setImmediate'] });
+        let terminarAlta!: (v: unknown) => void;
+        loteService.create.mockReturnValueOnce(
+          new Promise((resolve) => (terminarAlta = resolve)),
+        );
+        sensorRepository.findOne.mockResolvedValue(
+          crearSensor({
+            nombre: 'Sensor 1 · Ana',
+            ultimaLectura: new Date(AHORA - 120_000),
+          }),
+        );
+        historialRepository.findUltimoPorSensor.mockResolvedValue({
+          fecha: new Date(AHORA - 120_000),
+        });
+        const toma = service.iniciarTurno({ sensorId: 1, nombre: 'Juan' });
+        await new Promise((r) => setImmediate(r));
+        expect(loteService.create).toHaveBeenCalled();
+
+        sensorRepository.findAll.mockResolvedValue([
+          crearSensor({
+            id: 1,
+            nombre: 'Sensor 1 · Juan',
+            ultimaLectura: new Date(AHORA - 120_000),
+          }),
+        ]);
+        historialRepository.findUltimosPorSensores.mockResolvedValue([
+          { sensorId: 1, loteIdNuevo: 50, fecha: new Date(AHORA - 120_000) },
+        ]);
+
+        const [juan] = (await service.obtenerTablero()).sensores;
+        expect(juan).toMatchObject({ ocupado: true, disponible: false });
+
+        terminarAlta({ lote: { id: 60 } });
+        await expect(toma).resolves.toEqual({
+          loteId: 60,
+          sensorId: 1,
+          numero: 1,
+        });
+      });
+    });
+
+    it('incluye los sensores no ACTIVOS, con su estado y disponible false', async () => {
+      sensorRepository.findAll.mockResolvedValue([
+        crearSensor({ id: 1, nombre: 'Sensor 1 · libre' }),
+        crearSensor({
+          id: 2,
+          nombre: 'Sensor 2 · libre',
+          estado: EstadoSensor.INACTIVO,
+        }),
+        crearSensor({
+          id: 3,
+          nombre: 'Sensor 3 · libre',
+          estado: EstadoSensor.FALLA,
+        }),
+      ]);
+      historialRepository.findUltimosPorSensores.mockResolvedValue([]);
+
+      const tablero = await service.obtenerTablero();
+
+      expect(
+        tablero.sensores.map(({ id, estado, ocupado, disponible }) => ({
+          id,
+          estado,
+          ocupado,
+          disponible,
+        })),
+      ).toEqual([
+        {
+          id: 1,
+          estado: EstadoSensor.ACTIVO,
+          ocupado: false,
+          disponible: true,
+        },
+        {
+          id: 2,
+          estado: EstadoSensor.INACTIVO,
+          ocupado: false,
+          disponible: false,
+        },
+        {
+          id: 3,
+          estado: EstadoSensor.FALLA,
+          ocupado: false,
+          disponible: false,
+        },
+      ]);
     });
 
     it('hace un número fijo de consultas, en lote (sin N+1)', async () => {

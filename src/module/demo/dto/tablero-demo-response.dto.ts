@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { EstadoSensor } from '../../sensor/enums/estado-sensor.enum';
 import type { EstadoFinalDemo } from './resumen-turno-demo-response.dto';
 
 export type SemaforoDemo = 'EN_RANGO' | 'FUERA_DE_RANGO';
@@ -29,10 +30,23 @@ export class SensorTableroDemoDto {
   nombre!: string;
 
   @ApiProperty({
+    enum: EstadoSensor,
     description:
-      'Hay un turno en curso. Si es false, los datos son del último turno del sensor.',
+      'Estado del sensor. Si no es activo, no se puede tomar aunque ocupado sea false.',
+  })
+  estado!: EstadoSensor;
+
+  @ApiProperty({
+    description:
+      'Hay un turno en curso. Es false si el sensor está libre o si su turno venció (más de 60 s sin actividad: se puede tomar); en ese caso los datos son del último turno del sensor.',
   })
   ocupado!: boolean;
+
+  @ApiProperty({
+    description:
+      'Se puede tomar ahora: estado activo y sin turno en curso (libre o con el turno vencido).',
+  })
+  disponible!: boolean;
 
   @ApiProperty({ type: LoteTableroDemoDto, nullable: true })
   lote!: LoteTableroDemoDto | null;

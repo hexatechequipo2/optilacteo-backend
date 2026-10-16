@@ -16,8 +16,11 @@
  * - Destinatarios de alertas de umbral para los 3 niveles: ese usuario.
  * - Sin horarios de silencio (se borran los de la empresa demo, igual que
  *   DELETE /notificaciones/configuracion-silencio).
- * - Sensores "Sensor 1..4 · libre", temperatura, ACTIVO. Si ya existían
- *   (con cualquier visitante), vuelven a "· libre".
+ * - Sensores "Sensor 1..8 · libre", temperatura, ACTIVO. Crea solo los que
+ *   faltan; los que ya existían (con cualquier visitante) vuelven a
+ *   "· libre". Todos con umbral de desconexión de un año: entre visitantes
+ *   pasan mucho tiempo sin lecturas y SensorDesconexionCronService no debe
+ *   mandar alertas de "sensor desconectado" a la tele.
  *
  * Contraseña del usuario nuevo: DEMO_SEED_PASSWORD o "DemoTele2026!".
  */
@@ -59,7 +62,9 @@ const DEMO = {
   tambo: 'Tambo Demo',
   usuario: { name: 'Tele Demo', email: 'tele@demo.optilacteo.com' },
   passwordPorDefecto: 'DemoTele2026!',
-  cantidadSensores: 4,
+  cantidadSensores: 8,
+  // Minutos (un año): pisa el umbral de desconexión de la empresa.
+  umbralDesconexionMinutos: 525_600,
   umbral: { alertaMin: 1, min: 2, max: 6, alertaMax: 7 },
 };
 
@@ -294,6 +299,7 @@ async function asegurarSensores(
           rangoMinFavor: DEMO.umbral.min,
           rangoMaxFavor: DEMO.umbral.max,
           estado: EstadoSensor.ACTIVO,
+          umbralDesconexionMinutos: DEMO.umbralDesconexionMinutos,
           ubicacion: existente?.ubicacion ?? Ubicacion.CAMARA_FRIGORIFICA_1,
           empresaId,
         }),
