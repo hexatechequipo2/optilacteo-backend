@@ -139,6 +139,7 @@ import { EstabilidadProveedorModule } from '../estabilidad-proveedor/estabilidad
     LOTE_REPOSITORY,
     LOTE_UBICACION_HISTORIAL_REPOSITORY,
     ClasificacionLoteService,
+    LoteTrazabilidadService, // Demo en vivo: resumen del turno
     SkuService,
     SKU_REPOSITORY,
   ],

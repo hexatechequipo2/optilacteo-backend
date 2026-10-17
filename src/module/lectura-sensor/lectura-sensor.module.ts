@@ -67,5 +67,8 @@ import { AnomaliaModule } from '../anomalia/anomalia.module';
       useClass: SensorInactividadRepository,
     },
   ],
+  // Demo en vivo: DemoModule ingresa las lecturas del celular por el mismo
+  // flujo que POST /sensores/lecturas.
+  exports: [LecturaSensorService],
 })
 export class LecturaSensorModule {}

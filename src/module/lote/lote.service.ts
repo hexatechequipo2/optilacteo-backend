@@ -98,6 +98,11 @@ export class LoteService {
   async create(
     dto: CreateLoteDto,
     tenant: TenantContext,
+    // Demo en vivo: el turno tiene que responder rápido y no usa nada de esto.
+    opciones: {
+      omitirRecomendacionIa?: boolean;
+      omitirEstabilidadProveedor?: boolean;
+    } = {},
   ): Promise<LoteCreateResponseDto & { warnings?: string[] }> {
     const empresaId = this.resolveEmpresaId(tenant);
 
@@ -181,22 +186,26 @@ export class LoteService {
 
     // HU-64 AC3: recalcular estabilidad del proveedor con el lote nuevo.
     // Best-effort: el alta del lote nunca depende de esto.
-    await this.estabilidadProveedorService.recalcularBestEffort(
-      dto.proveedorId,
-      empresaId,
-    );
+    if (!opciones.omitirEstabilidadProveedor) {
+      await this.estabilidadProveedorService.recalcularBestEffort(
+        dto.proveedorId,
+        empresaId,
+      );
+    }
 
     // HU-49 AC1: se dispara automáticamente al registrar los parámetros
     // del lote. Devuelve null si la empresa todavía no tiene historial
     // suficiente — no es un error, el alta del lote nunca depende de esto.
-    const recomendacionEntity = await this.mlService.generarRecomendacion({
-      empresaId,
-      loteId: saved.id,
-      parametros: dto.parametros.map((p) => ({
-        parametro: p.parametro,
-        valor: p.valor,
-      })),
-    });
+    const recomendacionEntity = opciones.omitirRecomendacionIa
+      ? null
+      : await this.mlService.generarRecomendacion({
+          empresaId,
+          loteId: saved.id,
+          parametros: dto.parametros.map((p) => ({
+            parametro: p.parametro,
+            valor: p.valor,
+          })),
+        });
     const recomendacion: RecomendacionResponseDto | null = recomendacionEntity
       ? RecomendacionMapper.toResponseDto(recomendacionEntity)
       : null;

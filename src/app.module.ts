@@ -31,6 +31,7 @@ import { PrediccionVolumenModule } from './module/prediccion-volumen/prediccion-
 import { RetencionModule } from './module/retencion/retencion.module';
 import { DatasetMlModule } from './module/dataset-ml/dataset-ml.module';
 import { EstabilidadProveedorModule } from './module/estabilidad-proveedor/estabilidad-proveedor.module';
+import { DemoModule } from './module/demo/demo.module';
 import { JwtAuthGuard } from './module/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { APP_GUARD } from '@nestjs/core';
@@ -81,6 +82,11 @@ import { APP_GUARD } from '@nestjs/core';
     RetencionModule,
     DatasetMlModule,
     EstabilidadProveedorModule,
+    // Demo en vivo: endpoints públicos que solo existen con DEMO_MODE=true
+    // (sin el flag, las rutas /demo/* responden 404). Acá process.env ya
+    // tiene el .env: ConfigModule.forRoot(), más arriba en este array, lo
+    // asigna de forma sincrónica (antes de su primer await).
+    ...(process.env.DEMO_MODE === 'true' ? [DemoModule] : []),
   ],
   controllers: [AppController],
   providers: [

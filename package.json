@@ -26,6 +26,7 @@
     "migration:run:prod": "typeorm migration:run -d dist/data-source.js",
     "migration:revert:prod": "typeorm migration:revert -d dist/data-source.js",
     "seed": "ts-node -r tsconfig-paths/register src/seeds/seed.ts",
+    "seed:demo": "ts-node -r tsconfig-paths/register src/seeds/seed-demo.ts",
     "simulate:iot": "ts-node -r tsconfig-paths/register src/simulators/iot-simulator.ts",
     "ws:test": "ts-node scripts/ws-test-client.ts",
     "ws:test:notificaciones": "ts-node scripts/ws-test-notificaciones.ts"
