@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Interval } from '@nestjs/schedule';
 
 import type { TenantContext } from '../../common/types/tenant-context.type';
 
@@ -43,6 +44,7 @@ import { DEMO_REPOSITORY } from './repository/demo.repository.interface';
 import { DemoConfig, leerConfigDemo } from './demo.config';
 import {
   DEMO_CANTIDAD_LOTE,
+  DEMO_INTERVALO_LIBERACION_MS,
   DEMO_OCUPANTE_LIBRE,
   DEMO_PATRON_NOMBRE_SENSOR,
   DEMO_PREFIJO_CODIGO_LOTE,
@@ -89,6 +91,14 @@ export class DemoService {
   // anterior: un /fin tardío de ese turno lo liberaría. /fin saltea los
   // sensores marcados.
   private readonly tomasEnCurso = new Set<number>();
+
+  // Última actividad (toma o lectura) de cada sensor ocupado, con el reloj
+  // de Node. No se usan fechas de la base: con distinta zona horaria entre
+  // Postgres y Node la asociación aparece "en el futuro" y el turno nunca
+  // vence. Tras un reinicio el mapa arranca vacío: un sensor ocupado sin
+  // entrada cuenta como vencido (un turno vivo se vuelve a registrar con
+  // su próxima lectura).
+  private readonly actividadPorSensor = new Map<number, number>();
 
   private tableroCache: {
     expiraEn: number;
@@ -166,7 +176,7 @@ export class DemoService {
       );
     }
     if (nombreActual.ocupante !== DEMO_OCUPANTE_LIBRE) {
-      await this.validarTurnoAbandonado(sensor);
+      this.validarTurnoAbandonado(sensor);
     }
 
     const turno = await this.intentarTomar(
@@ -183,8 +193,7 @@ export class DemoService {
   }
 
   // Sin sensorId: se asigna el sensor disponible (libre o con el turno
-  // vencido) de menor N. Los candidatos salen de dos consultas fijas
-  // (sensores + última asociación de cada uno). Si otro visitante gana un
+  // vencido) de menor N. Si otro visitante gana un
   // candidato entre la lectura y el UPDATE, se prueba con el siguiente.
   private async iniciarTurnoEnSensorDisponible(
     nombreVisitante: string,
@@ -204,17 +213,8 @@ export class DemoService {
       )
       .sort((a, b) => a.nombre.numero - b.nombre.numero);
 
-    const asociaciones = await this.historialRepository.findUltimosPorSensores(
-      sensores.map((s) => s.sensor.id),
-      empresaId,
-    );
-    const fechaAsociacionPorSensor = new Map(
-      asociaciones.map((a) => [a.sensorId, a.fecha]),
-    );
-
     for (const { sensor, nombre } of sensores) {
-      const fechaAsociacion = fechaAsociacionPorSensor.get(sensor.id) ?? null;
-      if (!this.estaDisponible(sensor, nombre, fechaAsociacion)) continue;
+      if (!this.estaDisponible(sensor, nombre)) continue;
 
       if (nombre.ocupante !== DEMO_OCUPANTE_LIBRE) {
         this.logger.warn(
@@ -256,6 +256,7 @@ export class DemoService {
         nombreTomado,
       );
       if (!tomado) return null;
+      this.actividadPorSensor.set(sensor.id, Date.now());
 
       try {
         const loteId = await this.crearLoteYAsociar(sensor.id);
@@ -264,6 +265,7 @@ export class DemoService {
         );
         return { loteId, sensorId: sensor.id, numero: nombreActual.numero };
       } catch (err) {
+        this.actividadPorSensor.delete(sensor.id);
         await this.liberarSensorTomado(
           sensor.id,
           nombreActual.numero,
@@ -297,6 +299,9 @@ export class DemoService {
         numeroRemito: codigo,
       },
       this.tenant,
+      // La recomendación de la demo se pide en /fin con las lecturas del
+      // juego; la del alta (temperatura inicial) solo demoraba el turno.
+      { omitirRecomendacionIa: true, omitirEstabilidadProveedor: true },
     );
 
     await this.sensorService.asociarALote(
@@ -355,6 +360,7 @@ export class DemoService {
     if (!nombre || nombre.ocupante === DEMO_OCUPANTE_LIBRE) {
       throw new ConflictException('El turno de este sensor ya terminó.');
     }
+    this.actividadPorSensor.set(sensor.id, Date.now());
 
     // Se rechaza acá y no en la ingesta: allá un valor fuera del rango
     // físico deja el sensor en FALLA y no se podría asociar al próximo turno.
@@ -505,7 +511,6 @@ export class DemoService {
         return this.filaTablero(
           sensor,
           nombre,
-          asociacion?.fecha ?? null,
           lote ?? null,
           lote ? (lecturasPorLote.get(lote.id) ?? []) : [],
           lote ? (alertasPorLote.get(lote.id) ?? 0) : 0,
@@ -518,7 +523,6 @@ export class DemoService {
   private filaTablero(
     sensor: Sensor,
     nombre: NombreSensorDemo,
-    fechaAsociacion: Date | null,
     lote: LoteDemo | null,
     lecturas: LecturaDemo[],
     alertas: number,
@@ -539,8 +543,8 @@ export class DemoService {
       id: sensor.id,
       nombre: sensor.nombre,
       estado: sensor.estado,
-      ocupado: this.estaOcupado(sensor, nombre, fechaAsociacion),
-      disponible: this.estaDisponible(sensor, nombre, fechaAsociacion),
+      ocupado: this.estaOcupado(sensor, nombre),
+      disponible: this.estaDisponible(sensor, nombre),
       lote: lote ? { id: lote.id, codigo: lote.codigo } : null,
       ultimaTemperatura: ultima?.valor ?? null,
       ultimaLecturaEn: ultima?.timestampLectura ?? null,
@@ -580,57 +584,33 @@ export class DemoService {
 
   // Para el tablero, con el mismo criterio que POST /demo/turno: un
   // sensor con visitante cuyo turno venció se muestra libre (se puede
-  // tomar). Con una toma en curso se muestra ocupado: el nombre ya cambió
-  // pero la asociación nueva todavía no existe, así que la fecha de la
-  // vieja lo daría por vencido.
-  private estaOcupado(
-    sensor: Sensor,
-    nombre: NombreSensorDemo,
-    fechaAsociacion: Date | null,
-  ): boolean {
+  // tomar). Con una toma en curso se muestra ocupado.
+  private estaOcupado(sensor: Sensor, nombre: NombreSensorDemo): boolean {
     if (nombre.ocupante === DEMO_OCUPANTE_LIBRE) return false;
     if (this.tomasEnCurso.has(sensor.id)) return true;
-    return !this.turnoVencido(sensor, fechaAsociacion);
+    return !this.turnoVencido(sensor.id);
   }
 
   // Mismo criterio para la asignación automática y para `disponible` del
   // tablero: asociarALote exige ACTIVO, así que un sensor inactivo o en
   // falla no se puede tomar aunque no tenga turno.
-  private estaDisponible(
-    sensor: Sensor,
-    nombre: NombreSensorDemo,
-    fechaAsociacion: Date | null,
-  ): boolean {
+  private estaDisponible(sensor: Sensor, nombre: NombreSensorDemo): boolean {
     return (
-      sensor.estado === EstadoSensor.ACTIVO &&
-      !this.estaOcupado(sensor, nombre, fechaAsociacion)
+      sensor.estado === EstadoSensor.ACTIVO && !this.estaOcupado(sensor, nombre)
     );
   }
 
-  // Un turno ocupado se puede tomar si lleva más de 60 s sin actividad.
-  // Actividad = la última lectura del sensor o, si el turno todavía no
-  // tiene lecturas, el momento en que empezó (la última asociación). Se
-  // toma la más reciente: ultimaLectura puede ser de un turno anterior.
-  private turnoVencido(
-    sensor: Sensor,
-    fechaAsociacion: Date | null | undefined,
-  ): boolean {
-    const ultimaActividad = Math.max(
-      sensor.ultimaLectura ? new Date(sensor.ultimaLectura).getTime() : 0,
-      fechaAsociacion ? new Date(fechaAsociacion).getTime() : 0,
-    );
-    return (
-      Date.now() - ultimaActividad >= DEMO_SEGUNDOS_VENCIMIENTO_TURNO * 1000
-    );
+  // Un turno ocupado se puede tomar si lleva más de 60 s sin actividad
+  // (toma o lectura), medido con el reloj de Node. Sin registro (backend
+  // reiniciado) cuenta como vencido.
+  private turnoVencido(sensorId: number): boolean {
+    const ultima = this.actividadPorSensor.get(sensorId);
+    if (ultima === undefined) return true;
+    return Date.now() - ultima >= DEMO_SEGUNDOS_VENCIMIENTO_TURNO * 1000;
   }
 
-  private async validarTurnoAbandonado(sensor: Sensor): Promise<void> {
-    const asociacion = await this.historialRepository.findUltimoPorSensor(
-      sensor.id,
-      this.config.empresaId,
-    );
-
-    if (!this.turnoVencido(sensor, asociacion?.fecha)) {
+  private validarTurnoAbandonado(sensor: Sensor): void {
+    if (!this.turnoVencido(sensor.id)) {
       throw new ConflictException(
         `El sensor "${sensor.nombre}" está en uso. Probá con otro o esperá un minuto.`,
       );
@@ -680,9 +660,69 @@ export class DemoService {
         sensor.nombre,
         this.nombreSensor(nombre.numero, DEMO_OCUPANTE_LIBRE),
       );
+      if (liberado) this.actividadPorSensor.delete(sensor.id);
       turnoAbierto = turnoAbierto || liberado;
     }
     return turnoAbierto;
+  }
+
+  // ============================================================
+  // Liberación automática (cada 15 s) y POST /demo/liberar-todos
+  // ============================================================
+
+  // Vuelve a "· libre" los turnos abandonados (celular cerrado, sin /fin),
+  // así la tele y la consola los muestran libres.
+  @Interval(DEMO_INTERVALO_LIBERACION_MS)
+  async liberarTurnosVencidos(): Promise<void> {
+    try {
+      const liberados = await this.liberarSensores((s) =>
+        this.turnoVencido(s.id),
+      );
+      if (liberados > 0) {
+        this.logger.log(`Liberados ${liberados} sensores demo abandonados.`);
+      }
+    } catch (err) {
+      this.logger.error(`Error al liberar turnos demo vencidos: ${err}`);
+    }
+  }
+
+  // Botón de pánico del día del evento.
+  async liberarTodos(): Promise<{ liberados: number }> {
+    const liberados = await this.liberarSensores(() => true);
+    this.logger.warn(`liberar-todos: ${liberados} sensores a "· libre".`);
+    return { liberados };
+  }
+
+  // UPDATE condicional por sensor: si justo otro visitante lo toma, el
+  // nombre ya no coincide y no se pisa. Las tomas en curso no se tocan.
+  private async liberarSensores(
+    debeLiberar: (sensor: Sensor) => boolean,
+  ): Promise<number> {
+    const empresaId = this.config.empresaId;
+    const sensores = await this.sensorRepository.findAll(
+      { parametro: Parametro.TEMPERATURA },
+      empresaId,
+    );
+
+    let liberados = 0;
+    for (const sensor of sensores) {
+      const nombre = this.parsearNombre(sensor.nombre);
+      if (!nombre || nombre.ocupante === DEMO_OCUPANTE_LIBRE) continue;
+      if (this.tomasEnCurso.has(sensor.id) || !debeLiberar(sensor)) continue;
+
+      const ok = await this.demoRepository.reemplazarNombreSensor(
+        sensor.id,
+        empresaId,
+        sensor.nombre,
+        this.nombreSensor(nombre.numero, DEMO_OCUPANTE_LIBRE),
+      );
+      if (ok) {
+        liberados++;
+        this.actividadPorSensor.delete(sensor.id);
+      }
+    }
+    if (liberados > 0) this.tableroCache = null;
+    return liberados;
   }
 
   // Recomendación con la última lectura de cada parámetro. Si el

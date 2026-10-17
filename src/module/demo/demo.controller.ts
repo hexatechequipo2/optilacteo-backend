@@ -2,14 +2,19 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Post,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
+  ApiExcludeEndpoint,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -38,7 +43,10 @@ import {
 @Public()
 @Controller('demo')
 export class DemoController {
-  constructor(private readonly demoService: DemoService) {}
+  constructor(
+    private readonly demoService: DemoService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('turno')
   @UseGuards(DemoIpThrottlerGuard)
@@ -97,6 +105,21 @@ export class DemoController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ResumenTurnoDemoResponseDto> {
     return this.demoService.obtenerResumen(id);
+  }
+
+  // Botón de pánico: vuelve todos los sensores a "· libre". Requiere el
+  // header X-Demo-Key = DEMO_ADMIN_KEY; sin esa variable el endpoint
+  // "no existe" (404).
+  @Post('liberar-todos')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  liberarTodos(
+    @Headers('x-demo-key') clave?: string,
+  ): Promise<{ liberados: number }> {
+    const esperada = this.configService.get<string>('DEMO_ADMIN_KEY');
+    if (!esperada) throw new NotFoundException();
+    if (clave !== esperada) throw new UnauthorizedException('Clave inválida.');
+    return this.demoService.liberarTodos();
   }
 
   @Post('turno/:loteId/fin')

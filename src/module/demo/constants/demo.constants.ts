@@ -27,3 +27,7 @@ export const DEMO_TABLERO_CACHE_MS = 1_000;
 // el día del evento todos los visitantes comparten la del wifi.
 export const DEMO_THROTTLE_TURNO = { limit: 60, ttl: 60_000 };
 export const DEMO_THROTTLE_LECTURAS = { limit: 10, ttl: 1_000 };
+
+// Cada cuánto se revisan los turnos abandonados para volverlos a "· libre".
+// Abandonado = DEMO_SEGUNDOS_VENCIMIENTO_TURNO sin tomar ni leer.
+export const DEMO_INTERVALO_LIBERACION_MS = 15_000;
