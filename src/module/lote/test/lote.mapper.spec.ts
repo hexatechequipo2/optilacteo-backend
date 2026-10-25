@@ -158,6 +158,46 @@ describe('LoteMapper', () => {
       expect(resultado.parametros[0].parametro).toBe('Grasa');
       expect(resultado.parametros[0].desvioPorcentaje).toBe(0);
     });
+
+    it('cuando el valorComprometido del parámetro es 0, desvioPorcentaje debe ser null (no 0)', () => {
+      const mockLote: Lote = {
+        id: 'lote-desvio-comp-cero',
+        parametros: [
+          {
+            parametro: 'Grasa',
+            valorComprometido: '0' as any,
+            valor: '3.2' as any,
+          },
+        ],
+      } as unknown as Lote;
+
+      const resultado = LoteMapper.toDesvioResponseDto(mockLote);
+
+      expect(resultado.parametros[0]).toEqual({
+        parametro: 'Grasa',
+        valorComprometido: 0,
+        valorReal: 3.2,
+        desvioPorcentaje: null,
+      });
+    });
+
+    it('cuando el valor real del parámetro es null, valorReal y desvioPorcentaje deben ser null', () => {
+      const mockLote: Lote = {
+        id: 'lote-desvio-real-null',
+        parametros: [
+          { parametro: 'Grasa', valorComprometido: '3.5' as any, valor: null },
+        ],
+      } as unknown as Lote;
+
+      const resultado = LoteMapper.toDesvioResponseDto(mockLote);
+
+      expect(resultado.parametros[0]).toEqual({
+        parametro: 'Grasa',
+        valorComprometido: 3.5,
+        valorReal: null,
+        desvioPorcentaje: null,
+      });
+    });
   });
 
   describe('toResponseDtoList y toDesvioResponseDtoList', () => {

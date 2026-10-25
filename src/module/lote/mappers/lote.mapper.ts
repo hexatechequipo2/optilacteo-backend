@@ -71,12 +71,12 @@ export class LoteMapper {
         .filter((p) => p.valorComprometido != null)
         .map((p) => {
           const comprometido = Number(p.valorComprometido);
-          const real = Number(p.valor);
+          const real = p.valor != null ? Number(p.valor) : null;
           return {
             parametro: p.parametro,
             valorComprometido: comprometido,
             valorReal: real,
-            desvioPorcentaje: this.calcularDesvio(comprometido, real) ?? 0,
+            desvioPorcentaje: this.calcularDesvio(comprometido, real),
           };
         }),
     };
