@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   ConflictException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -706,12 +707,53 @@ describe('LoteService', () => {
   });
 
   describe('getDesviosPorProveedor', () => {
-    it('debe lanzar NotFoundException si el proveedor no existe', async () => {
+    let loggerErrorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      loggerErrorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      loggerErrorSpy.mockRestore();
+    });
+
+    it('debe lanzar NotFoundException si el proveedor no existe, sin loguearlo como error', async () => {
       mockProveedorRepository.findOne.mockResolvedValue(null);
 
       await expect(
         service.getDesviosPorProveedor(99, tenantMock),
       ).rejects.toThrow(NotFoundException);
+      expect(loggerErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('HU-74: si falla la consulta de lotes, loguea con proveedorId y empresaId y relanza el mismo error', async () => {
+      const error = new Error('connection refused');
+      mockProveedorRepository.findOne.mockResolvedValue({ id: 10 });
+      mockLoteRepository.findConDesvioByProveedor.mockRejectedValue(error);
+
+      await expect(service.getDesviosPorProveedor(10, tenantMock)).rejects.toBe(
+        error,
+      );
+      expect(loggerErrorSpy).toHaveBeenCalledTimes(1);
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('proveedorId=10, empresaId=1'),
+        error.stack,
+      );
+    });
+
+    it('HU-74: si falla la consulta del proveedor, también loguea con contexto y relanza', async () => {
+      const error = new Error('timeout');
+      mockProveedorRepository.findOne.mockRejectedValue(error);
+
+      await expect(service.getDesviosPorProveedor(10, tenantMock)).rejects.toBe(
+        error,
+      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('proveedorId=10, empresaId=1'),
+        error.stack,
+      );
     });
 
     it('debe retornar los desvíos calculados para el proveedor', async () => {

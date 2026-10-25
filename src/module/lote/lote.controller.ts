@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  ParseIntPipe,
   Query,
   UseGuards,
   Req,
@@ -85,10 +86,10 @@ export class LoteController {
   @Get('proveedor/:proveedorId/desvios')
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   getDesviosPorProveedor(
-    @Param('proveedorId') proveedorId: string,
+    @Param('proveedorId', ParseIntPipe) proveedorId: number,
     @CurrentEmpresa() tenant: TenantContext,
   ) {
-    return this.loteService.getDesviosPorProveedor(+proveedorId, tenant);
+    return this.loteService.getDesviosPorProveedor(proveedorId, tenant);
   }
 
   @Get(':id')

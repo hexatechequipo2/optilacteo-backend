@@ -2,8 +2,10 @@ import {
   BadRequestException,
   ConflictException,
   forwardRef,
+  HttpException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -64,6 +66,8 @@ const UNIDAD_POR_MATERIA_PRIMA: Record<TipoMateriaPrima, UnidadCantidad> = {
 
 @Injectable()
 export class LoteService {
+  private readonly logger = new Logger(LoteService.name);
+
   constructor(
     @Inject(LOTE_REPOSITORY)
     private readonly loteRepository: ILoteRepository,
@@ -636,19 +640,31 @@ export class LoteService {
   ): Promise<DesvioProveedorResponseDto[]> {
     const empresaId = this.resolveEmpresaId(tenant);
 
-    const proveedor = await this.proveedorRepository.findOne({
-      where: { id: proveedorId, empresaId },
-    });
-    if (!proveedor) {
-      throw new NotFoundException(
-        `El proveedor ${proveedorId} no existe o no pertenece a la empresa`,
-      );
-    }
+    try {
+      const proveedor = await this.proveedorRepository.findOne({
+        where: { id: proveedorId, empresaId },
+      });
+      if (!proveedor) {
+        throw new NotFoundException(
+          `El proveedor ${proveedorId} no existe o no pertenece a la empresa`,
+        );
+      }
 
-    const lotes = await this.loteRepository.findConDesvioByProveedor(
-      proveedorId,
-      empresaId,
-    );
-    return LoteMapper.toDesvioResponseDtoList(lotes);
+      const lotes = await this.loteRepository.findConDesvioByProveedor(
+        proveedorId,
+        empresaId,
+      );
+      return LoteMapper.toDesvioResponseDtoList(lotes);
+    } catch (error) {
+      // HU-74: 404/400 son esperables; solo se loguean los fallos inesperados.
+      // Se relanza para que AllExceptionsFilter responda igual que antes.
+      if (!(error instanceof HttpException)) {
+        this.logger.error(
+          `Error al obtener desvíos del proveedor [proveedorId=${proveedorId}, empresaId=${empresaId}]`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+      throw error;
+    }
   }
 }
