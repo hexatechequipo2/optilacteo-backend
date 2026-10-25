@@ -1,9 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import type { NextFunction, Request, Response } from 'express';
+import request from 'supertest';
+import type { App } from 'supertest/types';
 
 import { LoteController } from '../lote.controller';
 import { LoteService } from '../lote.service';
 import { LoteConsumoService } from '../lote-consumo.service';
 import { LoteTrazabilidadService } from '../lote-trazabilidad.service';
+import { AllExceptionsFilter } from '../../../common/filters/all-exceptions.filter';
 
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -127,10 +132,68 @@ describe('LoteController', () => {
 
       loteServiceMock.getDesviosPorProveedor.mockResolvedValue(response);
 
-      const result = await controller.getDesviosPorProveedor('5', tenant);
+      const result = await controller.getDesviosPorProveedor(5, tenant);
 
-      expect(loteServiceMock.getDesviosPorProveedor).toHaveBeenCalledWith(5, tenant);
+      expect(loteServiceMock.getDesviosPorProveedor).toHaveBeenCalledWith(
+        5,
+        tenant,
+      );
       expect(result).toBe(response);
+    });
+  });
+
+  // HU-74: el ParseIntPipe solo actúa a nivel HTTP, por eso se prueba con supertest.
+  describe('GET /lotes/proveedor/:proveedorId/desvios (HU-74)', () => {
+    let app: INestApplication<App>;
+
+    beforeEach(async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        controllers: [LoteController],
+        providers: [
+          { provide: LoteService, useValue: loteServiceMock },
+          { provide: LoteConsumoService, useValue: loteConsumoServiceMock },
+          {
+            provide: LoteTrazabilidadService,
+            useValue: loteTrazabilidadServiceMock,
+          },
+        ],
+      }).compile();
+
+      app = module.createNestApplication();
+      // Mismo filtro que main.ts; el tenant lo inyectaría el JWT.
+      app.use((req: Request, _res: Response, next: NextFunction) => {
+        (req as Request & { user: unknown }).user = { empresaId: 1 };
+        next();
+      });
+      app.useGlobalFilters(new AllExceptionsFilter());
+      await app.init();
+    });
+
+    afterEach(async () => {
+      await app.close();
+    });
+
+    it('id no numérico: responde 400 sin llamar al servicio', async () => {
+      const res = await request(app.getHttpServer()).get(
+        '/lotes/proveedor/abc/desvios',
+      );
+
+      expect(res.status).toBe(400);
+      expect(loteServiceMock.getDesviosPorProveedor).not.toHaveBeenCalled();
+    });
+
+    it('id numérico: delega en el servicio con el id convertido a número', async () => {
+      loteServiceMock.getDesviosPorProveedor.mockResolvedValue([]);
+
+      const res = await request(app.getHttpServer()).get(
+        '/lotes/proveedor/5/desvios',
+      );
+
+      expect(res.status).toBe(200);
+      expect(loteServiceMock.getDesviosPorProveedor).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({ empresaId: 1 }),
+      );
     });
   });
 
