@@ -36,9 +36,14 @@ import {
   SemaforoLoteResponseDto,
   SemaforoParametroDto,
 } from './dto/semaforo-lote-response.dto';
+import {
+  ZONA_HORARIA_EMPRESA,
+  fechaCalendarioComoUtc,
+  rangoDiasInclusivoEmpresa,
+} from '../../common/utils/rango-fechas';
 
 
-const TIMEZONE_EMPRESA = 'America/Argentina/Cordoba';
+const TIMEZONE_EMPRESA = ZONA_HORARIA_EMPRESA;
 type OrigenLecturaSemaforo = 'SENSOR' | 'MANUAL';
 
 @Injectable()
@@ -239,16 +244,17 @@ export class DashboardService {
     query: EvolucionIndicadoresQueryDto,
   ): Promise<EvolucionIndicadoresResponseDto> {
     const empresaId = tenant.empresaId!;
-    const { desde, hasta } = this.resolverRangoEvolucion(query);
+    const { desde, hastaExclusivo, primerDia, ultimoDia } =
+      this.resolverRangoEvolucion(query);
     const granularidad = this.resolverGranularidadAgregacion(
       query.periodo,
       desde,
-      hasta,
+      hastaExclusivo,
     );
     const unidadPostgres = this.mapearUnidadAgregacion(granularidad);
     const periodosEsperados = this.generarPeriodosEntreFechas(
-      desde,
-      hasta,
+      primerDia,
+      ultimoDia,
       granularidad,
     );
 
@@ -258,7 +264,7 @@ export class DashboardService {
         empresaId,
         parametro,
         desde,
-        hasta,
+        hastaExclusivo,
         unidadPostgres,
       );
       const promedios = this.promediarPorPeriodo(filas);
@@ -275,32 +281,41 @@ export class DashboardService {
     return {
       granularidadAplicada: granularidad,
       desde: desde.toISOString(),
-      hasta: hasta.toISOString(),
+      // Último instante incluido, igual que antes de HU-75.
+      hasta: new Date(hastaExclusivo.getTime() - 1).toISOString(),
       series,
     };
   }
 
   // --- Helpers: evolución de indicadores (HU-39) ---
 
-  private resolverRangoEvolucion(
-    query: EvolucionIndicadoresQueryDto,
-  ): { desde: Date; hasta: Date } {
+  // primerDia/ultimoDia son días calendario (YYYY-MM-DD) usados para armar
+  // los períodos; desde/hastaExclusivo son los instantes UTC del filtro SQL.
+  private resolverRangoEvolucion(query: EvolucionIndicadoresQueryDto): {
+    desde: Date;
+    hastaExclusivo: Date;
+    primerDia: string;
+    ultimoDia: string;
+  } {
     if (query.periodo === PeriodoEvolucion.RANGO) {
       if (!query.desde || !query.hasta) {
         throw new BadRequestException(
           'Debe indicar desde y hasta para un rango personalizado',
         );
       }
-      const desde = new Date(query.desde);
-      const hasta = new Date(query.hasta);
-      hasta.setHours(23, 59, 59, 999);
-      if (hasta < desde) {
+      // Comparación de strings YYYY-MM-DD (el DTO ya garantiza el formato).
+      if (query.hasta < query.desde) {
         throw new BadRequestException(
           'La fecha de fin no puede ser anterior a la fecha de inicio',
         );
       }
-      desde.setHours(0, 0, 0, 0);
-      return { desde, hasta };
+      // HU-75: new Date('YYYY-MM-DD') es medianoche UTC (21:00 AR del día
+      // anterior); el helper interpreta ambos días en hora AR.
+      return {
+        ...rangoDiasInclusivoEmpresa(query.desde, query.hasta),
+        primerDia: query.desde,
+        ultimoDia: query.hasta,
+      };
     }
 
     const hasta = new Date();
@@ -318,7 +333,18 @@ export class DashboardService {
         break;
     }
     desde.setHours(0, 0, 0, 0);
-    return { desde, hasta };
+    return {
+      desde,
+      hastaExclusivo: new Date(hasta.getTime() + 1),
+      primerDia: this.formatearFechaLocal(desde),
+      ultimoDia: this.formatearFechaLocal(hasta),
+    };
+  }
+
+  private formatearFechaLocal(fecha: Date): string {
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    return `${fecha.getFullYear()}-${mes}-${dia}`;
   }
 
   private resolverGranularidadAgregacion(
@@ -345,13 +371,19 @@ export class DashboardService {
   }
 
   private generarPeriodosEntreFechas(
-    desde: Date,
-    hasta: Date,
+    primerDia: string,
+    ultimoDia: string,
     granularidad: GranularidadAgregacion,
   ): string[] {
     const periodos: string[] = [];
-    let cursor = this.truncarComoPostgres(desde, granularidad);
-    const haciaFinal = this.truncarComoPostgres(hasta, granularidad);
+    let cursor = this.truncarComoPostgres(
+      fechaCalendarioComoUtc(primerDia),
+      granularidad,
+    );
+    const haciaFinal = this.truncarComoPostgres(
+      fechaCalendarioComoUtc(ultimoDia),
+      granularidad,
+    );
 
     while (cursor <= haciaFinal) {
       periodos.push(this.formatearPeriodoEvolucion(cursor, granularidad));
@@ -364,25 +396,27 @@ export class DashboardService {
   // claves generadas acá coincidan siempre con las que devuelve la query SQL.
   // Sin esto, "semana" desalinea (Postgres ancla al lunes) y "mes" puede
   // desbordar con setMonth() cuando el cursor cae en día 29/30/31.
+  // Opera en UTC sobre días calendario (fechaCalendarioComoUtc), así el
+  // resultado no depende de la TZ del proceso.
   private truncarComoPostgres(
     fecha: Date,
     granularidad: GranularidadAgregacion,
   ): Date {
     const d = new Date(fecha);
     if (granularidad === GranularidadAgregacion.DIA) {
-      d.setHours(0, 0, 0, 0);
+      d.setUTCHours(0, 0, 0, 0);
       return d;
     }
     if (granularidad === GranularidadAgregacion.SEMANA) {
-      const dia = d.getDay(); // 0=domingo...6=sábado
+      const dia = d.getUTCDay(); // 0=domingo...6=sábado
       const offset = (dia + 6) % 7; // días a retroceder hasta el lunes (ISO)
-      d.setDate(d.getDate() - offset);
-      d.setHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() - offset);
+      d.setUTCHours(0, 0, 0, 0);
       return d;
     }
     // MES
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
+    d.setUTCDate(1);
+    d.setUTCHours(0, 0, 0, 0);
     return d;
   }
 
@@ -395,13 +429,13 @@ export class DashboardService {
     const d = new Date(cursor);
     switch (granularidad) {
       case GranularidadAgregacion.DIA:
-        d.setDate(d.getDate() + 1);
+        d.setUTCDate(d.getUTCDate() + 1);
         break;
       case GranularidadAgregacion.SEMANA:
-        d.setDate(d.getDate() + 7);
+        d.setUTCDate(d.getUTCDate() + 7);
         break;
       case GranularidadAgregacion.MES:
-        d.setMonth(d.getMonth() + 1);
+        d.setUTCMonth(d.getUTCMonth() + 1);
         break;
     }
     return d;
@@ -422,7 +456,7 @@ export class DashboardService {
     empresaId: number,
     parametro: Parametro,
     desde: Date,
-    hasta: Date,
+    hastaExclusivo: Date,
     unidadPostgres: string,
   ): Promise<{ periodo: string; valor: number }[]> {
     const sensorRows = await this.sensorLecturaRepo
@@ -435,10 +469,11 @@ export class DashboardService {
       .addSelect('lectura.valor', 'valor')
       .where('lectura.empresaId = :empresaId', { empresaId })
       .andWhere('sensor.parametro = :parametro', { parametro })
-      .andWhere('lectura.timestampLectura BETWEEN :desde AND :hasta', {
-        desde,
-        hasta,
-      })
+      // HU-75: intervalo semiabierto [desde, hastaExclusivo).
+      .andWhere(
+        'lectura.timestampLectura >= :desde AND lectura.timestampLectura < :hastaExclusivo',
+        { desde, hastaExclusivo },
+      )
       .getRawMany<{ periodo: Date; valor: string }>();
 
     const manualRows = await this.medicionManualRepo
@@ -450,7 +485,10 @@ export class DashboardService {
       .addSelect('m.valor', 'valor')
       .where('m.empresaId = :empresaId', { empresaId })
       .andWhere('m.parametro = :parametro', { parametro })
-      .andWhere('m.createdAt BETWEEN :desde AND :hasta', { desde, hasta })
+      .andWhere('m.createdAt >= :desde AND m.createdAt < :hastaExclusivo', {
+        desde,
+        hastaExclusivo,
+      })
       .getRawMany<{ periodo: Date; valor: string }>();
 
     return [...sensorRows, ...manualRows].map((r) => ({
