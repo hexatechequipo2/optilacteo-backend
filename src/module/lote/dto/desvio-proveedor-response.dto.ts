@@ -9,14 +9,18 @@ export class DesvioParametroDto {
   @ApiProperty()
   valorComprometido!: number;
 
-  @ApiProperty()
-  valorReal!: number;
+  @ApiProperty({
+    nullable: true,
+    description: 'Null si el lote no tiene valor real cargado para el parámetro',
+  })
+  valorReal!: number | null;
 
   @ApiProperty({
+    nullable: true,
     description:
-      'Porcentaje de desvío (positivo = por encima de lo comprometido)',
+      'Porcentaje de desvío (positivo = por encima de lo comprometido). Null si no se puede calcular (valor comprometido 0 o valor real ausente); 0 significa sin desvío',
   })
-  desvioPorcentaje!: number;
+  desvioPorcentaje!: number | null;
 }
 
 export class DesvioProveedorResponseDto {
