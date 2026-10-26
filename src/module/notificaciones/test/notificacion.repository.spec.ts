@@ -109,6 +109,48 @@ describe('NotificacionRepository', () => {
     expect(count).toBe(5);
   });
 
+  describe('markAllAsLeidas', () => {
+    it('debe hacer un solo UPDATE filtrado por usuario, empresa y leida = false', async () => {
+      typeOrmRepository.update.mockResolvedValue({
+        affected: 3,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      await repository.markAllAsLeidas(2, 10);
+
+      expect(typeOrmRepository.update).toHaveBeenCalledTimes(1);
+      expect(typeOrmRepository.update).toHaveBeenCalledWith(
+        { usuarioId: 2, empresaId: 10, leida: false },
+        { leida: true },
+      );
+    });
+
+    it('debe devolver la cantidad de filas afectadas', async () => {
+      typeOrmRepository.update.mockResolvedValue({
+        affected: 3,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      const actualizadas = await repository.markAllAsLeidas(2, 10);
+
+      expect(actualizadas).toBe(3);
+    });
+
+    it('sin notificaciones no leídas, debe devolver 0', async () => {
+      typeOrmRepository.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      const actualizadas = await repository.markAllAsLeidas(2, 10);
+
+      expect(actualizadas).toBe(0);
+    });
+  });
+
   it('findAlertaAbiertaPorLoteYParametro: debe buscar por estado ABIERTA', async () => {
     typeOrmRepository.findOne.mockResolvedValue(null);
 
