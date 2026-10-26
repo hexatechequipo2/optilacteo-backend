@@ -26,6 +26,8 @@ export interface INotificacionRepository {
 
   countNoLeidas(usuarioId: number, empresaId: number): Promise<number>;
 
+  markAllAsLeidas(usuarioId: number, empresaId: number): Promise<number>;
+
   // HU-27
   findAlertaAbiertaPorLoteYParametro(
     empresaId: number,

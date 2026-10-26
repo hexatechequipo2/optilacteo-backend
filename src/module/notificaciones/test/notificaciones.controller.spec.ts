@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { StreamableFile } from '@nestjs/common';
-import type { Response } from 'express';
+import { INestApplication, StreamableFile } from '@nestjs/common';
+import type { NextFunction, Request, Response } from 'express';
+import request from 'supertest';
+import type { App } from 'supertest/types';
 import { NotificacionesController } from '../notificaciones.controller';
 import { NotificacionesService } from '../notificaciones.service';
 import { ConfiguracionAlertaDesconexionService } from '../configuracion-alerta-desconexion.service';
@@ -34,6 +36,7 @@ describe('NotificacionesController', () => {
     mockNotificacionesService = {
       listarPorUsuario: jest.fn(),
       marcarLeida: jest.fn(),
+      marcarTodasLeidas: jest.fn(),
       contarNoLeidas: jest.fn(),
       listarConfiguracion: jest.fn(),
       crearConfiguracion: jest.fn(),
@@ -112,6 +115,110 @@ describe('NotificacionesController', () => {
         1,
       );
       expect(resultado).toEqual({ id: 5, leida: true });
+    });
+  });
+
+  describe('marcarTodasLeidas', () => {
+    it('debe marcar las del usuario autenticado en la empresa activa', async () => {
+      mockNotificacionesService.marcarTodasLeidas.mockResolvedValue({
+        actualizadas: 3,
+      });
+
+      const resultado = await controller.marcarTodasLeidas(
+        mockTenantContext,
+        mockReq,
+      );
+
+      expect(mockNotificacionesService.marcarTodasLeidas).toHaveBeenCalledWith(
+        'user-uuid-1',
+        1,
+      );
+      expect(resultado).toEqual({ actualizadas: 3 });
+    });
+  });
+
+  // El orden de las rutas solo se ve a nivel HTTP, por eso se prueba con supertest.
+  describe('PATCH /notificaciones/leidas (ruteo)', () => {
+    let app: INestApplication<App>;
+
+    beforeEach(async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        controllers: [NotificacionesController],
+        providers: [
+          {
+            provide: NotificacionesService,
+            useValue: mockNotificacionesService,
+          },
+          {
+            provide: ConfiguracionAlertaDesconexionService,
+            useValue: mockConfiguracionAlertaDesconexionService,
+          },
+        ],
+      }).compile();
+
+      app = module.createNestApplication();
+      // El usuario y el tenant los inyectaría el JWT.
+      app.use((req: Request, _res: Response, next: NextFunction) => {
+        (req as Request & { user: unknown }).user = { sub: 7, empresaId: 1 };
+        next();
+      });
+      await app.init();
+    });
+
+    afterEach(async () => {
+      await app.close();
+    });
+
+    it('/leidas va a marcarTodasLeidas y no a marcarLeida', async () => {
+      mockNotificacionesService.marcarTodasLeidas.mockResolvedValue({
+        actualizadas: 2,
+      });
+
+      const res = await request(app.getHttpServer()).patch(
+        '/notificaciones/leidas',
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ actualizadas: 2 });
+      expect(mockNotificacionesService.marcarTodasLeidas).toHaveBeenCalledWith(
+        7,
+        1,
+      );
+      expect(mockNotificacionesService.marcarLeida).not.toHaveBeenCalled();
+    });
+
+    it('sin no leídas responde 200 con actualizadas 0', async () => {
+      mockNotificacionesService.marcarTodasLeidas.mockResolvedValue({
+        actualizadas: 0,
+      });
+
+      const res = await request(app.getHttpServer()).patch(
+        '/notificaciones/leidas',
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ actualizadas: 0 });
+    });
+
+    it('/:id/leida sigue yendo a marcarLeida', async () => {
+      mockNotificacionesService.marcarLeida.mockResolvedValue({
+        id: 5,
+        leida: true,
+      });
+
+      const res = await request(app.getHttpServer()).patch(
+        '/notificaciones/5/leida',
+      );
+
+      expect(res.status).toBe(200);
+      expect(mockNotificacionesService.marcarLeida).toHaveBeenCalledWith(
+        5,
+        7,
+        1,
+      );
+      expect(
+        mockNotificacionesService.marcarTodasLeidas,
+      ).not.toHaveBeenCalled();
     });
   });
 

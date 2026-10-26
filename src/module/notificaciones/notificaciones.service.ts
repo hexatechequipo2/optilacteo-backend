@@ -411,6 +411,22 @@ export class NotificacionesService {
   }
 
   /**
+   * Marca como leídas todas las notificaciones no leídas
+   * del usuario en la empresa activa.
+   */
+  async marcarTodasLeidas(
+    usuarioId: number,
+    empresaId: number,
+  ): Promise<{ actualizadas: number }> {
+    const actualizadas = await this.notificacionRepository.markAllAsLeidas(
+      usuarioId,
+      empresaId,
+    );
+
+    return { actualizadas };
+  }
+
+  /**
    * HU-26 criterio 4:
    * contador de notificaciones no leídas.
    */
