@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { QueryFailedError } from 'typeorm';
 import type { TenantContext } from '../../common/types/tenant-context.type';
 import {
   PROVEEDOR_REPOSITORY,
@@ -24,6 +25,8 @@ import { EstadoProveedor } from './enums/estado-proveedor.enum';
 import { ProveedorFilterQueryDto } from './dto/proveedor-filter-query.dto';
 import { AuditLogService } from '../audit/audit-log.service';
 import { EstabilidadProveedorService } from '../estabilidad-proveedor/estabilidad-proveedor.service'; // HU-64
+
+const PG_UNIQUE_VIOLATION = '23505';
 
 @Injectable()
 export class ProveedoresService {
@@ -53,6 +56,55 @@ export class ProveedoresService {
   // HU-63: solo Gerente ve quién creó/modificó el proveedor.
   private puedeVerAuditoria(tenant: TenantContext): boolean {
     return tenant.rolNombre === ROLES.GERENTE;
+  }
+
+  // Respaldo ante condiciones de carrera: la BD es la última barrera.
+  private rethrowIfUniqueViolation(error: unknown): never {
+    if (
+      error instanceof QueryFailedError &&
+      (error as QueryFailedError & { driverError?: { code?: string } })
+        .driverError?.code === PG_UNIQUE_VIOLATION
+    ) {
+      throw new ConflictException({
+        field: 'cuit',
+        message: 'Ya existe un proveedor con ese CUIT en la empresa.',
+      });
+    }
+    throw error;
+  }
+
+  private async assertCuitDisponible(
+    cuit: string,
+    empresaId: number,
+    excluirId?: number,
+  ): Promise<void> {
+    const existente = await this.proveedorRepository.findByCuit(
+      cuit,
+      empresaId,
+    );
+    if (existente && existente.id !== excluirId) {
+      throw new ConflictException({
+        field: 'cuit',
+        message: 'Ya existe un proveedor con ese CUIT en la empresa.',
+      });
+    }
+  }
+
+  private async assertRazonSocialDisponible(
+    razonSocial: string,
+    empresaId: number,
+    excluirId?: number,
+  ): Promise<void> {
+    const existente = await this.proveedorRepository.findByRazonSocial(
+      razonSocial,
+      empresaId,
+    );
+    if (existente && existente.id !== excluirId) {
+      throw new ConflictException({
+        field: 'razonSocial',
+        message: 'Ya existe un proveedor con esa razón social en la empresa.',
+      });
+    }
   }
 
   async findAll(
@@ -122,28 +174,18 @@ export class ProveedoresService {
     tenant: TenantContext,
   ): Promise<ProveedorResponseDto> {
     const empresaId = this.resolveEmpresaId(dto.empresaId, tenant);
-    const proveedorPorCuit = await this.proveedorRepository.findByCuit(
-      dto.cuit,
-    );
 
-    if (proveedorPorCuit) {
-      throw new ConflictException({
-        field: 'cuit',
-        message: 'Ya existe un proveedor con ese CUIT.',
-      });
-    }
-    const proveedorPorRazonSocial =
-      await this.proveedorRepository.findByRazonSocial(dto.razonSocial);
+    // La unicidad se evalúa únicamente dentro de la empresa destino.
+    await this.assertCuitDisponible(dto.cuit, empresaId);
+    await this.assertRazonSocialDisponible(dto.razonSocial, empresaId);
 
-    if (proveedorPorRazonSocial) {
-      throw new ConflictException({
-        field: 'razonSocial',
-        message: 'Ya existe un proveedor con esa razón social.',
-      });
-    }
     const entity = this.mapper.toEntity(dto, empresaId);
-    const saved = await this.proveedorRepository.save(entity);
-    return this.mapper.toResponseDto(saved);
+    try {
+      const saved = await this.proveedorRepository.save(entity);
+      return this.mapper.toResponseDto(saved);
+    } catch (error) {
+      this.rethrowIfUniqueViolation(error);
+    }
   }
 
   async update(
@@ -157,39 +199,57 @@ export class ProveedoresService {
     }
     this.assertOwnEmpresa(proveedor, tenant);
 
-    if (dto.cuit && dto.cuit !== proveedor.cuit) {
-      const cuitEnUso = await this.proveedorRepository.findByCuit(dto.cuit);
-      if (cuitEnUso) {
-        throw new ConflictException(
-          `El CUIT ${dto.cuit} ya está en uso por otro proveedor`,
-        );
-      }
-    }
-
-    if (dto.razonSocial && dto.razonSocial.trim() !== proveedor.razonSocial) {
-      const razonSocialEnUso = await this.proveedorRepository.findByRazonSocial(
-        dto.razonSocial,
-      );
-
-      if (razonSocialEnUso) {
-        throw new ConflictException({
-          field: 'razonSocial',
-          message: 'Ya existe un proveedor con esa razón social.',
-        });
-      }
-    }
-
     const empresaId =
       dto.empresaId !== undefined
         ? this.resolveEmpresaId(dto.empresaId, tenant)
         : undefined;
-    const updated = this.mapper.applyUpdate(proveedor, dto, empresaId);
-    const saved = await this.proveedorRepository.update(updated, tenant);
 
-    if (!saved) {
-      throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
+    // Empresa contra la cual se valida la unicidad (la destino si cambia).
+    const empresaDestino = empresaId ?? proveedor.empresa.id;
+    const cambiaEmpresa =
+      empresaId !== undefined && empresaId !== proveedor.empresa.id;
+
+    if (dto.cuit && (dto.cuit !== proveedor.cuit || cambiaEmpresa)) {
+      await this.assertCuitDisponible(dto.cuit, empresaDestino, id);
     }
-    return this.mapper.toResponseDto(saved);
+
+    if (
+      dto.razonSocial &&
+      (dto.razonSocial.trim() !== proveedor.razonSocial || cambiaEmpresa)
+    ) {
+      await this.assertRazonSocialDisponible(
+        dto.razonSocial,
+        empresaDestino,
+        id,
+      );
+    }
+
+    // Si no se manda cuit/razonSocial pero cambia la empresa, hay que validar
+    // igualmente los valores actuales contra la empresa destino.
+    if (cambiaEmpresa) {
+      if (!dto.cuit) {
+        await this.assertCuitDisponible(proveedor.cuit, empresaDestino, id);
+      }
+      if (!dto.razonSocial) {
+        await this.assertRazonSocialDisponible(
+          proveedor.razonSocial,
+          empresaDestino,
+          id,
+        );
+      }
+    }
+
+    const updated = this.mapper.applyUpdate(proveedor, dto, empresaId);
+    try {
+      const saved = await this.proveedorRepository.update(updated, tenant);
+      if (!saved) {
+        throw new NotFoundException(`Proveedor con id "${id}" no encontrado`);
+      }
+      return this.mapper.toResponseDto(saved);
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.rethrowIfUniqueViolation(error);
+    }
   }
 
   async remove(id: number, tenant: TenantContext): Promise<void> {

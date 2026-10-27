@@ -23,8 +23,12 @@ export interface IProveedorRepository {
     filters?: ProveedorFilters,
   ): Promise<[Proveedor[], number]>;
   findById(id: number, tenant: TenantContext): Promise<Proveedor | null>;
-  findByCuit(cuit: string): Promise<Proveedor | null>;
-  findByRazonSocial(razonSocial: string): Promise<Proveedor | null>;
+  // La unicidad es por empresa: ambos métodos buscan solo dentro de empresaId.
+  findByCuit(cuit: string, empresaId: number): Promise<Proveedor | null>;
+  findByRazonSocial(
+    razonSocial: string,
+    empresaId: number,
+  ): Promise<Proveedor | null>;
   save(proveedor: Proveedor): Promise<Proveedor>;
   update(
     proveedor: Proveedor,
