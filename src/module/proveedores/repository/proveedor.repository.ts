@@ -84,14 +84,24 @@ export class ProveedorRepository
     return qb.getOne();
   }
 
-  async findByCuit(cuit: string): Promise<Proveedor | null> {
-    return this.repo.findOneBy({ cuit });
+  // La unicidad de CUIT es por empresa (UQ_proveedores_empresa_cuit).
+  async findByCuit(cuit: string, empresaId: number): Promise<Proveedor | null> {
+    return this.repo.findOneBy({ cuit: cuit.trim(), empresaId });
   }
 
-  async findByRazonSocial(razonSocial: string): Promise<Proveedor | null> {
-    return this.repo.findOneBy({
-      razonSocial,
-    });
+  // Comparación sin distinguir mayúsculas ni espacios en los bordes, dentro
+  // de la empresa. LOWER() en vez de ILIKE para que % y _ no actúen de comodín.
+  async findByRazonSocial(
+    razonSocial: string,
+    empresaId: number,
+  ): Promise<Proveedor | null> {
+    return this.repo
+      .createQueryBuilder('proveedor')
+      .where('LOWER(TRIM(proveedor.razonSocial)) = LOWER(TRIM(:razonSocial))', {
+        razonSocial,
+      })
+      .andWhere('proveedor.empresaId = :empresaId', { empresaId })
+      .getOne();
   }
 
   async save(proveedor: Proveedor): Promise<Proveedor> {
