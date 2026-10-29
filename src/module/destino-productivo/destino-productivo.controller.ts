@@ -2,6 +2,9 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  ParseIntPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +22,7 @@ import type { TenantContext } from '../../common/types/tenant-context.type';
 import { ROLES } from '../rol/constants/roles.constants';
 import { ModuloSistema } from '../empresa/enums/modulo-sistema.enum';
 import { PermissionAction } from '../../common/enums/permission-action.enum';
+import { UpdateDestinoProductivoDto } from './dto/update-destino-productivo.dto';
 
 @ApiTags('destinos-productivos')
 @ApiBearerAuth()
@@ -43,5 +47,15 @@ export class DestinoProductivoController {
     @Body() dto: CreateDestinoProductivoDto,
   ) {
     return this.destinoProductivoService.create(tenant, dto);
+  }
+
+  @Patch(':id')
+  @Permissions([ModuloSistema.DESTINO_PRODUCTIVO_IA], PermissionAction.UPDATE)
+  update(
+    @CurrentEmpresa() tenant: TenantContext,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateDestinoProductivoDto,
+  ) {
+    return this.destinoProductivoService.update(tenant, id, dto);
   }
 }
