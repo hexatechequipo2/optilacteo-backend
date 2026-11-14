@@ -1,5 +1,9 @@
 import { Lote } from '../entities/lote.entity';
-import { LoteResponseDto } from '../dto/lote-response.dto';
+import {
+  LoteResponseDto,
+  ParametroMotivoResponseDto,
+} from '../dto/lote-response.dto';
+
 import { DesvioProveedorResponseDto } from '../dto/desvio-proveedor-response.dto';
 import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
 
@@ -14,6 +18,9 @@ export class LoteMapper {
       materiaPrima: lote.materiaPrima,
       fechaIngreso: lote.fechaIngreso,
       clasificacion: lote.clasificacion ?? null,
+      clasificacionMotivos: (lote.clasificacionMotivos ??
+      []) as ParametroMotivoResponseDto[],
+            clasificacionManual: lote.clasificacionManual ?? false,
       destinoInicial: lote.destinoInicial ?? null,
       ubicacionInicial: lote.ubicacionInicial ?? null,
       estado: lote.estado,

@@ -20,6 +20,7 @@ import { EstadoLote } from '../enums/estado-lote.enum';
 import { Ubicacion } from '../../sensor/enums/ubicacion.enum';
 import { UnidadRendimiento } from '../enums/unidad-rendimiento.enum';
 import { UnidadCantidad } from '../enums/unidad-cantidad.enum';
+import { ParametroEvaluado } from '../types/parametro-evaluado.type';
 
 @Entity('lotes')
 export class Lote {
@@ -61,6 +62,16 @@ export class Lote {
   @Column({ type: 'enum', enum: ClasificacionLote, nullable: true })
   clasificacion?: ClasificacionLote | null;
 
+  // HU-76 (criterio 7): parámetros en alerta o críticos que explican la
+  // clasificación vigente. Se refresca en cada evaluación automática.
+  @Column({ type: 'jsonb', nullable: true })
+  clasificacionMotivos?: ParametroEvaluado[] | null;
+
+  // HU-76 (criterio 9): true si la clasificación vigente fue fijada por una
+  // aprobación manual (HU-22) y no por la evaluación automática.
+  @Column({ type: 'boolean', default: false })
+  clasificacionManual!: boolean;
+  
   @Column({ type: 'enum', enum: DestinoLote, nullable: true })
   destinoInicial?: DestinoLote | null;
 
