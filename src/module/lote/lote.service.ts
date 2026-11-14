@@ -181,7 +181,18 @@ export class LoteService {
 
     const saved = await this.loteRepository.save(lote);
 
-    await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
+    const resultadoClasificacion = await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
+
+    // HU-76: el lote puede quedar pendiente de clasificar; se avisa en la respuesta.
+    if (resultadoClasificacion.resultado === 'sin_configuracion') {
+      warnings.push(
+        `El lote quedó sin clasificar: no hay configuración de umbrales para la materia prima '${dto.materiaPrima}'.`,
+      );
+    } else if (resultadoClasificacion.resultado === 'parametros_incompletos') {
+      warnings.push(
+        `El lote quedó pendiente de clasificar: faltan los parámetros ${resultadoClasificacion.faltantes.join(', ')}.`,
+      );
+    }
 
     // HU-64 AC3: recalcular estabilidad del proveedor con el lote nuevo.
     // Best-effort: el alta del lote nunca depende de esto.
@@ -285,7 +296,6 @@ export class LoteService {
 
     if (dto.materiaPrima) lote.materiaPrima = dto.materiaPrima;
     if (dto.fechaIngreso) lote.fechaIngreso = new Date(dto.fechaIngreso);
-    if (dto.clasificacion !== undefined) lote.clasificacion = dto.clasificacion;
     if (dto.destinoInicial !== undefined)
       lote.destinoInicial = dto.destinoInicial;
 
@@ -571,7 +581,10 @@ export class LoteService {
     await this.loteRevisionRepository.save(revision);
 
     if (dto.decision === DecisionRevision.APROBADO) {
+      // Se conserva clasificacionMotivos (explica qué se revisó y aprobó). La
+      // evaluación automática no la pisa mientras la situación no cambie.
       lote.clasificacion = ClasificacionLote.APTO;
+      lote.clasificacionManual = true;
     } else {
       lote.estado = EstadoLote.RECHAZADO;
     }
