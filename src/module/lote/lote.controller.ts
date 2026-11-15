@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  ParseIntPipe,
   Query,
   UseGuards,
   Req,
@@ -30,7 +31,8 @@ import { LoteConsumoService } from './lote-consumo.service';
 import { Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { PermissionAction } from '../../common/enums/permission-action.enum';
-
+import { LoteProduccionConsultaService } from './lote-produccion-consulta.service';
+import { LoteProduccionFilterQueryDto } from './dto/lote-produccion-filter-query.dto';
 
 @ApiTags('lote')
 @ApiBearerAuth()
@@ -40,6 +42,7 @@ export class LoteController {
     private readonly loteService: LoteService,
     private readonly loteConsumoService: LoteConsumoService,
     private readonly loteTrazabilidadService: LoteTrazabilidadService, // <-- NUEVO (HU-32)
+    private readonly produccionConsultaService: LoteProduccionConsultaService,
   ) {}
 
   // HU-60: registro de lotes — solo Responsable de calidad.
@@ -78,6 +81,25 @@ export class LoteController {
     return this.loteConsumoService.findLotesProduccion(tenant);
   }
 
+    // HU-77: consulta de lotes de producción con filtros (sin generar reporte).
+  @Get('producciones/consulta')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
+  consultarProducciones(
+    @Query() query: LoteProduccionFilterQueryDto,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.produccionConsultaService.findAll(query, tenant);
+  }
+
+  // HU-77 (criterio 7): detalle y trazabilidad de un lote de producción.
+  @Get('producciones/:id/trazabilidad')
+  @Permissions([ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
+  getTrazabilidadProduccion(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentEmpresa() tenant: TenantContext,
+  ) {
+    return this.produccionConsultaService.getTrazabilidad(id, tenant);
+  }
   // HU-66: histórico de desvíos entre lo comprometido (remito) y lo real
   // recibido, agrupado por proveedor. Va ANTES de @Get(':id') por el mismo
   // motivo que 'no-aptos' y 'producciones' — si no, Nest interpreta
@@ -85,10 +107,10 @@ export class LoteController {
   @Get('proveedor/:proveedorId/desvios')
   @Permissions([ModuloSistema.RECEPCION, ModuloSistema.TRAZABILIDAD], PermissionAction.READ)
   getDesviosPorProveedor(
-    @Param('proveedorId') proveedorId: string,
+    @Param('proveedorId', ParseIntPipe) proveedorId: number,
     @CurrentEmpresa() tenant: TenantContext,
   ) {
-    return this.loteService.getDesviosPorProveedor(+proveedorId, tenant);
+    return this.loteService.getDesviosPorProveedor(proveedorId, tenant);
   }
 
   @Get(':id')

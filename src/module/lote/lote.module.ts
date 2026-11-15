@@ -60,6 +60,7 @@ import { Empresa } from '../empresa/entities/empresa.entity';
 
 // HU-64: estabilidad de proveedores
 import { EstabilidadProveedorModule } from '../estabilidad-proveedor/estabilidad-proveedor.module';
+import { LoteProduccionConsultaService } from './lote-produccion-consulta.service';
 
 @Module({
   imports: [
@@ -108,6 +109,7 @@ import { EstabilidadProveedorModule } from '../estabilidad-proveedor/estabilidad
     LoteConsumoService,
     LoteTrazabilidadService,
     TrazabilidadPdfBuilder,
+    LoteProduccionConsultaService,
 
     {
       provide: LOTE_REPOSITORY,

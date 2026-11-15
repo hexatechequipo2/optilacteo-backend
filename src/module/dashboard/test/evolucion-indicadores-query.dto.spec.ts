@@ -93,4 +93,53 @@ describe('EvolucionIndicadoresQueryDto', () => {
       ).toContain(campo);
     });
   });
+
+  // HU-75: rango personalizado con días calendario YYYY-MM-DD.
+  describe('rango de fechas', () => {
+    const rango = (desde?: string, hasta?: string) => ({
+      periodo: 'rango',
+      indicadores: Parametro.PH,
+      desde,
+      hasta,
+    });
+
+    const mensajes = async (plain: Record<string, unknown>) =>
+      (await validate(transformar(plain))).flatMap((e) =>
+        Object.values(e.constraints ?? {}),
+      );
+
+    it('acepta desde igual a hasta', async () => {
+      expect(await campos(rango('2026-03-10', '2026-03-10'))).toEqual([]);
+    });
+
+    it('acepta un rango que cruza un cambio de mes', async () => {
+      expect(await campos(rango('2026-02-27', '2026-03-02'))).toEqual([]);
+    });
+
+    it('rechaza desde posterior a hasta con un mensaje claro', async () => {
+      expect(await mensajes(rango('2026-03-15', '2026-03-10'))).toEqual([
+        'La fecha "desde" no puede ser posterior a la fecha "hasta"',
+      ]);
+    });
+
+    it.each([
+      ['2026-02-30', 'desde'],
+      ['2026-03-10T00:00:00Z', 'desde'],
+    ])('rechaza desde=%s', async (desde, campo) => {
+      expect(await campos(rango(desde, '2026-03-31'))).toEqual([campo]);
+    });
+
+    it('exige desde y hasta cuando periodo=rango', async () => {
+      expect(await mensajes(rango())).toEqual([
+        'desde es requerido cuando periodo=rango',
+        'hasta es requerido cuando periodo=rango',
+      ]);
+    });
+
+    it('no exige fechas si el periodo no es rango', async () => {
+      expect(
+        await campos({ periodo: 'dia', indicadores: Parametro.PH }),
+      ).toEqual([]);
+    });
+  });
 });

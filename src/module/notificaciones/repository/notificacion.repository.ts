@@ -95,6 +95,22 @@ export class NotificacionRepository implements INotificacionRepository {
     });
   }
 
+  // Un solo UPDATE; filtrar por leida = false hace que affected cuente solo las que cambiaron
+  async markAllAsLeidas(usuarioId: number, empresaId: number): Promise<number> {
+    const result = await this.repository.update(
+      {
+        usuarioId,
+        empresaId,
+        leida: false,
+      },
+      {
+        leida: true,
+      },
+    );
+
+    return result.affected ?? 0;
+  }
+
   // ============================================================
   // HU-27
   // ============================================================

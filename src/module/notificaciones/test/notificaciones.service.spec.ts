@@ -22,6 +22,7 @@ describe('NotificacionesService', () => {
     create: jest.Mock;
     findByUsuario: jest.Mock;
     markAsLeida: jest.Mock;
+    markAllAsLeidas: jest.Mock;
     countNoLeidas: jest.Mock;
     findAlertaAbiertaPorLoteYParametro: jest.Mock;
     findAlertaAbiertaAnomalia: jest.Mock;
@@ -70,6 +71,7 @@ describe('NotificacionesService', () => {
       create: jest.fn(),
       findByUsuario: jest.fn(),
       markAsLeida: jest.fn(),
+      markAllAsLeidas: jest.fn(),
       countNoLeidas: jest.fn(),
       findAlertaAbiertaPorLoteYParametro: jest.fn(),
       findAlertaAbiertaAnomalia: jest.fn(),
@@ -593,6 +595,28 @@ describe('NotificacionesService', () => {
       await expect(service.marcarLeida(99, 10, 1)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('marcarTodasLeidas', () => {
+    it('debe marcar solo las del usuario y la empresa indicados y devolver la cantidad', async () => {
+      mockNotificacionRepository.markAllAsLeidas.mockResolvedValue(4);
+
+      const resultado = await service.marcarTodasLeidas(10, 1);
+
+      expect(mockNotificacionRepository.markAllAsLeidas).toHaveBeenCalledWith(
+        10,
+        1,
+      );
+      expect(resultado).toEqual({ actualizadas: 4 });
+    });
+
+    it('sin notificaciones no leídas, debe devolver actualizadas 0', async () => {
+      mockNotificacionRepository.markAllAsLeidas.mockResolvedValue(0);
+
+      const resultado = await service.marcarTodasLeidas(10, 1);
+
+      expect(resultado).toEqual({ actualizadas: 0 });
     });
   });
 

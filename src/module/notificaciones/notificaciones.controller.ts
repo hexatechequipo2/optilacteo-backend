@@ -15,7 +15,13 @@ import {
 
 import type { Response } from 'express';
 
-import { ApiBearerAuth, ApiTags, ApiProduces } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiProduces,
+  ApiOperation,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 
 import { CurrentEmpresa } from '../../common/decorators/current-empresa.decorator';
 
@@ -67,6 +73,23 @@ export class NotificacionesController {
       req.user.sub,
       tenant.empresaId!,
       query,
+    );
+  }
+
+  // Declarada antes de las rutas con :id para que el parámetro no capture "leidas"
+  @Patch('leidas')
+  @AuthenticatedOnly()
+  @ApiOperation({
+    summary:
+      'Marca como leídas todas las notificaciones no leídas del usuario en la empresa activa',
+  })
+  @ApiOkResponse({
+    schema: { properties: { actualizadas: { type: 'number' } } },
+  })
+  marcarTodasLeidas(@CurrentEmpresa() tenant: TenantContext, @Req() req: any) {
+    return this.notificacionesService.marcarTodasLeidas(
+      req.user.sub,
+      tenant.empresaId!,
     );
   }
 

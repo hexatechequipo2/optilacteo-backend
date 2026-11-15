@@ -182,6 +182,13 @@ const ENDPOINTS: [Metodo, string, Requisito, Perfil[], Perfil[]][] = [
     [],
   ],
   [
+    'patch',
+    '/notificaciones/leidas',
+    'autenticado',
+    ['gerente', 'operario'],
+    [],
+  ],
+  [
     'get',
     '/notificaciones/no-leidas/count',
     'autenticado',

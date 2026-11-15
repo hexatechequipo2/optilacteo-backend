@@ -5,7 +5,9 @@ import {
   CIEN_PALABRA,
   CONECTORES_DECIMALES,
   DECENAS_PALABRA,
+  MIL_PALABRA,
   RANGO_PLAUSIBLE_DICTADO,
+  RANGO_SEPARADOR_MILES_DENSIDAD,
   SINONIMOS_PARAMETRO,
   UNIDADES_HABLADAS,
   UNIDADES_PALABRA,
@@ -382,6 +384,15 @@ export class DictadoParametrosParserService {
     const t0 = tokens[desde];
     if (!t0) return null;
 
+    // Densidad en kg/m³: "mil", "mil veintiocho", "mil treinta y uno".
+    if (t0.text === MIL_PALABRA) {
+      const resto = this.parsearNumeroDesde(tokens, desde + 1);
+      if (resto && resto.valor < 1000) {
+        return { valor: 1000 + resto.valor, fin: resto.fin };
+      }
+      return { valor: 1000, fin: t0.end };
+    }
+
     let entero: number;
     let consumidos: number;
 
@@ -456,6 +467,9 @@ export class DictadoParametrosParserService {
     parametro: Parametro,
     numero: NumeroEncontrado,
   ): NumeroEncontrado {
+    const conSeparadorMiles = this.aplicarSeparadorMiles(parametro, numero);
+    if (conSeparadorMiles) return conSeparadorMiles;
+
     if (!Number.isInteger(numero.valor)) return numero;
 
     const rango = RANGO_PLAUSIBLE_DICTADO[parametro];
@@ -469,6 +483,26 @@ export class DictadoParametrosParserService {
     }
 
     return numero;
+  }
+
+  // Densidad dictada con punto de miles ("1.028" → 1028 kg/m³). Solo para
+  // DENSIDAD: en el resto de los parámetros "1.028" es un decimal legítimo.
+  // Igual que el decimal implícito, nunca en silencio: confianza 'media'.
+  // Exige parte decimal: "densidad 1" / "densidad uno" no se reinterpretan
+  // como 1000 (quedan fuera de rango físico, visibles para el operario).
+  private aplicarSeparadorMiles(
+    parametro: Parametro,
+    numero: NumeroEncontrado,
+  ): NumeroEncontrado | null {
+    if (parametro !== Parametro.DENSIDAD) return null;
+    if (Number.isInteger(numero.valor)) return null;
+    const { min, max } = RANGO_SEPARADOR_MILES_DENSIDAD;
+    if (numero.valor < min || numero.valor > max) return null;
+    return {
+      ...numero,
+      valor: Math.round(numero.valor * 1000),
+      regla: 'separador_miles',
+    };
   }
 
   private esFueraDeRangoFisico(parametro: Parametro, valor: number): boolean {

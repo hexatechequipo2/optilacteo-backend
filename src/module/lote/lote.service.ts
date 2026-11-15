@@ -2,9 +2,12 @@ import {
   BadRequestException,
   ConflictException,
   forwardRef,
+  HttpException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -34,6 +37,8 @@ import { SensorResponseDto } from '../sensor/dto/sensor-response.dto';
 import { EstadoProveedor } from '../proveedores/enums/estado-proveedor.enum';
 import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity';
 import { UNIDAD_POR_PARAMETRO } from '../config-parametro/validators/unidades-parametro.constant';
+import { RANGOS_FISICOS } from '../config-parametro/validators/rangos-fisicos.constant';
+import { CreateLoteParametroDto } from './dto/create-lote-parametro.dto';
 import { ClasificacionLote } from './enums/clasificacion-lote.enum';
 import { ClasificacionLoteService } from './clasificacion-lote.service';
 import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
@@ -64,6 +69,8 @@ const UNIDAD_POR_MATERIA_PRIMA: Record<TipoMateriaPrima, UnidadCantidad> = {
 
 @Injectable()
 export class LoteService {
+  private readonly logger = new Logger(LoteService.name);
+
   constructor(
     @Inject(LOTE_REPOSITORY)
     private readonly loteRepository: ILoteRepository,
@@ -140,6 +147,7 @@ export class LoteService {
       );
     }
 
+    this.validarRangoFisico(dto.parametros);
     const { warnings } = await this.validarParametros(dto, empresaId);
 
     const codigo = dto.codigo ?? (await this.generarCodigo(empresaId));
@@ -182,7 +190,18 @@ export class LoteService {
 
     const saved = await this.loteRepository.save(lote);
 
-    await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
+    const resultadoClasificacion = await this.clasificacionLoteService.evaluarYClasificar(saved.id, empresaId);
+
+    // HU-76: el lote puede quedar pendiente de clasificar; se avisa en la respuesta.
+    if (resultadoClasificacion.resultado === 'sin_configuracion') {
+      warnings.push(
+        `El lote quedó sin clasificar: no hay configuración de umbrales para la materia prima '${dto.materiaPrima}'.`,
+      );
+    } else if (resultadoClasificacion.resultado === 'parametros_incompletos') {
+      warnings.push(
+        `El lote quedó pendiente de clasificar: faltan los parámetros ${resultadoClasificacion.faltantes.join(', ')}.`,
+      );
+    }
 
     // HU-64 AC3: recalcular estabilidad del proveedor con el lote nuevo.
     // Best-effort: el alta del lote nunca depende de esto.
@@ -290,7 +309,6 @@ export class LoteService {
 
     if (dto.materiaPrima) lote.materiaPrima = dto.materiaPrima;
     if (dto.fechaIngreso) lote.fechaIngreso = new Date(dto.fechaIngreso);
-    if (dto.clasificacion !== undefined) lote.clasificacion = dto.clasificacion;
     if (dto.destinoInicial !== undefined)
       lote.destinoInicial = dto.destinoInicial;
 
@@ -493,6 +511,23 @@ export class LoteService {
     return tenant.empresaId;
   }
 
+  // Misma cota y mensaje que lectura-sensor.service (HU-15 criterio 3): un
+  // valor fuera del rango físico posible es un error de carga, no un warning.
+  private validarRangoFisico(parametros: CreateLoteParametroDto[]): void {
+    for (const p of parametros) {
+      const rango = RANGOS_FISICOS[p.parametro];
+      if (!rango) continue;
+      for (const valor of [p.valor, p.valorComprometido]) {
+        if (valor == null) continue;
+        if (valor < rango.min || valor > rango.max) {
+          throw new UnprocessableEntityException(
+            `El valor ${valor} está fuera del rango físico posible para ${p.parametro} (${rango.min}-${rango.max}).`,
+          );
+        }
+      }
+    }
+  }
+
   private async validarParametros(
     dto: CreateLoteDto,
     empresaId: number,
@@ -576,7 +611,10 @@ export class LoteService {
     await this.loteRevisionRepository.save(revision);
 
     if (dto.decision === DecisionRevision.APROBADO) {
+      // Se conserva clasificacionMotivos (explica qué se revisó y aprobó). La
+      // evaluación automática no la pisa mientras la situación no cambie.
       lote.clasificacion = ClasificacionLote.APTO;
+      lote.clasificacionManual = true;
     } else {
       lote.estado = EstadoLote.RECHAZADO;
     }
@@ -645,19 +683,31 @@ export class LoteService {
   ): Promise<DesvioProveedorResponseDto[]> {
     const empresaId = this.resolveEmpresaId(tenant);
 
-    const proveedor = await this.proveedorRepository.findOne({
-      where: { id: proveedorId, empresaId },
-    });
-    if (!proveedor) {
-      throw new NotFoundException(
-        `El proveedor ${proveedorId} no existe o no pertenece a la empresa`,
-      );
-    }
+    try {
+      const proveedor = await this.proveedorRepository.findOne({
+        where: { id: proveedorId, empresaId },
+      });
+      if (!proveedor) {
+        throw new NotFoundException(
+          `El proveedor ${proveedorId} no existe o no pertenece a la empresa`,
+        );
+      }
 
-    const lotes = await this.loteRepository.findConDesvioByProveedor(
-      proveedorId,
-      empresaId,
-    );
-    return LoteMapper.toDesvioResponseDtoList(lotes);
+      const lotes = await this.loteRepository.findConDesvioByProveedor(
+        proveedorId,
+        empresaId,
+      );
+      return LoteMapper.toDesvioResponseDtoList(lotes);
+    } catch (error) {
+      // HU-74: 404/400 son esperables; solo se loguean los fallos inesperados.
+      // Se relanza para que AllExceptionsFilter responda igual que antes.
+      if (!(error instanceof HttpException)) {
+        this.logger.error(
+          `Error al obtener desvíos del proveedor [proveedorId=${proveedorId}, empresaId=${empresaId}]`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+      throw error;
+    }
   }
 }

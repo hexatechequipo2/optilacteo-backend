@@ -6,6 +6,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { TipoProveedor } from '../enums/tipo-proveedor.enum';
@@ -14,7 +15,10 @@ import { Empresa } from '../../empresa/entities/empresa.entity';
 import { Lote } from '../../lote/entities/lote.entity';
 import { Tambo } from '../../tambo/entities/tambo.entity'; // <-- NUEVO (HU-36)
 
+// El CUIT es único por empresa, no global: el mismo proveedor puede estar
+// registrado en empresas distintas.
 @Entity('proveedores')
+@Unique('UQ_proveedores_empresa_cuit', ['empresaId', 'cuit'])
 export class Proveedor {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -22,7 +26,7 @@ export class Proveedor {
   @Column({ type: 'varchar', name: 'razon_social', length: 200 })
   razonSocial!: string;
 
-  @Column({ type: 'varchar', length: 13, unique: true })
+  @Column({ type: 'varchar', length: 13 }) // se quitó unique: true
   cuit!: string;
 
   @Column({ type: 'varchar', length: 20, nullable: true })

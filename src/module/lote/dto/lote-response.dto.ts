@@ -21,6 +21,33 @@ export class LoteParametroResponseDto {
   valorComprometido?: number | null;
 }
 
+// HU-76 (criterio 7): parámetro que provoca la alerta o el rechazo.
+export class ParametroMotivoResponseDto {
+  @ApiProperty({ enum: Parametro })
+  parametro!: string;
+
+  @ApiProperty()
+  valor!: number;
+
+  @ApiProperty({ enum: ['alerta', 'critico'] })
+  nivel!: 'alerta' | 'critico';
+
+  @ApiPropertyOptional({ enum: ['sensor', 'manual', 'inicial'] })
+  origen?: string;
+
+  @ApiPropertyOptional()
+  umbralMin?: number;
+
+  @ApiPropertyOptional()
+  umbralMax?: number;
+
+  @ApiPropertyOptional()
+  umbralAlertaMin?: number;
+
+  @ApiPropertyOptional()
+  umbralAlertaMax?: number;
+}
+
 export class LoteResponseDto {
   @ApiProperty()
   id!: number;
@@ -44,8 +71,25 @@ export class LoteResponseDto {
   @ApiProperty()
   fechaIngreso!: Date;
 
-  @ApiPropertyOptional({ enum: ClasificacionLote })
+    @ApiPropertyOptional({
+    enum: ClasificacionLote,
+    description:
+      'Null mientras el lote está pendiente de clasificar (faltan parámetros o configuración)',
+  })
   clasificacion?: ClasificacionLote | null;
+
+  @ApiPropertyOptional({
+    type: [ParametroMotivoResponseDto],
+    description:
+      'Parámetros en alerta o críticos que provocan la clasificación vigente',
+  })
+  clasificacionMotivos?: ParametroMotivoResponseDto[];
+
+  @ApiProperty({
+    description:
+      'true si la clasificación vigente proviene de una aprobación manual (HU-22)',
+  })
+  clasificacionManual!: boolean;
 
   @ApiPropertyOptional({ enum: DestinoLote })
   destinoInicial?: DestinoLote | null;

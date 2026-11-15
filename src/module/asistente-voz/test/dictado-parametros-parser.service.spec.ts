@@ -73,8 +73,8 @@ describe('DictadoParametrosParserService', () => {
   });
 
   describe('separador de decimal: coma y punto son equivalentes', () => {
-    it('interpreta tanto "6,7" como "1.03" como decimales válidos', () => {
-      const resultado = parser.parsear('ph 6,7 densidad 1.03');
+    it('interpreta tanto "6,7" como "3.6" como decimales válidos', () => {
+      const resultado = parser.parsear('ph 6,7 grasa 3.6');
 
       expect(resultado.items).toEqual([
         expect.objectContaining({
@@ -83,11 +83,111 @@ describe('DictadoParametrosParserService', () => {
           reglaAplicada: 'numero_formateado',
         }),
         expect.objectContaining({
-          parametro: Parametro.DENSIDAD,
-          valor: 1.03,
+          parametro: Parametro.GRASA,
+          valor: 3.6,
           reglaAplicada: 'numero_formateado',
         }),
       ]);
+    });
+  });
+
+  describe('densidad en kg/m³', () => {
+    it('toma "1028" en dígitos con confianza alta y dentro del rango físico', () => {
+      const resultado = parser.parsear('densidad 1028');
+
+      expect(resultado.items).toEqual([
+        expect.objectContaining({
+          parametro: Parametro.DENSIDAD,
+          valor: 1028,
+          confianza: 'alta',
+          fueraDeRangoFisico: false,
+          reglaAplicada: 'numero_formateado',
+        }),
+      ]);
+    });
+
+    it('interpreta "mil veintiocho" como 1028', () => {
+      const resultado = parser.parsear('densidad mil veintiocho');
+
+      expect(resultado.items).toEqual([
+        expect.objectContaining({
+          parametro: Parametro.DENSIDAD,
+          valor: 1028,
+          confianza: 'media',
+          fueraDeRangoFisico: false,
+          reglaAplicada: 'numero_en_palabras',
+        }),
+      ]);
+    });
+
+    it('interpreta "mil treinta y uno" como 1031', () => {
+      const resultado = parser.parsear('densidad mil treinta y uno');
+
+      expect(resultado.items[0]).toEqual(
+        expect.objectContaining({ valor: 1031, fueraDeRangoFisico: false }),
+      );
+    });
+
+    it('interpreta "1.028" (punto de miles) como 1028 con confianza media', () => {
+      const resultado = parser.parsear('densidad 1.028');
+
+      expect(resultado.items).toEqual([
+        expect.objectContaining({
+          parametro: Parametro.DENSIDAD,
+          valor: 1028,
+          confianza: 'media',
+          fueraDeRangoFisico: false,
+          reglaAplicada: 'separador_miles',
+        }),
+      ]);
+    });
+
+    it('interpreta "1,034" también como 1034 (separador_miles)', () => {
+      const resultado = parser.parsear('densidad 1,034');
+
+      expect(resultado.items[0]).toEqual(
+        expect.objectContaining({
+          valor: 1034,
+          confianza: 'media',
+          reglaAplicada: 'separador_miles',
+        }),
+      );
+    });
+
+    it.each(['densidad 1', 'densidad uno'])(
+      'NO aplica separador_miles a un entero sin parte decimal (%s)',
+      (texto) => {
+        const resultado = parser.parsear(texto);
+
+        expect(resultado.items).toEqual([
+          expect.objectContaining({
+            parametro: Parametro.DENSIDAD,
+            valor: 1,
+            fueraDeRangoFisico: true,
+          }),
+        ]);
+        expect(resultado.items[0].reglaAplicada).not.toBe('separador_miles');
+      },
+    );
+
+    it('NO aplica separador_miles fuera de densidad', () => {
+      const resultado = parser.parsear('ph 1.028');
+
+      expect(resultado.items[0]).toEqual(
+        expect.objectContaining({
+          parametro: Parametro.PH,
+          valor: 1.028,
+          reglaAplicada: 'numero_formateado',
+        }),
+      );
+    });
+
+    it('marca fuera de rango físico una densidad que no se puede reinterpretar', () => {
+      const resultado = parser.parsear('densidad 0,98');
+
+      expect(resultado.items[0]).toEqual(
+        expect.objectContaining({ valor: 0.98, fueraDeRangoFisico: true }),
+      );
     });
   });
 
@@ -323,7 +423,7 @@ describe('DictadoParametrosParserService', () => {
 
     it('reconoce "temperatura de recepción", "densidad relativa" y "peso específico"', () => {
       const resultado = parser.parsear(
-        'temperatura de recepcion 4 densidad relativa 1,03 peso especifico 1,04',
+        'temperatura de recepcion 4 densidad relativa 1028 peso especifico 1031',
       );
 
       expect(resultado.items.map((i) => i.parametro)).toEqual([

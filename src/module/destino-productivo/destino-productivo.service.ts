@@ -1,16 +1,19 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException
 } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 
 import { DestinoProductivo } from './entities/destino-productivo.entity';
 import { DestinoProductivoResponseDto } from './dto/destino-productivo-response.dto';
 import { CreateDestinoProductivoDto } from './dto/create-destino-productivo.dto';
 
 import type { TenantContext } from '../../common/types/tenant-context.type';
+
+import { UpdateDestinoProductivoDto } from './dto/update-destino-productivo.dto';
 
 @Injectable()
 export class DestinoProductivoService {
@@ -69,5 +72,58 @@ export class DestinoProductivoService {
       id: guardado.id,
       nombre: guardado.nombre,
     };
+  }
+
+   // Busca un destino de la empresa del tenant (aísla por empresa).
+  private async findOneOrFail(
+    tenant: TenantContext,
+    id: number,
+  ): Promise<DestinoProductivo> {
+    const destino = await this.destinoProductivoRepo.findOne({
+      where: { id, empresaId: tenant.empresaId! },
+    });
+
+    if (!destino) {
+      throw new NotFoundException('Destino productivo no encontrado');
+    }
+
+    return destino;
+  }
+
+  // Actualizar destino productivo de la empresa del tenant.
+  async update(
+    tenant: TenantContext,
+    id: number,
+    dto: UpdateDestinoProductivoDto,
+  ): Promise<DestinoProductivoResponseDto> {
+    const destino = await this.findOneOrFail(tenant, id);
+
+    if (dto.nombre !== undefined) {
+      const nombre = dto.nombre.trim();
+
+      const duplicado = await this.destinoProductivoRepo.findOne({
+        where: {
+          empresaId: tenant.empresaId!,
+          nombre,
+          id: Not(id),
+        },
+      });
+
+      if (duplicado) {
+        throw new ConflictException(
+          'Ya existe un destino productivo con ese nombre para esta empresa',
+        );
+      }
+
+      destino.nombre = nombre;
+    }
+
+    if (dto.activo !== undefined) {
+      destino.activo = dto.activo;
+    }
+
+    const guardado = await this.destinoProductivoRepo.save(destino);
+
+    return { id: guardado.id, nombre: guardado.nombre };
   }
 }

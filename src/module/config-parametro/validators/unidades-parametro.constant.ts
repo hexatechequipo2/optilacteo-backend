@@ -6,7 +6,7 @@ import { Parametro } from '../enums/parametro.enum';
 export const UNIDAD_POR_PARAMETRO: Record<Parametro, string> = {
   [Parametro.PH]: 'pH',
   [Parametro.TEMPERATURA]: '°C',
-  [Parametro.DENSIDAD]: 'g/mL',
+  [Parametro.DENSIDAD]: 'kg/m³',
   [Parametro.GRASA]: '%',
   [Parametro.PROTEINA]: '%',
   [Parametro.ACIDEZ]: '°D',

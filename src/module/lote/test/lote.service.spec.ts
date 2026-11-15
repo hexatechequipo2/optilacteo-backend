@@ -2,7 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   ConflictException,
+  Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { LoteService } from '../lote.service';
@@ -271,6 +273,76 @@ describe('LoteService', () => {
       await expect(service.create(createDto, tenantMock)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    describe('rango físico de los parámetros (densidad en kg/m³)', () => {
+      const mockProveedorYTamboValidos = () => {
+        mockProveedorRepository.findOne.mockResolvedValue({
+          id: 10,
+          estado: EstadoProveedor.ACTIVA,
+        });
+        mockTamboRepository.findOne.mockResolvedValue({
+          id: 20,
+          proveedorId: 10,
+          activo: true,
+        });
+      };
+
+      it('rechaza con 422 una densidad en g/mL (1.031)', async () => {
+        mockProveedorYTamboValidos();
+
+        await expect(
+          service.create(
+            {
+              ...createDto,
+              parametros: [{ parametro: Parametro.DENSIDAD, valor: 1.031 }],
+            },
+            tenantMock,
+          ),
+        ).rejects.toThrow(UnprocessableEntityException);
+        expect(mockLoteRepository.findByCodigo).not.toHaveBeenCalled();
+      });
+
+      it('rechaza con 422 un valorComprometido de densidad fuera de rango', async () => {
+        mockProveedorYTamboValidos();
+
+        await expect(
+          service.create(
+            {
+              ...createDto,
+              parametros: [
+                {
+                  parametro: Parametro.DENSIDAD,
+                  valor: 1031,
+                  valorComprometido: 1.03,
+                },
+              ],
+            },
+            tenantMock,
+          ),
+        ).rejects.toThrow(UnprocessableEntityException);
+      });
+
+      it('acepta una densidad en kg/m³ (1031) y sigue con el alta', async () => {
+        mockProveedorYTamboValidos();
+        mockConfigParametroRepository.findOne.mockResolvedValue({
+          umbralMin: 1028,
+          umbralMax: 1034,
+        });
+        // Corta el flujo después de la validación: alcanza con llegar acá.
+        mockLoteRepository.findByCodigo.mockResolvedValue({ id: 1 });
+
+        await expect(
+          service.create(
+            {
+              ...createDto,
+              codigo: 'LOTE-EX',
+              parametros: [{ parametro: Parametro.DENSIDAD, valor: 1031 }],
+            },
+            tenantMock,
+          ),
+        ).rejects.toThrow(ConflictException);
+      });
     });
 
     it('debe lanzar ConflictException si el código de lote ya existe', async () => {
@@ -706,12 +778,53 @@ describe('LoteService', () => {
   });
 
   describe('getDesviosPorProveedor', () => {
-    it('debe lanzar NotFoundException si el proveedor no existe', async () => {
+    let loggerErrorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      loggerErrorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      loggerErrorSpy.mockRestore();
+    });
+
+    it('debe lanzar NotFoundException si el proveedor no existe, sin loguearlo como error', async () => {
       mockProveedorRepository.findOne.mockResolvedValue(null);
 
       await expect(
         service.getDesviosPorProveedor(99, tenantMock),
       ).rejects.toThrow(NotFoundException);
+      expect(loggerErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('HU-74: si falla la consulta de lotes, loguea con proveedorId y empresaId y relanza el mismo error', async () => {
+      const error = new Error('connection refused');
+      mockProveedorRepository.findOne.mockResolvedValue({ id: 10 });
+      mockLoteRepository.findConDesvioByProveedor.mockRejectedValue(error);
+
+      await expect(service.getDesviosPorProveedor(10, tenantMock)).rejects.toBe(
+        error,
+      );
+      expect(loggerErrorSpy).toHaveBeenCalledTimes(1);
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('proveedorId=10, empresaId=1'),
+        error.stack,
+      );
+    });
+
+    it('HU-74: si falla la consulta del proveedor, también loguea con contexto y relanza', async () => {
+      const error = new Error('timeout');
+      mockProveedorRepository.findOne.mockRejectedValue(error);
+
+      await expect(service.getDesviosPorProveedor(10, tenantMock)).rejects.toBe(
+        error,
+      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('proveedorId=10, empresaId=1'),
+        error.stack,
+      );
     });
 
     it('debe retornar los desvíos calculados para el proveedor', async () => {

@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Lote } from './lote.entity';
 import { ClasificacionLote } from '../enums/clasificacion-lote.enum';
+import { ParametroHistorico } from '../types/parametro-evaluado.type';
 
 // HU-21 (AC3 + AC7 + AC11): registro histórico e inmutable de cada
 // clasificación automática. Lote.clasificacion guarda solo el estado
@@ -32,10 +33,7 @@ export class LoteClasificacionHistorial {
 
   // Snapshot de los valores usados para ESTA clasificación puntual.
   @Column({ type: 'jsonb' })
-  parametrosUtilizados!: {
-    parametro: string;
-    valor: number;
-  }[];
+  parametrosUtilizados!: ParametroHistorico[];
 
   @Index()
   @Column()
