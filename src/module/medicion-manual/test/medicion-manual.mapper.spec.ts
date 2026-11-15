@@ -223,7 +223,7 @@ describe('MedicionManualMapper', () => {
         {
           id: 3,
           parametro: 'densidad',
-          valor: '1.2',
+          valor: '1030',
           tipoMateriaPrima: 'LECHE',
           createdAt: new Date(),
         },
@@ -241,7 +241,7 @@ describe('MedicionManualMapper', () => {
 
       expect(resultado[0].estado).toBe('SIN_UMBRAL_CONFIGURADO');
       expect(semaforoService.calcularEstado).toHaveBeenCalledWith(
-        1.2,
+        1030,
         undefined,
       );
     });

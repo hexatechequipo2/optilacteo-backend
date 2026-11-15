@@ -6,6 +6,7 @@ export type ReglaParseoDictado =
   | 'numero_formateado' // el motor ya devolvió el número en dígitos (ej "3,6")
   | 'numero_en_palabras' // fallback: el número vino dictado en palabras
   | 'decimal_implicito' // entero fuera del rango plausible reinterpretado como decimal (ver RANGO_PLAUSIBLE_DICTADO)
+  | 'separador_miles' // densidad dictada como "1.028" (punto de miles es-AR) reinterpretada ×1000 → 1028 kg/m³
   | 'sin_valor_asociado' // se reconoció el parámetro pero no un valor
   | 'texto_no_reconocido'; // tramo de texto que no matchea ningún parámetro
 

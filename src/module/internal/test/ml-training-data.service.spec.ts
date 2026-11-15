@@ -57,7 +57,7 @@ describe('MlTrainingDataService — extracción de datos de entrenamiento ML (HU
         {
           ph: '6.5',
           temperatura: '4.2',
-          densidad: '1.032',
+          densidad: '1032',
           grasa: '3.5',
           proteina: null,
           acidez: '15.0',
@@ -83,7 +83,7 @@ describe('MlTrainingDataService — extracción de datos de entrenamiento ML (HU
         {
           ph: 6.5,
           temperatura: 4.2,
-          densidad: 1.032,
+          densidad: 1032,
           grasa: 3.5,
           proteina: null,
           acidez: 15,

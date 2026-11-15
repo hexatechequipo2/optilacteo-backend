@@ -147,4 +147,26 @@ describe('RangoFisicoValidator', () => {
       expect(message).toBe('Valor fuera de rango físico posible');
     });
   });
+
+  describe('densidad en kg/m³ (RANGOS_FISICOS real)', () => {
+    const argsDensidad = (value: number): ValidationArguments => ({
+      object: { parametro: 'densidad' },
+      property: 'valor',
+      value,
+      constraints: [],
+      targetName: 'TestDto',
+    });
+
+    it('el rango físico de densidad es 1000-1100', () => {
+      expect(RANGOS_FISICOS.densidad).toEqual({ min: 1000, max: 1100 });
+    });
+
+    it('acepta 1031 (kg/m³)', () => {
+      expect(validator.validate(1031, argsDensidad(1031))).toBe(true);
+    });
+
+    it('rechaza 1.031 (g/mL)', () => {
+      expect(validator.validate(1.031, argsDensidad(1.031))).toBe(false);
+    });
+  });
 });
