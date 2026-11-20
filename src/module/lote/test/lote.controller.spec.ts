@@ -1,3 +1,4 @@
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
@@ -8,6 +9,7 @@ import { LoteController } from '../lote.controller';
 import { LoteService } from '../lote.service';
 import { LoteConsumoService } from '../lote-consumo.service';
 import { LoteTrazabilidadService } from '../lote-trazabilidad.service';
+import { LoteProduccionConsultaService } from '../lote-produccion-consulta.service';
 import { AllExceptionsFilter } from '../../../common/filters/all-exceptions.filter';
 
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -43,6 +45,10 @@ describe('LoteController', () => {
     getTrazabilidad: jest.fn(),
   };
 
+  const loteProduccionConsultaServiceMock = {
+    findLotesProduccion: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LoteController],
@@ -58,6 +64,10 @@ describe('LoteController', () => {
         {
           provide: LoteTrazabilidadService,
           useValue: loteTrazabilidadServiceMock,
+        },
+        {
+          provide: LoteProduccionConsultaService,
+          useValue: loteProduccionConsultaServiceMock,
         },
       ],
     }).compile();
@@ -120,7 +130,9 @@ describe('LoteController', () => {
 
       const result = await controller.findLotesProduccion(tenant);
 
-      expect(loteConsumoServiceMock.findLotesProduccion).toHaveBeenCalledWith(tenant);
+      expect(loteConsumoServiceMock.findLotesProduccion).toHaveBeenCalledWith(
+        tenant,
+      );
       expect(result).toBe(response);
     });
   });
@@ -142,7 +154,7 @@ describe('LoteController', () => {
     });
   });
 
-  // HU-74: el ParseIntPipe solo actúa a nivel HTTP, por eso se prueba con supertest.
+  // HU-74: el ParseIntPipe solo actúa a nivel HTTP.
   describe('GET /lotes/proveedor/:proveedorId/desvios (HU-74)', () => {
     let app: INestApplication<App>;
 
@@ -150,27 +162,41 @@ describe('LoteController', () => {
       const module: TestingModule = await Test.createTestingModule({
         controllers: [LoteController],
         providers: [
-          { provide: LoteService, useValue: loteServiceMock },
-          { provide: LoteConsumoService, useValue: loteConsumoServiceMock },
+          {
+            provide: LoteService,
+            useValue: loteServiceMock,
+          },
+          {
+            provide: LoteConsumoService,
+            useValue: loteConsumoServiceMock,
+          },
           {
             provide: LoteTrazabilidadService,
             useValue: loteTrazabilidadServiceMock,
+          },
+          {
+            provide: LoteProduccionConsultaService,
+            useValue: loteProduccionConsultaServiceMock,
           },
         ],
       }).compile();
 
       app = module.createNestApplication();
-      // Mismo filtro que main.ts; el tenant lo inyectaría el JWT.
+
       app.use((req: Request, _res: Response, next: NextFunction) => {
         (req as Request & { user: unknown }).user = { empresaId: 1 };
         next();
       });
+
       app.useGlobalFilters(new AllExceptionsFilter());
+
       await app.init();
     });
 
     afterEach(async () => {
-      await app.close();
+      if (app) {
+        await app.close();
+      }
     });
 
     it('id no numérico: responde 400 sin llamar al servicio', async () => {
@@ -220,7 +246,10 @@ describe('LoteController', () => {
 
       const result = await controller.getMetricasCalidad('7', tenant);
 
-      expect(loteServiceMock.getMetricasCalidad).toHaveBeenCalledWith(7, tenant);
+      expect(loteServiceMock.getMetricasCalidad).toHaveBeenCalledWith(
+        7,
+        tenant,
+      );
       expect(result).toBe(metricas);
     });
   });
@@ -230,11 +259,16 @@ describe('LoteController', () => {
       const tenant = { empresaId: 1 } as any;
       const trazabilidad = { eventos: [] };
 
-      loteTrazabilidadServiceMock.getTrazabilidad.mockResolvedValue(trazabilidad);
+      loteTrazabilidadServiceMock.getTrazabilidad.mockResolvedValue(
+        trazabilidad,
+      );
 
       const result = await controller.getTrazabilidad('7', tenant);
 
-      expect(loteTrazabilidadServiceMock.getTrazabilidad).toHaveBeenCalledWith(7, tenant);
+      expect(loteTrazabilidadServiceMock.getTrazabilidad).toHaveBeenCalledWith(
+        7,
+        tenant,
+      );
       expect(result).toBe(trazabilidad);
     });
   });
@@ -263,7 +297,12 @@ describe('LoteController', () => {
 
       loteServiceMock.asignarDestinoProductivo.mockResolvedValue(response);
 
-      const result = await controller.asignarDestinoProductivo('3', dto, tenant, req);
+      const result = await controller.asignarDestinoProductivo(
+        '3',
+        dto,
+        tenant,
+        req,
+      );
 
       expect(loteServiceMock.asignarDestinoProductivo).toHaveBeenCalledWith(
         3,
@@ -284,7 +323,10 @@ describe('LoteController', () => {
 
       const result = await controller.getHistorialDestinoProductivo('3', tenant);
 
-      expect(loteServiceMock.getHistorialDestino).toHaveBeenCalledWith(3, tenant);
+      expect(loteServiceMock.getHistorialDestino).toHaveBeenCalledWith(
+        3,
+        tenant,
+      );
       expect(result).toBe(historial);
     });
   });
@@ -313,7 +355,10 @@ describe('LoteController', () => {
 
       const result = await controller.getHistorialClasificaciones('10', tenant);
 
-      expect(loteServiceMock.getHistorialClasificaciones).toHaveBeenCalledWith(10, tenant);
+      expect(loteServiceMock.getHistorialClasificaciones).toHaveBeenCalledWith(
+        10,
+        tenant,
+      );
       expect(result).toBe(historial);
     });
   });
@@ -329,7 +374,12 @@ describe('LoteController', () => {
 
       const result = await controller.revisar('12', dto, tenant, req);
 
-      expect(loteServiceMock.revisarLote).toHaveBeenCalledWith(12, dto, tenant, 25);
+      expect(loteServiceMock.revisarLote).toHaveBeenCalledWith(
+        12,
+        dto,
+        tenant,
+        25,
+      );
       expect(result).toBe(response);
     });
   });
@@ -343,7 +393,10 @@ describe('LoteController', () => {
 
       const result = await controller.getHistorialRevisiones('20', tenant);
 
-      expect(loteServiceMock.getHistorialRevisiones).toHaveBeenCalledWith(20, tenant);
+      expect(loteServiceMock.getHistorialRevisiones).toHaveBeenCalledWith(
+        20,
+        tenant,
+      );
       expect(result).toBe(historial);
     });
   });
@@ -357,7 +410,10 @@ describe('LoteController', () => {
 
       const result = await controller.compararConHistorico('15', tenant);
 
-      expect(loteServiceMock.compararConHistorico).toHaveBeenCalledWith(15, tenant);
+      expect(loteServiceMock.compararConHistorico).toHaveBeenCalledWith(
+        15,
+        tenant,
+      );
       expect(result).toBe(comparacion);
     });
   });
@@ -371,7 +427,12 @@ describe('LoteController', () => {
 
       loteConsumoServiceMock.registrarConsumo.mockResolvedValue(response);
 
-      const result = await controller.registrarConsumo('15', dto, tenant, req);
+      const result = await controller.registrarConsumo(
+        '15',
+        dto,
+        tenant,
+        req,
+      );
 
       expect(loteConsumoServiceMock.registrarConsumo).toHaveBeenCalledWith(
         15,
@@ -390,7 +451,10 @@ describe('LoteController', () => {
 
       const result = await controller.getHistorialConsumos('15', tenant);
 
-      expect(loteConsumoServiceMock.historial).toHaveBeenCalledWith(15, tenant);
+      expect(loteConsumoServiceMock.historial).toHaveBeenCalledWith(
+        15,
+        tenant,
+      );
       expect(result).toBe(historial);
     });
   });

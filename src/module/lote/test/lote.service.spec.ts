@@ -403,19 +403,23 @@ describe('LoteService', () => {
         estado: 'PENDIENTE',
       });
 
+      mockClasificacionLoteService.evaluarYClasificar.mockResolvedValue({
+        resultado: 'clasificado',
+      });
+
       const res = await service.create(createDto, tenantMock);
 
-      expect(res.lote.id).toBe(100);
-      expect(res.sensoresDisponibles).toHaveLength(1);
-      expect(res.recomendacion).not.toBeNull();
-      expect(
-        mockEstabilidadProveedorService.recalcularBestEffort,
-      ).toHaveBeenCalledWith(10, 1);
-      expect(
-        mockClasificacionLoteService.evaluarYClasificar,
-      ).toHaveBeenCalledWith(100, 1);
+        expect(res.lote.id).toBe(100);
+        expect(res.sensoresDisponibles).toHaveLength(1);
+        expect(res.recomendacion).not.toBeNull();
+        expect(
+          mockEstabilidadProveedorService.recalcularBestEffort,
+        ).toHaveBeenCalledWith(10, 1);
+        expect(
+          mockClasificacionLoteService.evaluarYClasificar,
+        ).toHaveBeenCalledWith(100, 1);
+      });
     });
-  });
 
   describe('findAll', () => {
     it('debe retornar lista de lotes y total paginado', async () => {
