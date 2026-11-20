@@ -81,7 +81,8 @@ export const UNIDADES_HABLADAS = new Set([
 
 // Números en palabras: fallback para cuando el motor NO convirtió el número
 // dictado a dígitos (pasa de forma inconsistente, no en todos los casos).
-// Cubre 0-100, el rango realista para los 7 parámetros del dominio.
+// Cubre 0-100, el rango realista para los 7 parámetros del dominio, más
+// "mil ..." (MIL_PALABRA) para densidad en kg/m³ ("mil veintiocho" → 1028).
 export const UNIDADES_PALABRA: Record<string, number> = {
   cero: 0,
   uno: 1,
@@ -126,6 +127,7 @@ export const DECENAS_PALABRA: Record<string, number> = {
 };
 
 export const CIEN_PALABRA = 'cien';
+export const MIL_PALABRA = 'mil';
 
 // Rango PLAUSIBLE operativo por parámetro — distinto de RANGOS_FISICOS
 // (config-parametro/validators), que es la cota físicamente posible y ya se
@@ -139,9 +141,15 @@ export const RANGO_PLAUSIBLE_DICTADO: Record<
 > = {
   [Parametro.PH]: { min: 6.0, max: 7.0 },
   [Parametro.TEMPERATURA]: { min: 0, max: 15 },
-  [Parametro.DENSIDAD]: { min: 1.02, max: 1.04 },
+  [Parametro.DENSIDAD]: { min: 1020, max: 1040 }, // kg/m³
   [Parametro.GRASA]: { min: 2, max: 6 },
   [Parametro.PROTEINA]: { min: 2.5, max: 4.5 },
   [Parametro.ACIDEZ]: { min: 12, max: 20 },
   [Parametro.CONDUCTIVIDAD]: { min: 3, max: 7 },
 };
+
+// Densidad en kg/m³ dictada con punto de miles (es-AR): el motor puede
+// transcribir "mil veintiocho" como "1.028", que parseFloat lee como 1,028.
+// Un valor CON parte decimal en este rango se reinterpreta ×1000 (ver aplicarSeparadorMiles en
+// el parser), siempre con confianza media y reglaAplicada 'separador_miles'.
+export const RANGO_SEPARADOR_MILES_DENSIDAD = { min: 1.0, max: 1.1 };

@@ -4,6 +4,7 @@ import {
   ConflictException,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { LoteService } from '../lote.service';
@@ -272,6 +273,76 @@ describe('LoteService', () => {
       await expect(service.create(createDto, tenantMock)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    describe('rango físico de los parámetros (densidad en kg/m³)', () => {
+      const mockProveedorYTamboValidos = () => {
+        mockProveedorRepository.findOne.mockResolvedValue({
+          id: 10,
+          estado: EstadoProveedor.ACTIVA,
+        });
+        mockTamboRepository.findOne.mockResolvedValue({
+          id: 20,
+          proveedorId: 10,
+          activo: true,
+        });
+      };
+
+      it('rechaza con 422 una densidad en g/mL (1.031)', async () => {
+        mockProveedorYTamboValidos();
+
+        await expect(
+          service.create(
+            {
+              ...createDto,
+              parametros: [{ parametro: Parametro.DENSIDAD, valor: 1.031 }],
+            },
+            tenantMock,
+          ),
+        ).rejects.toThrow(UnprocessableEntityException);
+        expect(mockLoteRepository.findByCodigo).not.toHaveBeenCalled();
+      });
+
+      it('rechaza con 422 un valorComprometido de densidad fuera de rango', async () => {
+        mockProveedorYTamboValidos();
+
+        await expect(
+          service.create(
+            {
+              ...createDto,
+              parametros: [
+                {
+                  parametro: Parametro.DENSIDAD,
+                  valor: 1031,
+                  valorComprometido: 1.03,
+                },
+              ],
+            },
+            tenantMock,
+          ),
+        ).rejects.toThrow(UnprocessableEntityException);
+      });
+
+      it('acepta una densidad en kg/m³ (1031) y sigue con el alta', async () => {
+        mockProveedorYTamboValidos();
+        mockConfigParametroRepository.findOne.mockResolvedValue({
+          umbralMin: 1028,
+          umbralMax: 1034,
+        });
+        // Corta el flujo después de la validación: alcanza con llegar acá.
+        mockLoteRepository.findByCodigo.mockResolvedValue({ id: 1 });
+
+        await expect(
+          service.create(
+            {
+              ...createDto,
+              codigo: 'LOTE-EX',
+              parametros: [{ parametro: Parametro.DENSIDAD, valor: 1031 }],
+            },
+            tenantMock,
+          ),
+        ).rejects.toThrow(ConflictException);
+      });
     });
 
     it('debe lanzar ConflictException si el código de lote ya existe', async () => {

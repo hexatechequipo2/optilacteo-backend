@@ -7,6 +7,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -36,6 +37,8 @@ import { SensorResponseDto } from '../sensor/dto/sensor-response.dto';
 import { EstadoProveedor } from '../proveedores/enums/estado-proveedor.enum';
 import { SensorLectura } from '../lectura-sensor/entities/sensor-lectura.entity';
 import { UNIDAD_POR_PARAMETRO } from '../config-parametro/validators/unidades-parametro.constant';
+import { RANGOS_FISICOS } from '../config-parametro/validators/rangos-fisicos.constant';
+import { CreateLoteParametroDto } from './dto/create-lote-parametro.dto';
 import { ClasificacionLote } from './enums/clasificacion-lote.enum';
 import { ClasificacionLoteService } from './clasificacion-lote.service';
 import { LoteRevisionCalidad } from './entities/lote-revision-calidad.entity';
@@ -139,6 +142,7 @@ export class LoteService {
       );
     }
 
+    this.validarRangoFisico(dto.parametros);
     const { warnings } = await this.validarParametros(dto, empresaId);
 
     const codigo = dto.codigo ?? (await this.generarCodigo(empresaId));
@@ -496,6 +500,23 @@ export class LoteService {
       );
     }
     return tenant.empresaId;
+  }
+
+  // Misma cota y mensaje que lectura-sensor.service (HU-15 criterio 3): un
+  // valor fuera del rango físico posible es un error de carga, no un warning.
+  private validarRangoFisico(parametros: CreateLoteParametroDto[]): void {
+    for (const p of parametros) {
+      const rango = RANGOS_FISICOS[p.parametro];
+      if (!rango) continue;
+      for (const valor of [p.valor, p.valorComprometido]) {
+        if (valor == null) continue;
+        if (valor < rango.min || valor > rango.max) {
+          throw new UnprocessableEntityException(
+            `El valor ${valor} está fuera del rango físico posible para ${p.parametro} (${rango.min}-${rango.max}).`,
+          );
+        }
+      }
+    }
   }
 
   private async validarParametros(
